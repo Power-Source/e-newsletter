@@ -1,0 +1,223 @@
+/**
+ * Newsletter Draggable System - Styles
+ * Ersetzt jQuery UI Draggable Styles
+ */
+
+/* Drop-Hinweis */
+.tnpc-drop-here {
+    padding: 40px 20px;
+    margin: 20px 0;
+    border: 2px dashed #ccc;
+    border-radius: 6px;
+    text-align: center;
+    color: #666;
+    font-size: 16px;
+    background: #f9f9f9;
+    transition: all 0.3s ease;
+}
+
+.tnpc-drop-here:hover {
+    border-color: #52BE7F;
+    background: #f0f8f4;
+    color: #52BE7F;
+}
+
+/* Sortable Placeholder */
+.tnpb-placeholder {
+    background: #e8f4fd;
+    border: 2px dashed #2196F3;
+    border-radius: 4px;
+    margin: 10px 0;
+    min-height: 60px;
+    position: relative;
+}
+
+.tnpb-placeholder::before {
+    content: "Drop block here";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #2196F3;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Draggable Helper */
+#tnpb-draggable-helper-clone {
+    background: #52BE7F;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    cursor: move;
+    z-index: 9999;
+    position: absolute;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* Block Icons - Draggable */
+.tnpb-block-icon {
+    cursor: grab;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tnpb-block-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.tnpb-block-icon:active,
+.tnpb-block-icon.psource-dragging {
+    cursor: grabbing;
+    transform: scale(0.95);
+}
+
+/* Disable Selection während Drag */
+.psource-dragging,
+.psource-dragging * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+}
+
+/* Content Area während Drag */
+#tnpb-content.psource-sortable-active {
+    min-height: 200px;
+    background: #f9f9f9;
+    border: 2px dashed #ddd;
+    border-radius: 6px;
+}
+
+/* Sortable Items */
+.tnpc-row {
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.tnpc-row:hover {
+    z-index: 1;
+}
+
+.tnpc-row.psource-sortable-chosen {
+    opacity: 0.6;
+    transform: rotate(2deg);
+}
+
+.tnpc-row.psource-sortable-ghost {
+    opacity: 0.4;
+    background: #f0f0f0;
+    border: 2px dashed #ccc;
+}
+
+/* Loading States */
+.tnpb-loading {
+    position: relative;
+    overflow: hidden;
+}
+
+.tnpb-loading::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.6),
+        transparent
+    );
+    animation: loading-shimmer 1.5s infinite;
+    z-index: 1;
+}
+
+@keyframes loading-shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* Responsive Anpassungen */
+@media (max-width: 768px) {
+    .tnpc-drop-here {
+        padding: 20px 15px;
+        font-size: 14px;
+    }
+    
+    .tnpb-placeholder {
+        min-height: 40px;
+    }
+    
+    .tnpb-placeholder::before {
+        font-size: 12px;
+    }
+    
+    #tnpb-draggable-helper-clone {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .tnpc-drop-here {
+        background: #2a2a2a;
+        border-color: #555;
+        color: #ccc;
+    }
+    
+    .tnpc-drop-here:hover {
+        background: #1a3a2a;
+        border-color: #52BE7F;
+    }
+    
+    .tnpb-placeholder {
+        background: #1e2a3a;
+        border-color: #4a90e2;
+    }
+    
+    .tnpb-placeholder::before {
+        color: #4a90e2;
+    }
+    
+    #tnpb-content.psource-sortable-active {
+        background: #2a2a2a;
+        border-color: #555;
+    }
+}
+
+/* Accessibility */
+.tnpb-block-icon:focus {
+    outline: 2px solid #52BE7F;
+    outline-offset: 2px;
+}
+
+.tnpb-block-icon[aria-grabbed="true"] {
+    box-shadow: 0 0 0 3px rgba(82, 190, 127, 0.3);
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .tnpc-drop-here {
+        border-width: 3px;
+        background: transparent;
+    }
+    
+    .tnpb-placeholder {
+        border-width: 3px;
+        background: transparent;
+    }
+    
+    #tnpb-draggable-helper-clone {
+        border: 2px solid #000;
+    }
+}

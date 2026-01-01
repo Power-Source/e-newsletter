@@ -1,0 +1,37 @@
+.tnp_metabox_section .title {
+    padding: 10px 0;
+    border-bottom: solid 1px #333;
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    font-weight: bold;
+}
+
+#tnp-instasend-metabox .tnp_metabox_section:nth-of-type(1) {
+    display: flex;
+    justify-content: space-between;
+    height: auto;
+}
+
+#tnp-instasend-metabox .tnp_metabox_section:nth-of-type(1) button {
+    flex: 0 0 48%;
+    margin: 10px 0;
+}
+
+#tnp-instasend-metabox .tnp_metabox_section:not(:nth-of-type(1)) {
+    min-height: 150px;
+}
+
+.tnp-steps-controllers {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tnp-steps-controllers button {
+    flex: 0 0 48%;
+}
+
+.tnp-buttons-section {
+    margin: 10px 0;
+}

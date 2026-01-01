@@ -1,0 +1,12 @@
+https://www.thenewsletterplugin.com/documentation/subscription/newsletter-lists/ -> newsletter-lists.md
+
+https://www.thenewsletterplugin.com/documentation/newsletters/newsletter-targeting/
+
+https://www.thenewsletterplugin.com/documentation/newsletters/extra-profile-fields-and-profile-fields-targeting/
+
+https://www.thenewsletterplugin.com/documentation/installation/newsletter-configuration/ -> newsletter-configuration.md
+
+https://www.thenewsletterplugin.com/documentation/addons/delivery-addons/smtp-extension/ -> newsletter-smtp.md
+
+
+
