@@ -227,7 +227,7 @@ class Email_Newsletter_functions {
         global $wpdb;
         $member_id = $wp_only_user_id = 0;
 
-        $result = $wpdb->get_row( $wpdb->prepare( "SELECT member_id FROM {$this->tb_prefix}enewsletter_members WHERE join_date = '%d'", $time ), "ARRAY_A" );
+        $result = $wpdb->get_row( $wpdb->prepare( "SELECT member_id FROM {$this->tb_prefix}enewsletter_members WHERE join_date = %d", $time ), "ARRAY_A" );
         if(isset($result['member_id']) && $result['member_id'] > 0)
             $member_id = $result['member_id'];
 
@@ -246,7 +246,7 @@ class Email_Newsletter_functions {
      **/
     function get_member_by_email( $email ) {
         global $wpdb;
-        return  $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$this->tb_prefix}enewsletter_members WHERE member_email = '%s'", $email ), "ARRAY_A" );
+        return  $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$this->tb_prefix}enewsletter_members WHERE member_email = %s", $email ), "ARRAY_A" );
     }
 
     /**
@@ -519,7 +519,7 @@ class Email_Newsletter_functions {
                     member_fname = %s,
                     member_lname = %s,
                     member_email = %s,
-                    member_info = '%s',
+                    member_info = %s,
                     unsubscribe_code = %s
                     WHERE member_id = %d
                     ", $member_data['wp_user_id'], $member_data['member_fname'], $member_data['member_lname'], $member_data['member_email'], $member_data['member_info'], $member_data['unsubscribe_code'], $member_data['member_id'] ) );
@@ -539,7 +539,7 @@ class Email_Newsletter_functions {
                         sent = 0,
                         opened = 0,
                         bounced = 0,
-                        member_info = '%s',
+                        member_info = %s,
                         unsubscribe_code = %s
                      ", $member_data['wp_user_id'], $member_data['member_fname'], $member_data['member_lname'], $member_data['member_email'], time(), $member_data['member_info'], $member_data['unsubscribe_code'] ) );
 
@@ -1003,7 +1003,7 @@ class Email_Newsletter_functions {
 
         $email_body = $this->make_email_body( $newsletter_id );
 
-        $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send SET newsletter_id = %d, start_time = %d, end_time = 0, email_body = '%s'", $newsletter_id, $start_time, $email_body ) );
+        $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send SET newsletter_id = %d, start_time = %d, end_time = 0, email_body = %s", $newsletter_id, $start_time, $email_body ) );
         $send_id = $wpdb->insert_id;
 
         if(!is_array($members_id) && is_numeric($members_id))
@@ -1011,7 +1011,7 @@ class Email_Newsletter_functions {
         if ( 0 < count( $members_id ) )
             foreach ( $members_id as $member_id ) {
                 if ( !( "1" == $dont_send_duplicate && $this->check_duplicate_send($newsletter_id, $member_id) ) || ( "1" == $send_to_bounced && $this->check_bounced_send($newsletter_id, $member_id) ) ) {
-                    $result = $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send_members SET send_id = %d, member_id = %d, status = '%s' ", $send_id, $member_id, $status ) );
+                    $result = $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send_members SET send_id = %d, member_id = %d, status = %s ", $send_id, $member_id, $status ) );
                     if($result)
                         $count ++;
                 }
@@ -1021,7 +1021,7 @@ class Email_Newsletter_functions {
         if ( $wp_only_users_id && 0 < count( $wp_only_users_id ) )
             foreach ( $wp_only_users_id as $wp_only_user_id ) {
                 if ( !( "1" == $dont_send_duplicate && $this->check_duplicate_send($newsletter_id, '', $wp_only_user_id) ) || ( "1" == $send_to_bounced && $this->check_bounced_send($newsletter_id, '', $wp_only_user_id) ) ) {
-                    $result = $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send_members SET send_id = %d, member_id = 0, wp_only_user_id = %d, status = '%s' ", $send_id, $wp_only_user_id, $status ) );
+                    $result = $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send_members SET send_id = %d, member_id = 0, wp_only_user_id = %d, status = %s ", $send_id, $wp_only_user_id, $status ) );
                     if($result)
                         $count ++;
                 }
@@ -1264,7 +1264,12 @@ class Email_Newsletter_functions {
             $contents = $contents.'{OPENED_TRACKER}';
 
         $default_header = $this->get_default_builder_var('header_image');
-        $default_header = (!empty($default_header)) ? $template_url.$default_header : '';
+        // Check if default_header is already an absolute URL
+        if(!empty($default_header)) {
+            $default_header = preg_match('/^https?:\/\//i', $default_header) ? $default_header : $template_url.$default_header;
+        } else {
+            $default_header = '';
+        }
         
         $visuals_prepare =
         array(
@@ -1281,15 +1286,19 @@ class Email_Newsletter_functions {
         $contents = str_replace( "{TEMPLATE_URL}", $template_url, $contents );
         $contents = str_replace( "%7BTEMPLATE_URL%7D", $template_url, $contents );
 
-        //replace image links
-        $contents = str_replace( "'images/", "'".$template_url . "images/", $contents );
-        $contents = str_replace( '"images/', '"'.$template_url . 'images/', $contents );
-        $contents = str_replace( "'/images/", "'".$template_url . "images/", $contents );
-        $contents = str_replace( '"/images/', '"'.$template_url . 'images/', $contents );
+        //replace image links - only for relative paths, not absolute URLs
+        // Use negative lookbehind to avoid replacing absolute URLs
+        $contents = preg_replace('/(["\'])(?!https?:\/\/)images\//i', '$1'.$template_url.'images/', $contents);
+        $contents = preg_replace('/(["\'])(?!https?:\/\/)\/images\//i', '$1'.$template_url.'images/', $contents);
 
         //set up visual stuff
         $default_bg = $this->get_default_builder_var('bg_image');
-        $default_bg = (!empty($default_bg)) ? $template_url.$default_bg : '';
+        // Check if default_bg is already an absolute URL
+        if(!empty($default_bg)) {
+            $default_bg = preg_match('/^https?:\/\//i', $default_bg) ? $default_bg : $template_url.$default_bg;
+        } else {
+            $default_bg = '';
+        }
 
         $visuals_prepare =
         array(
@@ -1436,14 +1445,12 @@ class Email_Newsletter_functions {
         if($theme->exists()) {
             $template = $this->get_theme_dir_url($theme, $theme_name);
 
-            //load theme options
-            if($this->loaded_theme_options != $template['dir']) {
-                $this->loaded_theme_options = $template['dir'];
-                if(file_exists($template['dir'] . 'functions.php'))
-                    include($template['dir'] . 'functions.php');
-                elseif(file_exists($template['dir'] . 'index.php'))
-                    include($template['dir'] . 'index.php');
-            }
+            //load theme options - always reload to ensure constants are defined
+            $this->loaded_theme_options = $template['dir'];
+            if(file_exists($template['dir'] . 'functions.php'))
+                require_once($template['dir'] . 'functions.php');
+            elseif(file_exists($template['dir'] . 'index.php'))
+                require_once($template['dir'] . 'index.php');
 
             $styles = $this->get_contents_elements($template['dir'], 0);
 
@@ -1507,8 +1514,18 @@ class Email_Newsletter_functions {
                 $name = $name[0];
                 $value = apply_filters('email_newsletter_make_email_'.$name, $value, $newsletter_id);
 
-                if($type == 'images' && !empty($value))
-                    $value = '<img src="'.$value.'"/>';
+                // Security: Only create img tag for images if value is not empty
+                // Fix: Check if URL is already absolute (starts with http:// or https://)
+                if($type == 'images' && !empty($value)) {
+                    // If URL is already absolute, use it as-is
+                    // This prevents double-pathing when images from media library are used
+                    if (preg_match('/^https?:\/\//i', $value)) {
+                        $value = '<img src="'.$value.'"/>';
+                    } else {
+                        // Relative URL - will be handled by template_url replacement
+                        $value = '<img src="'.$value.'"/>';
+                    }
+                }
 
                 $contents = str_replace( "{".$name_big."}", $value, $contents );
                 if($type == 'colors')
@@ -2016,7 +2033,11 @@ class Email_Newsletter_functions {
 
 
         foreach( $settings as $key => $item )
-             $result = $wpdb->query( $wpdb->prepare( "REPLACE INTO {$tb_prefix}enewsletter_settings SET `key` = '%s', `value` = '%s'", $key, stripslashes( $item ) ) );
+             $result = $wpdb->query( $wpdb->prepare( "REPLACE INTO {$tb_prefix}enewsletter_settings SET `key` = %s, `value` = %s", $key, stripslashes( $item ) ) );
+
+        // Clear settings cache
+        $cache_key = 'enewsletter_settings_' . md5($tb_prefix);
+        delete_transient($cache_key);
 
         if ( isset($_REQUEST['mode']) && "install" == $_REQUEST['mode']) {
             // first setup of plugin
@@ -2042,7 +2063,11 @@ class Email_Newsletter_functions {
             $settings = array();
 
         foreach( $settings as $key => $item )
-             $result = $wpdb->query( $wpdb->prepare( "REPLACE INTO {$tb_prefix}enewsletter_settings SET `key` = '%s', `value` = '%s'", $key, stripslashes( $item ) ) );
+             $result = $wpdb->query( $wpdb->prepare( "REPLACE INTO {$tb_prefix}enewsletter_settings SET `key` = %s, `value` = %s", $key, stripslashes( $item ) ) );
+
+        // Clear settings cache
+        $cache_key = 'enewsletter_settings_' . md5($tb_prefix);
+        delete_transient($cache_key);
 
         return $result;
     }
@@ -2055,6 +2080,13 @@ class Email_Newsletter_functions {
 
         if(empty($tb_prefix))
             $tb_prefix = $this->tb_prefix;
+
+        // Performance: Check cache first
+        $cache_key = 'enewsletter_settings_' . md5($tb_prefix);
+        $cached_settings = get_transient($cache_key);
+        if (false !== $cached_settings) {
+            return $cached_settings;
+        }
 
         if ( $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_settings'" ) == "{$tb_prefix}enewsletter_settings" ) {
             $results = $wpdb->get_results( "SELECT * FROM {$tb_prefix}enewsletter_settings ORDER BY `key`", "ARRAY_A" );
@@ -2069,6 +2101,9 @@ class Email_Newsletter_functions {
                     $this->settings['date_format'] = $date_format;
                 else
                     $this->settings['date_format'] = "Y-m-d";
+
+                // Cache settings for 1 hour
+                set_transient($cache_key, $this->settings, HOUR_IN_SECONDS);
 
                 return $this->settings;
             }

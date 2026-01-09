@@ -15,7 +15,7 @@
 
     //Display status message
     if ( isset( $_GET['updated'] ) ) {
-        ?><div id="message" class="updated fade"><p><?php echo urldecode( $_GET['message'] ); ?></p></div><?php
+        ?><div id="message" class="updated fade"><p><?php echo esc_html( urldecode( $_GET['message'] ) ); ?></p></div><?php
     }
 ?>
 

@@ -579,13 +579,32 @@ class Email_Newsletter_Builder  {
 				$images['header_image'] = 'Header Image';
 
 			foreach ($images as $value => $label) {
-				$image = $email_newsletter->get_default_builder_var($value);
-				if(!empty($image)) {
-					$image2 = $email_newsletter->get_newsletter_meta($builder_id,$value);
-					$image = ($image2 === false) ? $template_url.$image : '';
+				// Get template default image
+				$default_image = $email_newsletter->get_default_builder_var($value);
+				
+				// Get saved value from database
+				$saved_image = $email_newsletter->get_newsletter_meta($builder_id, $value);
+				
+				// Determine which image to use
+				// Priority: 1) Saved non-empty value, 2) Template default, 3) Empty
+				if($saved_image !== false && !empty(trim($saved_image))) {
+					// Use saved value (could be absolute URL from media library)
+					$image = $saved_image;
 				}
-				else
+				else if(!empty($default_image)) {
+					// Check if default_image is already an absolute URL
+					if(preg_match('/^https?:\/\//i', $default_image)) {
+						// Already absolute URL, use as-is
+						$image = $default_image;
+					} else {
+						// Relative path, prefix with template_url
+						$image = $template_url . $default_image;
+					}
+				}
+				else {
+					// No default and no saved value
 					$image = '';
+				}
 
 				$instance->add_setting( $value, array(
 					'default' => $image,

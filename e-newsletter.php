@@ -502,6 +502,11 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
         //private actions of the plugin
         if ( isset( $_REQUEST['newsletter_action'] ) ) {
+            // CSRF Protection: Verify nonce for all admin actions
+            if ( ! isset( $_REQUEST['_wpnonce'] ) || ! wp_verify_nonce( $_REQUEST['_wpnonce'], 'enewsletter_admin_action' ) ) {
+                wp_die( __( 'Sicherheitsüberprüfung fehlgeschlagen. Bitte versuche es erneut.', 'email-newsletter' ) );
+            }
+
             //handle custom redirects
             if(isset($_REQUEST['redirect_to']))
                 $redirect = esc_url_raw($_REQUEST['redirect_to']);

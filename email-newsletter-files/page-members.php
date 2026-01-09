@@ -3,39 +3,45 @@
     $arg = NULL;
     $groups = $this->get_groups();
 
-    if(isset( $_REQUEST['order'] ) && $_REQUEST['order'] == 'asc')
-        $order = "desc";
-    else {
+    // Input validation for order parameter
+    $allowed_order = array('asc', 'desc');
+    if(isset( $_REQUEST['order'] ) && in_array($_REQUEST['order'], $allowed_order)) {
+        $order = ($_REQUEST['order'] == 'asc') ? "desc" : "asc";
+    } else {
         $order = "asc";
     }
     $args = array('order' => $order, 'orderby' => false);
     if(isset($_REQUEST['search_members']))
-        $args['search_members'] = $_REQUEST['search_members'];
+        $args['search_members'] = sanitize_text_field($_REQUEST['search_members']);
 
     $url_orginal = esc_url(add_query_arg( $args ));
 
     //Pagination option
     if ( isset( $_REQUEST['per_page'] ) )
-        $per_page = $_REQUEST['per_page'];
+        $per_page = absint($_REQUEST['per_page']);
     else
         $per_page = 15;
 
-    if ( isset( $_REQUEST['orderby'] ) )
+    // Whitelist validation for orderby parameter
+    $allowed_orderby = array('member_email', 'member_fname', 'join_date', 'count_sent', 'count_bounced', 'count_opened', 'sent', 'bounced', 'opened');
+    if ( isset( $_REQUEST['orderby'] ) && in_array($_REQUEST['orderby'], $allowed_orderby) )
         $arg['orderby'] = $_REQUEST['orderby'];
 
-    if ( isset( $_REQUEST['order'] ) )
+    if ( isset( $_REQUEST['order'] ) && in_array($_REQUEST['order'], $allowed_order) )
         $arg['order'] = $_REQUEST['order'];
 
     if(isset( $_REQUEST['search_members'] )) {
-        $sql_search = '%'.$_REQUEST['search_members'].'%';
+        $sql_search = '%'.sanitize_text_field($_REQUEST['search_members']).'%';
         $arg['where'] = $wpdb->prepare('member_fname LIKE %s OR member_lname LIKE %s OR member_email LIKE %s', $sql_search, $sql_search, $sql_search);
     }
 
-    if ( isset( $_REQUEST['filter'] ) ) {
+    // Whitelist validation for filter parameter
+    $allowed_filters = array('group', 'ungrouped', 'unsubscribed', 'bounced');
+    if ( isset( $_REQUEST['filter'] ) && in_array($_REQUEST['filter'], $allowed_filters) ) {
         if ( "group" == $_REQUEST['filter'] ) {
-            if ( 0 < $_REQUEST['group_id'] ) {
+            if ( isset($_REQUEST['group_id']) && absint($_REQUEST['group_id']) > 0 ) {
                 $arg['inner_join'] = $this->tb_prefix.'enewsletter_member_group C ON (A.member_id = C.member_id)';
-                $arg['where'] = $wpdb->prepare('group_id = %d', $_REQUEST['group_id']);
+                $arg['where'] = $wpdb->prepare('group_id = %d', absint($_REQUEST['group_id']));
             }
         }
         elseif ( "ungrouped" == $_REQUEST['filter'] ) {
@@ -63,7 +69,7 @@
 
     //Display status message
     if ( isset( $_GET['updated'] ) ) {
-        ?><div id="message" class="updated fade"><p><?php echo urldecode( $_GET['message'] ); ?></p></div><?php
+        ?><div id="message" class="updated fade"><p><?php echo esc_html( urldecode( $_GET['message'] ) ); ?></p></div><?php
     }
 
 ?>
@@ -82,6 +88,7 @@
 
         <div id="panel" class="panel">
             <form action="" method="post" name="add_new_member" id="add_new_member" enctype="multipart/form-data">
+                <?php wp_nonce_field('enewsletter_admin_action', '_wpnonce'); ?>
                 <input type="hidden" name="newsletter_action" id="newsletter_action2" value="" />
                 <input type="hidden" name="members_import" id="members_import" value="" />
                 <table cellspacing="10">
@@ -280,6 +287,7 @@
         </div>
 
         <form method="post" action="" name="form_members" id="form_members" >
+            <?php wp_nonce_field('enewsletter_admin_action', '_wpnonce'); ?>
             <p style="float:left;">
                 <?php $url = add_query_arg( array('filter' => false, 'group_id' => false), $url_orginal ); ?>
                 <a class="button button-second" href="<?php echo $url; ?>"><?php _e( 'Show All', 'email-newsletter' ); ?></a>
@@ -292,7 +300,7 @@
             </p>
             <p style="float:right;">
                 <label class="screen-reader-text" for="post-search-input">Search Pages:</label>
-                <input type="search" id="post-search-input" name="search_members" value="<?php if(isset( $_REQUEST['search_members'] )) echo $_REQUEST['search_members']; ?>">
+                <input type="search" id="post-search-input" name="search_members" value="<?php if(isset( $_REQUEST['search_members'] )) echo esc_attr(sanitize_text_field($_REQUEST['search_members'])); ?>">
                 <input type="submit" name="" id="search-submit" class="button" value="<?php _e( 'Search Members', 'email-newsletter' ) ?>">
             </p>
 

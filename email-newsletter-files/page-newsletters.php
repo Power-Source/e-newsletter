@@ -3,26 +3,30 @@
     $arg['orderby'] = 'create_date';
     $arg['order'] = 'desc';
 
-    if(isset( $_REQUEST['order'] ) && $_REQUEST['order'] == 'asc')
-        $order = "desc";
-    else {
+    // Input validation for order parameter
+    $allowed_order = array('asc', 'desc');
+    if(isset( $_REQUEST['order'] ) && in_array($_REQUEST['order'], $allowed_order)) {
+        $order = ($_REQUEST['order'] == 'asc') ? "desc" : "asc";
+    } else {
         $order = "asc";
     }
     $args = array('order' => $order, 'orderby' => false);
 
     $url_orginal = add_query_arg( $args );
 
-    if ( isset( $_REQUEST['orderby'] ) )
+    // Whitelist validation for orderby parameter
+    $allowed_orderby = array('newsletter_id', 'create_date', 'subject', 'template');
+    if ( isset( $_REQUEST['orderby'] ) && in_array($_REQUEST['orderby'], $allowed_orderby) )
         $arg['orderby'] = $_REQUEST['orderby'];
 
-    if ( isset( $_REQUEST['order'] ) )
+    if ( isset( $_REQUEST['order'] ) && in_array($_REQUEST['order'], $allowed_order) )
         $arg['order'] = $_REQUEST['order'];
 
     $newsletters = $this->get_newsletters($arg);
 
     //Display status message
     if ( isset( $_GET['updated'] ) ) {
-        ?><div id="message" class="updated fade"><p><?php echo urldecode( $_GET['message'] ); ?></p></div><?php
+        ?><div id="message" class="updated fade"><p><?php echo esc_html( urldecode( $_GET['message'] ) ); ?></p></div><?php
     }
 
 ?>
@@ -126,23 +130,38 @@
                         <?php echo $newsletter['count_bounced']; ?> <?php _e( 'members', 'email-newsletter' ) ?>
                     </td>
                     <td>
-                        <?php if(current_user_can('delete_newsletter')) { ?>
-                        <a class="deleteNewsletter button button-secondary" href="?page=newsletters&amp;newsletter_action=delete_newsletter&amp;newsletter_id=<?php echo $newsletter['newsletter_id'];?>">
+                        <?php if(current_user_can('delete_newsletter')) { 
+                            $delete_url = wp_nonce_url(
+                                '?page=newsletters&newsletter_action=delete_newsletter&newsletter_id=' . $newsletter['newsletter_id'],
+                                'enewsletter_admin_action'
+                            );
+                        ?>
+                        <a class="deleteNewsletter button button-secondary" href="<?php echo esc_url($delete_url); ?>">
                             <?php _e( 'Delete', 'email-newsletter' ) ?>
                         </a>
                         <?php } ?>
-                        <?php if(current_user_can('create_newsletter')) { ?>
-                        <a class="cloneNewsletter button button-secondary" href="?page=newsletters&amp;newsletter_action=clone_newsletter&amp;newsletter_id=<?php echo $newsletter['newsletter_id'];?>">
+                        <?php if(current_user_can('create_newsletter')) { 
+                            $clone_url = wp_nonce_url(
+                                '?page=newsletters&newsletter_action=clone_newsletter&newsletter_id=' . $newsletter['newsletter_id'],
+                                'enewsletter_admin_action'
+                            );
+                        ?>
+                        <a class="cloneNewsletter button button-secondary" href="<?php echo esc_url($clone_url); ?>">
                             <?php _e( 'Clone', 'email-newsletter' ) ?>
                         </a>
                         <?php } ?>
                         <?php if(current_user_can('save_newsletter')) { ?>
-                        <a class="button button-secondary" href="?page=newsletters&amp;newsletter_builder_action=edit_newsletter&amp;newsletter_id=<?php echo $newsletter['newsletter_id'];?>&amp;template=<?php echo $newsletter['template'];?>">
+                        <a class="button button-secondary" href="?page=newsletters&amp;newsletter_builder_action=edit_newsletter&amp;newsletter_id=<?php echo $newsletter['newsletter_id'];?>&amp;template=<?php echo esc_attr($newsletter['template']);?>">
                             <?php _e( 'Edit', 'email-newsletter' ) ?>
                         </a>
                         <?php } ?>
-                        <?php if(current_user_can('send_newsletter')) { ?>
-                        <a class="button button-primary"  href="?page=newsletters&amp;newsletter_action=send_newsletter&amp;newsletter_id=<?php echo $newsletter['newsletter_id'];?>">
+                        <?php if(current_user_can('send_newsletter')) { 
+                            $send_url = wp_nonce_url(
+                                '?page=newsletters&newsletter_action=send_newsletter&newsletter_id=' . $newsletter['newsletter_id'],
+                                'enewsletter_admin_action'
+                            );
+                        ?>
+                        <a class="button button-primary"  href="<?php echo esc_url($send_url); ?>">
                             <?php _e( 'Send', 'email-newsletter' ) ?>
                         </a>
                         <?php } ?>
