@@ -24,6 +24,18 @@ class NewsletterMainAdmin extends NewsletterModuleAdmin {
     function wp_loaded() {
         if ($this->is_admin_page()) {
 
+            // Test Automated Channels
+            if (isset($_GET['test_automated'])) {
+                include NEWSLETTER_DIR . '/test-automated-channels.php';
+                exit;
+            }
+
+            // Test Cron Simulation
+            if (isset($_GET['test_cron'])) {
+                include NEWSLETTER_DIR . '/test-cron-simulation.php';
+                exit;
+            }
+
             // Dismiss messages
             if (isset($_GET['dismiss'])) {
                 $dismissed = $this->get_option_array('newsletter_dismissed');

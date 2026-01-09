@@ -1,7 +1,7 @@
 <?php
 defined('ABSPATH') || exit;
 
-/* @var $this NewsletterInstasend */
+/* @var $instasend NewsletterInstasend */
 
 @include_once NEWSLETTER_INCLUDES_DIR . '/controls.php';
 $controls = new NewsletterControls();
@@ -9,13 +9,13 @@ $controls = new NewsletterControls();
 //$logger = $instasend->get_admin_logger();
 
 if (!$controls->is_action()) {
-    $controls->data = $this->options;
+    $controls->data = $instasend->options;
 } else {
     
     $logger->info($controls->action);
     
     if ($controls->is_action('save')) {
-        $this->save_options($controls->data);
+        $instasend->save_options($controls->data);
         $controls->add_message_saved();
     }
 }
@@ -58,7 +58,5 @@ if (!$controls->is_action()) {
             </p>
         </form>
     </div>
-
-    <?php include NEWSLETTER_DIR . '/tnp-footer.php'; ?>
 
 </div>

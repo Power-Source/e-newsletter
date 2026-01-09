@@ -58,10 +58,10 @@ if ($handle) {
         $data[] = $row;
     }
     if (!$email_found) {
-        $controls->errors = __('No email found in parsed data, please check the delimiter', 'newsletter-import');
+        $controls->errors = __('In den analysierten Daten wurde keine E-Mail-Adresse gefunden. Bitte überprüfe das Trennzeichen.', 'newsletter-import');
     }
 } else {
-    $controls->errors = __('Import file not found.', 'newsletter-import');
+    $controls->errors = __('Importdatei nicht gefunden.', 'newsletter-import');
 }
 ?>
 <style>
@@ -80,8 +80,8 @@ if ($handle) {
     <?php include NEWSLETTER_ADMIN_HEADER ?>
 
     <div id="tnp-heading">
-        <?php $controls->title_help('/addons/extended-features/advanced-import/') ?>
-        <h2>Import</h2>
+        <?php //$controls->title_help('/addons/extended-features/advanced-import/') ?>
+        <h2>Importieren</h2>
         <?php include __DIR__ . '/nav.php' ?>
     </div>
 
@@ -91,40 +91,40 @@ if ($handle) {
 
         <?php $controls->show() ?>
 
-        <h3>Step 2/4 - File format and parsing</h3>
+        <h3>Schritt 2/4 - Dateiformat und Parsing</h3>
         <form method="post" action="">
             <?php $controls->init(); ?>
 
             <div class="psource-tabs" id="tabs">
                 <div class="psource-tabs-nav">
-                    <button class="psource-tab active" data-tab="tabs-settings"><?php esc_html_e('Settings', 'newsletter-import') ?></button>
+                    <button class="psource-tab active" data-tab="tabs-settings"><?php esc_html_e('Einstellungen', 'newsletter-import') ?></button>
                 </div>
                 <div class="psource-tabs-content">
                     <div class="psource-tab-panel active" id="tabs-settings">
                         <table class="form-table">
                             <tr>
-                                <th><?php esc_html_e('Fields separator', 'newsletter-import') ?></th>
+                                <th><?php esc_html_e('Feldtrenner', 'newsletter-import') ?></th>
                                 <td>
-                                    <?php $controls->select('delimiter', [';' => 'Semicolon (;)', ',' => 'Comma (,)']); ?>
-                                    <?php $controls->button('reload', 'Reload'); ?>
+                                    <?php $controls->select('delimiter', [';' => 'Semikolon (;)', ',' => 'Komma (,)']); ?>
+                                    <?php $controls->button('reload', 'Neu laden'); ?>
 
                                     <p class="description">
-                                        Excel (!) lets you to export in "CSV UTF-8 comma separated" but ACTUALLY it uses semicolons (;)
-                                        as field separator. Check the file with a text editor like Notepad.
+                                        Excel (!) bietet zwar den Export im Format „CSV UTF-8 kommagetrennt“ an, verwendet aber tatsächlich Semikolons (;) als Feldtrennzeichen.
+                                        Überprüfe die Datei mit einem Texteditor wie Notepad.
                                     </p>
                                 </td>
                             </tr>
                             <tr>
-                                <th><?php esc_html_e('Sample lines from import file', 'newsletter-import') ?></th>
+                                <th><?php esc_html_e('Beispielzeilen aus der Importdatei', 'newsletter-import') ?></th>
                                 <td>
                                     <textarea readonly style="background-color: #eee; font-family: monospace; font-size: 12px; width: 100%; height: 100px"><?php echo esc_html(implode("\n", $lines)); ?></textarea>
                                 </td>
                             </tr>
                             <tr>
-                                <th>As parsed</th>
+                                <th>Wie geparst</th>
                                 <td>
                                     <p>
-                                        Only the first few lines are shown.
+                                        Nur die ersten paar Zeilen werden angezeigt.
                                     </p>
                                     <table class="parsed">
                                         <tr>
@@ -152,10 +152,10 @@ if ($handle) {
             </div>
 
             <p>
-                <?php $controls->button_delete('delete', 'Delete the file'); ?>
+                <?php $controls->button_delete('delete', 'Datei löschen'); ?>
                 <?php
                 if (!$controls->errors) {
-                    $controls->btn('next', 'Next');
+                    $controls->btn('next', 'Weiter');
                 }
                 ?>
 

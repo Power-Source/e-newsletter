@@ -9,28 +9,23 @@ if (!isset($controls) || !$controls) {
 
 // Channel-ID aus der URL holen
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-$channels = get_option('tnp_automated_channels', []);
-if ($id && isset($channels[$id])) {
-    $channel = (object) $channels[$id];
-} else {
-    // Fallback: leerer Kanal
-    $channel = new stdClass();
-    $channel->id = 0;
-    $channel->data = [
-        'name' => '',
-        'track' => 1,
-        'frequency' => 'weekly',
-        'day_1' => 1,
-    ];
-}
+require_once NEWSLETTER_DIR . '/main/automated_channels.php';
+$channel = AutomatedChannels::get($id);
+// Email-Kontext aus dem Channel ziehen (falls vorhanden)
+$email = isset($channel['email']) ? (object) $channel['email'] : null;
+
 global $wpdb;
-$email_id = $email->id;
+$email_id = isset($email->id) ? (int) $email->id : 0;
 
 // Empfänger und Status laden (Tabellenname ggf. anpassen!)
-$recipients = $wpdb->get_results($wpdb->prepare(
-    "SELECT email, name, status, sent_on FROM {$wpdb->prefix}newsletter_stats WHERE email_id = %d",
-    $email_id
-));
+if ($email_id > 0) {
+    $recipients = $wpdb->get_results($wpdb->prepare(
+        "SELECT email, name, status, sent_on FROM {$wpdb->prefix}newsletter_stats WHERE email_id = %d",
+        $email_id
+    ));
+} else {
+    $recipients = [];
+}
 
 $total = count($recipients);
 $opened = 0;
@@ -49,16 +44,16 @@ foreach ($recipients as $recipient) {
 <div class="wrap" id="tnp-wrap">
     <?php include NEWSLETTER_ADMIN_HEADER ?>
     <div id="tnp-heading">
-        <h2><?php echo esc_html($channel->data['name']); ?> – Newsletter-Status</h2>
+        <h2><?php echo esc_html($channel['name'] ?? ''); ?> – Newsletter-Status</h2>
     </div>
     <div id="tnp-body" class="tnp-automated-edit">
 
         <div class="tnp-stats-box">
             <div>
-                <h3 style="margin-bottom:0.2em;"><?php echo esc_html($email->subject); ?></h3>
+                 <h3 style="margin-bottom:0.2em;"><?php echo ($email && isset($email->subject)) ? esc_html($email->subject) : ''; ?></h3>
                 <div style="font-size:0.98em; color:#666;">
-                    <strong>Versanddatum:</strong> <?php echo NewsletterControls::print_date($email->send_on); ?><br>
-                    <strong>Status:</strong> <?php Newsletter::instance()->show_email_status_label($email); ?>
+                    <strong>Versanddatum:</strong> <?php echo ($email && isset($email->send_on)) ? NewsletterControls::print_date($email->send_on) : '-'; ?><br>
+                    <strong>Status:</strong> <?php if ($email) { Newsletter::instance()->show_email_status_label($email); } else { echo '-'; } ?>
                 </div>
             </div>
             <div class="tnp-stats-numbers">

@@ -13,7 +13,8 @@ $controls = new NewsletterControls();
 $id = isset($_POST['id']) ? (string)$_POST['id'] : (isset($_GET['id']) ? (string)$_GET['id'] : '');
 
 // Kanäle laden
-$channels = get_option('tnp_automated_channels', []);
+require_once NEWSLETTER_DIR . '/main/automated_channels.php';
+$channels = AutomatedChannels::all();
 
 // Formularverarbeitung
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -21,26 +22,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = [];
     $data['id'] = !empty($id) ? $id : (string)time();
     $data['name'] = $options['name'] ?? '';
-    $data['track'] = isset($options['track']) ? intval($options['track']) : 0;
+    $data['track'] = isset($options['track']) ? (int)$options['track'] : 0;
     $data['frequency'] = $options['frequency'] ?? 'weekly';
-    $data['day_1'] = isset($options['day_1']) ? intval($options['day_1']) : 0;
-    $data['day_2'] = isset($options['day_2']) ? intval($options['day_2']) : 0;
-    $data['day_3'] = isset($options['day_3']) ? intval($options['day_3']) : 0;
-    $data['day_4'] = isset($options['day_4']) ? intval($options['day_4']) : 0;
-    $data['day_5'] = isset($options['day_5']) ? intval($options['day_5']) : 0;
-    $data['day_6'] = isset($options['day_6']) ? intval($options['day_6']) : 0;
-    $data['day_7'] = isset($options['day_7']) ? intval($options['day_7']) : 0;
-    $data['hour'] = isset($options['hour']) ? intval($options['hour']) : 0;
-    $data['hour2_enabled'] = isset($options['hour2_enabled']) ? intval($options['hour2_enabled']) : 0;
-    $data['hour2'] = isset($options['hour2']) ? intval($options['hour2']) : 0;
-    $data['enabled'] = isset($options['enabled']) ? intval($options['enabled']) : 0;
+    $data['day_1'] = isset($options['day_1']) ? (int)$options['day_1'] : 0;
+    $data['day_2'] = isset($options['day_2']) ? (int)$options['day_2'] : 0;
+    $data['day_3'] = isset($options['day_3']) ? (int)$options['day_3'] : 0;
+    $data['day_4'] = isset($options['day_4']) ? (int)$options['day_4'] : 0;
+    $data['day_5'] = isset($options['day_5']) ? (int)$options['day_5'] : 0;
+    $data['day_6'] = isset($options['day_6']) ? (int)$options['day_6'] : 0;
+    $data['day_7'] = isset($options['day_7']) ? (int)$options['day_7'] : 0;
+    $data['hour'] = isset($options['hour']) ? max(0, min(23, (int)$options['hour'])) : 0;
+    $data['hour2_enabled'] = isset($options['hour2_enabled']) ? (int)$options['hour2_enabled'] : 0;
+    $data['hour2'] = isset($options['hour2']) ? max(0, min(23, (int)$options['hour2'])) : 0;
+    $data['enabled'] = isset($options['enabled']) ? (int)$options['enabled'] : 0;
     $data['subject'] = $options['subject'] ?? '';
     $data['list'] = $options['list'] ?? '';
     $data['sender_name'] = $options['sender_name'] ?? '';
     $data['sender_email'] = $options['sender_email'] ?? '';
 
+    // normalize and save
+    $data = AutomatedChannels::normalize($data, $data['id']);
     $channels[$data['id']] = $data;
-    update_option('tnp_automated_channels', $channels);
+    AutomatedChannels::save($channels);
 
     echo '<script>window.location.href="' . admin_url('admin.php?page=newsletter_main_automatedindex') . '";</script>';
     echo '<noscript><meta http-equiv="refresh" content="0;url=' . admin_url('admin.php?page=newsletter_main_automatedindex') . '"></noscript>';
@@ -48,18 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Kanal suchen oder neuen anlegen
-if ($id && isset($channels[$id])) {
-    $channel = $channels[$id];
-} else {
-    $channel = [
-        'id' => '',
-        'name' => '',
-        'track' => 1,
-        'frequency' => 'weekly',
-        'day_1' => 1,
-        // ... weitere Felder ...
-    ];
-}
+$channel = AutomatedChannels::get($id);
 $controls->data = $channel;
 
 ?>

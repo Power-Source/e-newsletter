@@ -31,9 +31,9 @@ if ($controls->is_action('import')) {
         }
     }
 
-    $controls->messages = "$updated set as bounced ($total provided). Missing or already bounced emails are not counted.";
+    $controls->messages = "$updated als unzustellbar markiert ($total angegeben). Fehlende oder bereits als unzustellbar markierte E-Mails werden nicht gezählt.";
     if ($wrong) {
-        $controls->messages .= "<br>$wrong wrong email(s).";
+        $controls->messages .= "<br>$wrong ungültige E-Mail(s).";
     }
 }
 ?>
@@ -43,7 +43,7 @@ if ($controls->is_action('import')) {
     <?php include NEWSLETTER_ADMIN_HEADER ?>
 
     <div id="tnp-heading">
-        <?php $controls->title_help('/addons/extended-features/advanced-import/') ?>
+        <?php //$controls->title_help('/addons/extended-features/advanced-import/') ?>
         <h2>Import</h2>
         <?php include __DIR__ . '/nav.php' ?>
     </div>
@@ -60,18 +60,18 @@ if ($controls->is_action('import')) {
 
                 <tr>
                     <th>
-                        <?php esc_html_e('Bounced addresses', 'newsletter-import') ?>
+                        <?php esc_html_e('Unzustellbare Adressen', 'newsletter-import') ?>
                     </th>
                     <td>
                         <textarea name="options[csv]" wrap="off" style="width: 100%; height: 200px; font-size: 11px; font-family: monospace"><?php echo esc_html($controls->get_value('csv')); ?></textarea>
                         <p class="description">
-                            <?php esc_html_e('One per line', 'newsletter') ?>
+                            <?php esc_html_e('Eine pro Zeile', 'newsletter-import') ?>
                         </p>
                     </td>
                 </tr>
             </table>
             <div class="tnp-buttons">
-                <?php $controls->button('import', __('Import', 'newsletter-import')); ?>
+                <?php $controls->button('import', __('Importieren', 'newsletter-import')); ?>
             </div>
 
 

@@ -173,7 +173,8 @@ class NewsletterArchive extends NewsletterModuleAdmin {
 }
 
 // Instanz der Klasse erzeugen
-$newsletter_archive = new NewsletterArchive('1.0');
+global $newsletterArchive;
+$newsletterArchive = new NewsletterArchive('1.0');
 
 // init() beim WordPress-Init-Hook aufrufen
-add_action('init', array($newsletter_archive, 'init'));
+add_action('init', array($newsletterArchive, 'init'));

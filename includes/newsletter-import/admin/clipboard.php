@@ -36,7 +36,7 @@ if (!$controls->is_action()) {
 
         $res = file_put_contents($this->get_filename(), $data);
         if ($res === false) {
-            $controls->errors = 'Unable to write data to the temporary file ' . esc_html($this->get_filename()) . '.';
+            $controls->errors = 'Daten konnten nicht in die temporäre Datei geschrieben werden. ' . esc_html($this->get_filename()) . '.';
         } else {
             $controls->js_redirect('admin.php?page=newsletter_import_csv');
         }
@@ -49,7 +49,7 @@ if (!$controls->is_action()) {
     <?php include NEWSLETTER_ADMIN_HEADER ?>
 
     <div id="tnp-heading">
-        <?php $controls->title_help('/addons/extended-features/advanced-import/') ?>
+        <?php //$controls->title_help('/addons/extended-features/advanced-import/') ?>
         <h2>Import</h2>
         <?php include __DIR__ . '/nav.php' ?>
     </div>
@@ -62,17 +62,17 @@ if (!$controls->is_action()) {
                 <?php $controls->init(); ?>
 
                 <ol style="font-weight: bold">
-                    <li><?php esc_html_e('The first line MUST contain field labels', 'newsletter-import') ?></li>
-                    <li>One subscriber data per line.</li>
-                    <li>The field order is not important on next screen you can map your dataì to the subscriber fields.</li>
-                    <li>The field separator can be a comma or a semicolon.</li>
+                    <li><?php esc_html_e('Die erste Zeile MUSS Feldbezeichnungen enthalten', 'newsletter-import') ?></li>
+                    <li>Ein Abonnent pro Zeile.</li>
+                    <li>Die Reihenfolge der Felder ist nicht wichtig, im nächsten Schritt können Sie Ihre Daten den Abonnentenfeldern zuordnen.</li>
+                    <li>Das Feldtrennzeichen kann ein Komma oder ein Semikolon sein.</li>
                 </ol>
                 <p>
-                    <?php esc_html_e('Example', 'newsletter-import') ?>
+                    <?php esc_html_e('Beispiel', 'newsletter-import') ?>
                 </p>
 
                     <p style="font-family: monospace; background-color: #fff; padding: 1rem">
-                        Email; First Name; Last Name<br>
+                        Email; Vorname; Nachname<br>
                         john@example.com; John; Smith<br>
                         anne@example.com; Anne; Mc Laurin<br>
                         isable@example.com; Isabel;<br>
@@ -82,8 +82,8 @@ if (!$controls->is_action()) {
                 <table class="form-table">
                     <tr>
                         <td>
-                            <textarea name="pasted_text" style="width: 100%; height: 200px; font-size: 11px; font-family: monospace" placeholder="Copy and paste here"></textarea>
-                            <?php $controls->button('import-from-clipboard', __('Next', 'newsletter-import')); ?>
+                            <textarea name="pasted_text" style="width: 100%; height: 200px; font-size: 11px; font-family: monospace" placeholder="Hier einfügen und einfügen"></textarea>
+                            <?php $controls->button('import-from-clipboard', __('Weiter', 'newsletter-import')); ?>
                         </td>
                     </tr>
 

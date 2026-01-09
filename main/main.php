@@ -105,13 +105,9 @@ if (!$language) {
         list($sender_local, $sender_domain) = explode('@', $sender);
 
         if ($sender_domain != $return_path_domain) {
-            $controls->warnings[] = __('Your Return Path domain is different from your Sender domain. Providers may require them to match.', 'newsletter');
+            $controls->warnings[] = __('Deine Rücksendepfad-Domain unterscheidet sich von Deiner Absenderdomain. Anbieter verlangen möglicherweise, dass diese übereinstimmen.', 'newsletter');
         }
     }
-}
-
-if (is_wp_error($license_data)) {
-    $controls->errors .= esc_html($license_data->get_error_message());
 }
 ?>
 
@@ -137,7 +133,7 @@ if (is_wp_error($license_data)) {
     <?php include NEWSLETTER_ADMIN_HEADER; ?>
 
     <div id="tnp-heading">
-        <?php $controls->title_help('https://www.thenewsletterplugin.com/plugins/newsletter/newsletter-configuration') ?>
+        <?php /*$controls->title_help('https://www.thenewsletterplugin.com/plugins/newsletter/newsletter-configuration')*/ ?>
 
 <!--        <h2><?php esc_html_e('Settings', 'newsletter'); ?></h2>-->
         <?php include __DIR__ . '/nav.php' ?>

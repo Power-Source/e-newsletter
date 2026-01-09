@@ -282,13 +282,15 @@ class NewsletterAdmin extends NewsletterModuleAdmin {
             }
         );
         
+        global $newsletterWpUsers;
         add_submenu_page(
             'newsletter_main_index',
             'WP Users Integration',
             'WP Users Integration',
             'manage_options',
             'newsletter_wpusers_index',
-            function () {
+            function () use ($newsletterWpUsers) {
+                $wpusers = $newsletterWpUsers;
                 require_once NEWSLETTER_DIR . '/includes/newsletter-wpusers/index.php';
             }
         );
@@ -300,6 +302,8 @@ class NewsletterAdmin extends NewsletterModuleAdmin {
             'manage_options',
             'newsletter_archive_index',
             function () {
+                global $newsletterArchive;
+                $archive = $newsletterArchive;
                 require_once NEWSLETTER_DIR . '/includes/newsletter-archive/admin/index.php';
             }
         );
@@ -311,6 +315,8 @@ class NewsletterAdmin extends NewsletterModuleAdmin {
             'manage_options',
             'newsletter_smtp_index',
             function () {
+                global $newsletterSmtp;
+                $smtp = $newsletterSmtp;
                 require_once NEWSLETTER_DIR . '/includes/newsletter-smtp/admin/index.php';
             }
         );

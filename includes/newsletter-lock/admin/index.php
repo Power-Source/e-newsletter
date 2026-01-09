@@ -1,5 +1,5 @@
 <?php
-/* @var $this NewsletterLock */
+/* @var $lock NewsletterLock */
 
 defined('ABSPATH') || exit;
 
@@ -7,10 +7,10 @@ include_once NEWSLETTER_INCLUDES_DIR . '/controls.php';
 $controls = new NewsletterControls();
 
 if (!$controls->is_action()) {
-    $controls->data = $this->options;
+    $controls->data = $lock->options;
 } else {
     if ($controls->is_action('save')) {
-        $this->save_options($controls->data);
+        $lock->save_options($controls->data);
         $controls->add_toast_saved();
     }
 }
@@ -53,11 +53,11 @@ if (!$controls->is_action()) {
                 <tr valign="top">
                     <th><?php _e('Denied content message', 'newsletter') ?></th>
                     <td>
-                        <?php if ($this->is_multilanguage()) { ?>
+                        <?php if ($lock->is_multilanguage()) { ?>
                         <div class="psource-tabs" id="lock-tabs">
                             <div class="psource-tabs-nav">
                                 <button class="psource-tab active" data-tab="tabs-xx"><?php _e('Default'); ?></button>
-                                <?php foreach ($this->get_languages() as $key => $value) { ?>
+                                <?php foreach ($lock->get_languages() as $key => $value) { ?>
                                     <button class="psource-tab" data-tab="tabs-<?php echo esc_attr($key) ?>"><?php echo esc_html($value) ?></button>
                                 <?php } ?>
                             </div>
@@ -65,7 +65,7 @@ if (!$controls->is_action()) {
                                 <div class="psource-tab-panel active" id="tabs-xx">
                                     <?php $controls->wp_editor('message'); ?>
                                 </div>
-                                <?php foreach ($this->get_languages() as $key => $value) { ?>
+                                <?php foreach ($lock->get_languages() as $key => $value) { ?>
                                     <div class="psource-tab-panel" id="tabs-<?php echo esc_attr($key) ?>">
                                         <?php $controls->wp_editor('message_' . $key); ?>
                                     </div>

@@ -63,7 +63,7 @@ $themes = $this->themes->get_all_with_data();
 
     <div id="tnp-heading">
         
-        <?php echo $controls->title_help('https://www.thenewsletterplugin.com/plugins/newsletter/newsletter-themes') ?>
+        <?php //echo $controls->title_help('https://www.thenewsletterplugin.com/plugins/newsletter/newsletter-themes') ?>
 
         <h2><?php _e('Legacy themes', 'newsletter') ?></h2>
     </div>

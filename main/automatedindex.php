@@ -10,26 +10,26 @@ if (!isset($controls) || !$controls) {
 }
 
 $feeds = [];
-$channels = get_option('tnp_automated_channels', []);
+require_once NEWSLETTER_DIR . '/main/automated_channels.php';
+$channels = AutomatedChannels::all();
 foreach ($channels as $channel) {
-    $feed = new stdClass();
-    $feed->id = $channel['id'];
-    $feed->data = $channel;
-    $feed->name = $channel['name']; // <--- Hier hinzufügen!
-    // Beispielwerte, ggf. anpassen:
-    $feed->last_time = isset($channel['last_time']) ? $channel['last_time'] : 0;
-    $feed->sent = isset($channel['sent']) ? $channel['sent'] : 0;
-    $feed->email = isset($channel['email']) ? (object)$channel['email'] : null;
+    // Normalisiere jeden Channel als Array mit Standardwerten
+    $feed = $channel;
+    $feed['id'] = $channel['id'] ?? '';
+    $feed['name'] = $channel['name'] ?? '';
+    $feed['last_time'] = isset($channel['last_time']) ? (int)$channel['last_time'] : 0;
+    $feed['sent'] = isset($channel['sent']) ? (int)$channel['sent'] : 0;
+    $feed['email'] = $channel['email'] ?? null; // kann Array sein
     $feeds[] = $feed;
 }
 
 // Channel löschen, wenn delete-Parameter gesetzt ist
 if (isset($_GET['delete'])) {
     $delete_id = (string)$_GET['delete'];
-    $channels = get_option('tnp_automated_channels', []);
-    if (isset($channels[$delete_id])) {
-        unset($channels[$delete_id]);
-        update_option('tnp_automated_channels', $channels);
+    $channels_all = AutomatedChannels::all();
+    if (isset($channels_all[$delete_id])) {
+        unset($channels_all[$delete_id]);
+        AutomatedChannels::save($channels_all);
     }
     // Nach dem Löschen auf die gleiche Seite weiterleiten (ohne delete-Parameter)
     echo '<script>window.location.href="' . esc_url(admin_url('admin.php?page=newsletter_main_automatedindex')) . '";</script>';
@@ -76,38 +76,42 @@ NewsletterMainAdmin::instance()->set_completed_step('automated');
                     <?php foreach ($feeds as $feed) { ?>
                         <tr>
                             <td>
-                                <?php echo $feed->id ?>
+                                <?php echo esc_html($feed['id']); ?>
 
                             </td>
-                            <td><?php echo esc_html($feed->data['name']) ?></td>
+                            <td><?php echo esc_html($feed['name'] ?? '') ?></td>
                             <td class="tnp-automated-status">
-                                <span class="tnp-led-<?php echo!empty($feed->data['enabled']) ? 'green' : 'gray' ?>">&#x2B24;</span>
+                                <span class="tnp-led-<?php echo !empty($feed['enabled']) ? 'green' : 'gray'; ?>">&#x2B24;</span>
                             </td>
 
                             <td style="white-space: nowrap">
-                                <?php echo date_i18n(get_option('date_format'), $feed->last_time); ?>
+                                <?php echo $feed['last_time'] ? date_i18n(get_option('date_format'), $feed['last_time']) : '-'; ?>
 
 
                             </td>
 
                             <td>
-                                <?php if ($feed->email) { ?>
-
-                                    <?php Newsletter::instance()->show_email_status_label($feed->email) ?>
-                                <?php } ?>
+                                <?php 
+                                if (!empty($feed['email'])) {
+                                    $email_obj = is_array($feed['email']) ? (object)$feed['email'] : $feed['email'];
+                                    Newsletter::instance()->show_email_status_label($email_obj);
+                                } else {
+                                    echo '-';
+                                }
+                                ?>
                             </td>
-                            <td class="tnp-sent"><?php echo $feed->sent ?></td>
+                            <td class="tnp-sent"><?php echo (int)$feed['sent']; ?></td>
 
                             <td style="white-space: nowrap" class="tnp-automated-actions">
 
-                                <?php $controls->button_icon_configure('?page=newsletter_main_automatededit&id=' . $feed->id) ?>
-                                <?php $controls->button_icon_newsletters('?page=newsletter_main_automatednewsletters') ?>
-                                <?php $controls->button_icon_design('?page=newsletter_main_automatedtemplate') ?>
+                                <?php $controls->button_icon_configure('?page=newsletter_main_automatededit&id=' . urlencode((string)$feed['id'])) ?>
+                                <?php $controls->button_icon_newsletters('?page=newsletter_main_automatednewsletters&id=' . urlencode((string)$feed['id'])) ?>
+                                <?php $controls->button_icon_design('?page=newsletter_main_automatedtemplate&id=' . urlencode((string)$feed['id'])) ?>
                             </td>
 
                             <td style="white-space: nowrap">
-                                <?php $controls->button_icon_copy($feed->id); ?>
-                                <?php $controls->button_icon_delete('?page=newsletter_main_automatedindex&delete=' . $feed->id); ?>
+                                <?php $controls->button_icon_copy($feed['id']); ?>
+                                <?php $controls->button_icon_delete('?page=newsletter_main_automatedindex&delete=' . urlencode((string)$feed['id'])); ?>
                             </td>
 
                         </tr>

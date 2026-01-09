@@ -11,6 +11,10 @@ function tnp_autoresponder_install() {
     
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     
+    // Entferne bestehende Foreign Key Constraints falls vorhanden (vor Schema-Änderungen)
+    $wpdb->query("ALTER TABLE {$wpdb->prefix}tnp_autoresponder_emails DROP FOREIGN KEY IF EXISTS {$wpdb->prefix}tnp_autoresponder_emails_ibfk_1");
+    $wpdb->query("ALTER TABLE {$wpdb->prefix}tnp_autoresponder_progress DROP FOREIGN KEY IF EXISTS {$wpdb->prefix}tnp_autoresponder_progress_ibfk_1");
+    
     // Tabelle für Autoresponder-Serien
     $sql = "CREATE TABLE {$wpdb->prefix}tnp_autoresponders (
         id int(11) NOT NULL AUTO_INCREMENT,

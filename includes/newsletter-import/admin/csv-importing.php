@@ -35,7 +35,7 @@ if ($controls->is_action('refresh')) {
     <?php include NEWSLETTER_ADMIN_HEADER; ?>
 
     <div id="tnp-heading">
-        <?php $controls->title_help('/addons/extended-features/advanced-import/') ?>
+        <?php //$controls->title_help('/addons/extended-features/advanced-import/') ?>
         <h2>Import</h2>
         <?php include __DIR__ . '/nav.php' ?>
     </div>
@@ -45,10 +45,10 @@ if ($controls->is_action('refresh')) {
 
         <?php $controls->show() ?>
 
-        <h3>Step 4/4 - Import is running, keep this page open</h3>
+        <h3>Schritt 4/4 - Import läuft, bitte diese Seite geöffnet lassen</h3>
 
         <div id="tnp-import-statistics">
-            Importing... (updated every 10 seconds)
+            Importiere... (alle 10 Sekunden aktualisiert)
         </div>
 
         <form method="post" action="#">

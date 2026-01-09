@@ -1,13 +1,13 @@
 <?php
-/* @var $this NewsletterArchive */
+/* @var $archive NewsletterArchive */
 require_once NEWSLETTER_INCLUDES_DIR . '/controls.php';
 $controls = new NewsletterControls();
 
 if (!$controls->is_action()) {
-    $controls->data = $this->options;
+    $controls->data = $archive->options;
 } else {
     if ($controls->is_action('save')) {
-        $this->save_options($controls->data);
+        $archive->save_options($controls->data);
         $controls->add_toast_saved();
     }
 }

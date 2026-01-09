@@ -43,7 +43,7 @@ if ($controls->is_action('abort')) {
     $wpdb->query("update " . NEWSLETTER_EMAILS_TABLE . " set last_id=0, sent=0, status='new' where id=" . $email_id);
     $email = $this->get_email($_GET['id'], ARRAY_A);
     tnp_prepare_controls($email, $controls);
-    $controls->messages = __('Delivery definitively cancelled', 'newsletter');
+    $controls->messages = __('Lieferung endgültig abgesagt', 'newsletter');
 }
 
 if ($controls->is_action('change-private')) {
@@ -116,7 +116,7 @@ if ($controls->is_action('html')) {
     $data['message'] = str_replace('<tr><td ', "<tr>\n<td ", $data['message']);
 
     $email = $this->save_email($data, ARRAY_A);
-    $controls->messages = 'You can now edit the newsletter as pure HTML';
+    $controls->messages = __('Du kannst den Newsletter nun als reines HTML bearbeiten.', 'newsletter');
 
     tnp_prepare_controls($email, $controls);
 
@@ -130,15 +130,15 @@ if ($controls->is_action('test') || $controls->is_action('save') || $controls->i
     $controls->data = wp_kses_post_deep($controls->data);
 
     if ($email['updated'] != $controls->data['updated']) {
-        $controls->errors = 'This newsletter has been modified by someone else. Cannot save.';
+        $controls->errors = __('Dieser Newsletter wurde von jemand anderem geändert. Speichern nicht möglich.', 'newsletter');
     } else {
         $email['updated'] = time();
         if ($controls->is_action('save')) {
-            $this->logger->info('Saving newsletter: ' . $email_id);
+            $this->logger->info('Speichere Newsletter: ' . $email_id);
         } else if ($controls->is_action('send')) {
-            $this->logger->info('Sending newsletter: ' . $email_id);
+            $this->logger->info('Sende Newsletter: ' . $email_id);
         } else if ($controls->is_action('schedule')) {
-            $this->logger->info('Scheduling newsletter: ' . $email_id);
+            $this->logger->info('Plane Newsletter: ' . $email_id);
         }
 
         //$email['subject'] = $controls->data['subject'];
@@ -278,7 +278,7 @@ if ($controls->is_action('test') || $controls->is_action('save') || $controls->i
         $email = Newsletter::instance()->save_email($email, ARRAY_A);
 
         if ($email === false) {
-            $controls->errors = 'Unable to save. Try to deactivate and reactivate the plugin may be the database is out of sync.';
+            $controls->errors = __('Speichern nicht möglich. Versuche das Plugin zu deaktivieren und erneut zu aktivieren, möglicherweise ist die Datenbank nicht synchron.', 'newsletter');
         }
 
         tnp_prepare_controls($email, $controls);
@@ -290,16 +290,16 @@ if ($controls->is_action('test') || $controls->is_action('save') || $controls->i
 if (empty($controls->errors) && ($controls->is_action('send') || $controls->is_action('schedule'))) {
 
     if (empty($email['subject'])) {
-        $controls->errors = __('A subject is required to send', 'newsletter');
+        $controls->errors = __('Ein Betreff ist erforderlich, um zu senden', 'newsletter');
     } else {
         NewsletterStatistics::instance()->reset_stats($email);
         $wpdb->update(NEWSLETTER_EMAILS_TABLE, array('status' => TNP_Email::STATUS_SENDING), array('id' => $email_id));
         $email['status'] = TNP_Email::STATUS_SENDING;
         if ($controls->is_action('send')) {
-            $controls->messages = __('Now sending.', 'newsletter');
-            $controls->messages .= '<br>' . __('The first batch of emails will be delivered in 5 minutes.', 'newsletter');
+            $controls->messages = __('Wird gesendet.', 'newsletter');
+            $controls->messages .= '<br>' . __('Die erste E-Mail-Gruppe wird in 5 Minuten zugestellt.', 'newsletter');
         } else {
-            $controls->messages = __('Scheduled.', 'newsletter');
+            $controls->messages = __('Geplant.', 'newsletter');
         }
 
         // Immadiate first batch sending since people has no patience
@@ -325,7 +325,7 @@ if (isset($email['options']['status']) && $email['options']['status'] === 'S') {
 //}
 
 if (TNP_Email::STATUS_ERROR === $email['status'] && isset($email['options']['error_message'])) {
-    $controls->errors .= sprintf(__('Stopped by fatal error: %s', 'newsletter'), esc_html($email['options']['error_message']));
+    $controls->errors .= sprintf(__('Aufgrund eines schwerwiegenden Fehlers gestoppt: %s', 'newsletter'), esc_html($email['options']['error_message']));
 }
 
 
@@ -344,7 +344,7 @@ if ($email['status'] != 'sent') {
     <?php include NEWSLETTER_ADMIN_HEADER; ?>
 
     <div id="tnp-heading">
-        <?php $controls->title_help('/newsletter-targeting'); ?>
+        <?php /*$controls->title_help('/newsletter-targeting'); */ ?>
 
         <h2><?php echo esc_html($email['subject']); ?></h2>
 
@@ -366,21 +366,21 @@ if ($email['status'] != 'sent') {
                         <?php } ?>
                     <?php } else { ?>
 
-                        <?php $controls->btn_link($this->get_editor_url($email_id, $editor_type), __('Edit', 'newsletter'), ['icon' => 'fa-edit', 'secondary' => true]); ?>
+                        <?php $controls->btn_link($this->get_editor_url($email_id, $editor_type), __('Bearbeiten', 'newsletter'), ['icon' => 'fa-edit', 'secondary' => true]); ?>
 
                     <?php } ?>
 
                     <?php if ($email['status'] != 'sending' && $email['status'] != 'sent') $controls->button_save(); ?>
-                    <?php if ($email['status'] == 'new') $controls->button_confirm('send', __('Send now', 'newsletter'), __('Start real delivery?', 'newsletter')); ?>
-                    <?php if ($email['status'] == 'sending') $controls->button_confirm('pause', __('Pause', 'newsletter'), __('Pause the delivery?', 'newsletter')); ?>
-                    <?php if ($email['status'] == 'paused' || $email['status'] == 'error') $controls->button_confirm('continue', __('Continue', 'newsletter'), 'Continue the delivery?'); ?>
-                    <?php if ($email['status'] == 'paused') $controls->button_confirm('abort', __('Stop', 'newsletter'), __('This totally stop the delivery, ok?', 'newsletter')); ?>
+                    <?php if ($email['status'] == 'new') $controls->button_confirm('send', __('Jetzt senden', 'newsletter'), __('Echte Zustellung starten?', 'newsletter')); ?>
+                    <?php if ($email['status'] == 'sending') $controls->button_confirm('pause', __('Pause', 'newsletter'), __('Lieferung unterbrechen?', 'newsletter')); ?>
+                    <?php if ($email['status'] == 'paused' || $email['status'] == 'error') $controls->button_confirm('continue', __('Weitermachen', 'newsletter'), __('Lieferung fortsetzen?', 'newsletter')); ?>
+                    <?php if ($email['status'] == 'paused') $controls->button_confirm('abort', __('Stop', 'newsletter'), __('Das stoppt die Lieferung komplett, okay?', 'newsletter')); ?>
                     <?php if ($email['status'] == 'new' || ( $email['status'] == 'paused' && $email['send_on'] > time() )) { ?>
-                        <a id="tnp-schedule-button" class="button-secondary" href="javascript:tnp_toggle_schedule()"><i class="far fa-clock"></i> <?php _e("Schedule") ?></a>
+                        <a id="tnp-schedule-button" class="button-secondary" href="javascript:tnp_toggle_schedule()"><i class="far fa-clock"></i> <?php _e("Zeitplan", "newsletter") ?></a>
                         <span id="tnp-schedule" style="display: none;">
                             <?php $controls->datetime('send_on') ?>
-                            <?php $controls->button_confirm('schedule', __('Schedule', 'newsletter'), __('Schedule delivery?', 'newsletter')); ?>
-                            <a class="button-secondary tnp-button-cancel" href="javascript:tnp_toggle_schedule()"><?php _e("Cancel") ?></a>
+                            <?php $controls->button_confirm('schedule', __('Zeitplan', 'newsletter'), __('Zeitplan der Lieferung?', 'newsletter')); ?>
+                            <a class="button-secondary tnp-button-cancel" href="javascript:tnp_toggle_schedule()"><?php _e("Abbrechen", "newsletter") ?></a>
                         </span>
                     <?php } ?>
 
@@ -421,16 +421,16 @@ if ($email['status'] != 'sent') {
 
             <div class="psource-tabs" id="tabs">
                 <div class="psource-tabs-nav">
-                    <button class="psource-tab active" data-tab="tabs-options"><?php esc_html_e('Targeting', 'newsletter') ?></button>
+                    <button class="psource-tab active" data-tab="tabs-options"><?php esc_html_e('Zielsetzung', 'newsletter') ?></button>
                     <button class="psource-tab" data-tab="tabs-ga">Google Analytics</button>
                     <button class="psource-tab" data-tab="tabs-geo">Geolocation</button>
-                    <button class="psource-tab" data-tab="tabs-advanced"><?php esc_html_e('Advanced', 'newsletter') ?></button>
+                    <button class="psource-tab" data-tab="tabs-advanced"><?php esc_html_e('Fortschrittlich', 'newsletter') ?></button>
                 </div>
                 <div class="psource-tabs-content">
                     <div class="psource-tab-panel active tnp-list-conditions" id="tabs-options">
 
                     <p>
-                        <?php esc_html_e('Leaving all multichoice options unselected is like to select all them', 'newsletter'); ?>
+                        <?php esc_html_e('Wenn man alle Mehrfachauswahloptionen nicht auswählt, entspricht das der Auswahl aller Optionen.', 'newsletter'); ?>
                     </p>
                     <table class="form-table">
                         <tr>
@@ -439,39 +439,38 @@ if ($email['status'] != 'sent') {
                                 <?php
                                 $lists = $controls->get_list_options();
                                 ?>
-                                <?php $controls->select('options_lists_operator', array('or' => __('Match at least one of', 'newsletter'), 'and' => __('Match all of', 'newsletter'))); ?>
+                                <?php $controls->select('options_lists_operator', array('or' => __('Mindestens eine auswählen', 'newsletter'), 'and' => __('Alle auswählen', 'newsletter'))); ?>
 
-                                <?php $controls->select2('options_lists', $lists, null, true, null, __('All', 'newsletter')); ?>
+                                <?php $controls->select2('options_lists', $lists, null, true, null, __('Alle', 'newsletter')); ?>
 
                                 <br>
-                                <?php esc_html_e('must not in one of', 'newsletter') ?>
+                                <?php esc_html_e('darf nicht in einer der folgenden sein', 'newsletter') ?>
 
-                                <?php $controls->select2('options_lists_exclude', $lists, null, true, null, __('None', 'newsletter')); ?>
+                                <?php $controls->select2('options_lists_exclude', $lists, null, true, null, __('Keine', 'newsletter')); ?>
                             </td>
                         </tr>
 
                         <tr>
-                            <th><?php esc_html_e('Language', 'newsletter') ?></th>
+                            <th><?php esc_html_e('Sprache', 'newsletter') ?></th>
                             <td>
                                 <?php $controls->language('options_language'); ?>
                             </td>
                         </tr>
-
                         <tr>
-                            <th><?php esc_html_e('Gender', 'newsletter') ?></th>
+                            <th><?php esc_html_e('Geschlecht', 'newsletter') ?></th>
                             <td>
-                                <?php $controls->checkboxes_group('options_sex', array('f' => 'Women', 'm' => 'Men', 'n' => 'Not specified')); ?>
+                                <?php $controls->checkboxes_group('options_sex', array('f' => 'Frauen', 'm' => 'Männer', 'n' => 'Nicht angegeben')); ?>
                             </td>
                         </tr>
                         <tr>
                             <th><?php esc_html_e('Status', 'newsletter') ?></th>
                             <td>
-                                <?php $controls->select('options_status', array('C' => __('Confirmed', 'newsletter'), 'S' => __('Not confirmed', 'newsletter'))); ?>
+                                <?php $controls->select('options_status', array('C' => __('Bestätigt', 'newsletter'), 'S' => __('Nicht bestätigt', 'newsletter'))); ?>
 
                             </td>
                         </tr>
                         <tr>
-                            <th><?php esc_html_e('Only to subscribers linked to WP users', 'newsletter') ?></th>
+                            <th><?php esc_html_e('Nur an Abonnenten, die mit WP-Benutzern verknüpft sind', 'newsletter') ?></th>
                             <td>
                                 <?php $controls->yesno('options_wp_users'); ?>
                             </td>
@@ -481,12 +480,12 @@ if ($email['status'] != 'sent') {
                         ?>
                         <?php if (!empty($fields)) { ?>
                             <tr>
-                                <th><?php esc_html_e('Profile fields', 'newsletter') ?></th>
+                                <th><?php esc_html_e('Profilfelder', 'newsletter') ?></th>
                                 <td>
                                     <?php foreach ($fields as $profile) { ?>
                                         <?php if ($profile->type !== TNP_Profile::TYPE_SELECT) continue; ?>
-                                        <?php echo esc_html($profile->name), ' ', __('is one of:', 'newsletter') ?>
-                                        <?php $controls->select2("options_profile_$profile->id", $profile->options, null, true, null, __('Do not filter by this field', 'newsletter')); ?>
+                                        <?php echo esc_html($profile->name), ' ', __('ist eines von:', 'newsletter') ?>
+                                        <?php $controls->select2("options_profile_$profile->id", $profile->options, null, true, null, __('Nicht nach diesem Feld filtern', 'newsletter')); ?>
                                         <br>
                                     <?php } ?>
                                     <p class="description">
@@ -513,34 +512,34 @@ if ($email['status'] != 'sent') {
                 <div class="psource-tab-panel" id="tabs-ga">
                     <?php if (!class_exists('NewsletterAnalytics')) { ?>
                         <p class="tnp-tab-notice">
-                            Options effective with the Newsletter - Google Analytics Addon.
+                            Optionen, die mit dem Newsletter - Google Analytics Addon wirksam sind.
                         </p>
                     <?php } ?>
 
                     <?php if (empty($email['track'])) { ?>
-                        <p class="tnp-tab-warning">Tracking must be active to use Google Analytics.</p>
+                        <p class="tnp-tab-warning">Tracking muss aktiviert sein, um Google Analytics zu verwenden.</p>
                     <?php } ?>
 
 
                     <table class="form-table">
                         <tr valign="top">
-                            <th>UTM Source</th>
+                            <th>UTM Quelle</th>
                             <td>
                                 <?php $controls->text('options_utm_source', 50); ?>
                                 <p class="description">
-                                    Should set as "newsletter-{email_id}" and it's mandatory for Google. "{email_id}" is replaced with the
-                                    newsletter unique id. Automated newsletter, autoresponders and other non standard newsletter use a different
-                                    source like automated-{channel numer}-{email id}.
+                                    Sollte als "newsletter-{email_id}" gesetzt werden und ist für Google obligatorisch. "{email_id}" wird durch die
+                                    eindeutige Newsletter-ID ersetzt. Automatisierte Newsletter, Autoresponder und andere nicht standardmäßige Newsletter verwenden eine andere
+                                    Quelle wie automated-{channel numer}-{email id}.
                                 </p>
                             </td>
                         </tr>
 
                         <tr valign="top">
-                            <th>UTM Campaign</th>
+                            <th>UTM Kampagne</th>
                             <td>
                                 <?php $controls->text('options_utm_campaign', 50); ?>
                                 <p class="description">
-                                    This is the campaign name
+                                    Dies ist der Kampagnenname
                                 </p>
                             </td>
                         </tr>
@@ -550,27 +549,27 @@ if ($email['status'] != 'sent') {
                             <td>
                                 <?php $controls->text('options_utm_medium', 50); ?>
                                 <p class="description">
-                                    Should be set to "email" since this is the only medium used.
+                                    Sollte auf "email" gesetzt werden, da dies das einzige verwendete Medium ist.
                                 </p>
                             </td>
                         </tr>
 
                         <tr valign="top">
-                            <th>UTM Term</th>
+                            <th>UTM Begriff</th>
                             <td>
                                 <?php $controls->text('options_utm_term', 50); ?>
                                 <p class="description">
-                                    Usually empty can be used on specific newsletters but it is more related to keyword based advertising.
+                                    Normalerweise leer, kann aber in bestimmten Newslettern verwendet werden. Es bezieht sich eher auf keyword-basierte Werbung.
                                 </p>
                             </td>
                         </tr>
 
                         <tr valign="top">
-                            <th>UTM Content</th>
+                            <th>UTM Inhalt</th>
                             <td>
                                 <?php $controls->text('options_utm_content', 50); ?>
                                 <p class="description">
-                                    Usually empty can be used on specific newsletters.
+                                    Normalerweise leer, kann aber in bestimmten Newslettern verwendet werden.
                                 </p>
                             </td>
                         </tr>
@@ -582,7 +581,7 @@ if ($email['status'] != 'sent') {
                 <div class="psource-tab-panel" id="tabs-geo">
                     <?php if (!class_exists('NewsletterGeo')) { ?>
                         <p class="tnp-tab-notice">
-                            Options effective with the Newsletter - Geo Addon.
+                            Optionen wirksam mit dem Newsletter - Geo Addon.
                         </p>
                     <?php } ?>
 
@@ -708,7 +707,7 @@ if ($email['status'] != 'sent') {
                             </th>
                             <td>
                                 <?php if ($editor_type == NewsletterEmails::EDITOR_COMPOSER) { ?>
-                                    <?php $controls->select('options_text_message_mode', ['' => __('Autogenerate', 'newsletter'), '1' => __('Hand edited', 'newsletter')]) ?>
+                                    <?php $controls->select('options_text_message_mode', ['' => __('Autogenerieren', 'newsletter'), '1' => __('Hand edited', 'newsletter')]) ?>
                                     <p class="description"></p>
                                 <?php } ?>
 
@@ -733,7 +732,7 @@ if ($email['status'] != 'sent') {
                             <tr>
                                 <th>Convert to HTML</th>
                                 <td>
-                                    <?php $controls->button_confirm('html', __('Convert', 'newsletter'), 'No way back!'); ?>
+                                    <?php $controls->button_confirm('html', __('Konvertieren', 'newsletter'), 'No way back!'); ?>
                                 </td>
                             </tr>
                         <?php } ?>

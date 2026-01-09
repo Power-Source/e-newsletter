@@ -1,17 +1,17 @@
 <?php
 defined('ABSPATH') || exit;
 
-/* @var $this NewsletterWpUsers */
+/* @var $wpusers NewsletterWpUsers */
 
 include_once NEWSLETTER_INCLUDES_DIR . '/controls.php';
 $controls = new NewsletterControls();
 
 if (!$controls->is_action()) {
-    $controls->data = $this->options;
+    $controls->data = $wpusers->options;
 } else {
     if ($controls->is_action('save')) {
         unset($controls->data['align_wp_users_status']);
-        $this->save_options($controls->data);
+        $wpusers->save_options($controls->data);
         $controls->add_toast_saved();
     }
 

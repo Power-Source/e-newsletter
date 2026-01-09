@@ -79,7 +79,8 @@ class NewsletterSmtp extends NewsletterModuleAdmin {
 }
 
 // Instanz der Klasse erzeugen
-$newsletter_smtp = new NewsletterSmtp('1.0');
+global $newsletterSmtp;
+$newsletterSmtp = new NewsletterSmtp('1.0');
 
 // init() beim WordPress-Init-Hook aufrufen
-add_action('init', array($newsletter_smtp, 'init'));
+add_action('init', array($newsletterSmtp, 'init'));

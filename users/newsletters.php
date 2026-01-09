@@ -6,7 +6,7 @@ defined('ABSPATH') || exit;
 
 $user = $this->get_user((int) $_GET['id'] ?? -1);
 if (!$user) {
-    die('User not found');
+    die('Benutzer nicht gefunden');
 }
 
 ?>
@@ -16,7 +16,7 @@ if (!$user) {
     <?php include NEWSLETTER_ADMIN_HEADER ?>
 
     <div id="tnp-heading">
-        <?php $controls->title_help('/subscribers-and-management/') ?>
+        <?php //$controls->title_help('/subscribers-and-management/') ?>
         <h2><?php echo esc_html($user->email) ?></h2>
         <?php include __DIR__ . '/edit-nav.php' ?>
     </div>
@@ -35,16 +35,10 @@ if (!$user) {
                 </div>
                 <div class="psource-tabs-content">
                     <div class="psource-tab-panel active tnp-tab" id="tabs-newsletters">
-                        <?php if (!has_action('newsletter_user_newsletters_tab') && !has_action('newsletter_users_edit_newsletters')) { ?>
-                            <p>
-                                This panel requires the <a href="https://www.thenewsletterplugin.com/plugins/newsletter/reports-module" target="_blank">Reports Addon</a>.
-                            </p>
-                            <?php
-                        } else {
+                        <?php if (!has_action('newsletter_user_newsletters_tab') && !has_action('newsletter_users_edit_newsletters')) {
                             do_action('newsletter_user_newsletters_tab', $user->id);
                             do_action('newsletter_users_edit_newsletters', $user->id);
-                        }
-                        ?>
+                        } ?>
                     </div>
                 </div>
             </div>

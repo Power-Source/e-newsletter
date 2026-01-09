@@ -1,5 +1,5 @@
 <?php
-/* @var $this NewsletterSmtp */
+/* @var $smtp NewsletterSmtp */
 
 defined('ABSPATH') || exit;
 
@@ -7,7 +7,7 @@ include_once NEWSLETTER_INCLUDES_DIR . '/controls.php';
 $controls = new NewsletterControls();
 
 if (!$controls->is_action()) {
-    $controls->data = $this->options;
+    $controls->data = $smtp->options;
 } else {
 
     if ($controls->is_action('save') || $controls->is_action('test')) {
@@ -19,14 +19,14 @@ if (!$controls->is_action()) {
         }
 
         if (empty($controls->errors)) {
-            $this->save_options($controls->data);
+            $smtp->save_options($controls->data);
             $controls->add_toast_saved();
         }
 
         if ($controls->is_action('test')) {
 
-            $mailer = $this->get_mailer();
-            $message = $this->get_test_message($controls->data['test_email']);
+            $mailer = $smtp->get_mailer();
+            $message = $smtp->get_test_message($controls->data['test_email']);
             $result = $mailer->send_with_stats($message);
 
 

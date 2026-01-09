@@ -19,9 +19,9 @@ if (!$controls->is_action()) {
     if ($controls->is_action('import')) {
 
         if (empty($controls->data['import_as'])) {
-            $controls->errors = 'Please select the status of imported subscribers';
+            $controls->errors = 'Bitte wähle den Status der importierten Abonnenten aus.';
         } elseif (empty($controls->data['email'])) {
-            $controls->errors = 'Please, map at least the email field on "Fields" tab';
+            $controls->errors = 'Bitte ordne mindestens das E-Mail-Feld auf der Registerkarte "Felder" zu.';
         } else {
             $this->save_options($controls->data);
             // Patch for a bug in NewsletterAddon
@@ -54,7 +54,7 @@ if ($handle) {
         $csv_fields['' . $i + 1] = $headers[$i];
     }
 } else {
-    $controls->errors = __('Import file cannot be read. Use the delete button and restart.', 'newsletter-import');
+    $controls->errors = __('Importdatei kann nicht gelesen werden. Verwende die Schaltfläche "Löschen" und starte neu.', 'newsletter-import');
 }
 ?>
 <div class="wrap" id="tnp-wrap">
@@ -62,7 +62,7 @@ if ($handle) {
     <?php include NEWSLETTER_ADMIN_HEADER; ?>
 
     <div id="tnp-heading">
-        <?php $controls->title_help('/addons/extended-features/advanced-import/') ?>
+        <?php //$controls->title_help('/addons/extended-features/advanced-import/') ?>
         <h2>Import</h2>
         <?php include __DIR__ . '/nav.php' ?>
     </div>
@@ -78,10 +78,10 @@ if ($handle) {
 
             <div class="psource-tabs" id="tabs">
                 <div class="psource-tabs-nav">
-                    <button class="psource-tab active" data-tab="tabs-settings"><?php esc_html_e('Settings', 'newsletter-import') ?></button>
-                    <button class="psource-tab" data-tab="tabs-fields"><?php esc_html_e('Fields', 'newsletter-import') ?></button>
-                    <button class="psource-tab" data-tab="tabs-lists"><?php esc_html_e('Lists', 'newsletter-import') ?></button>
-                    <button class="psource-tab" data-tab="tabs-extra"><?php esc_html_e('Custom fields', 'newsletter-import') ?></button>
+                    <button class="psource-tab active" data-tab="tabs-settings"><?php esc_html_e('Einstellungen', 'newsletter-import') ?></button>
+                    <button class="psource-tab" data-tab="tabs-fields"><?php esc_html_e('Felder', 'newsletter-import') ?></button>
+                    <button class="psource-tab" data-tab="tabs-lists"><?php esc_html_e('Listen', 'newsletter-import') ?></button>
+                    <button class="psource-tab" data-tab="tabs-extra"><?php esc_html_e('Benutzerdefinierte Felder', 'newsletter-import') ?></button>
                 </div>
                 <div class="psource-tabs-content">
                     <div class="psource-tab-panel active" id="tabs-settings">
@@ -89,28 +89,28 @@ if ($handle) {
                             <tr>
                                 <th>When a subscriber is already present<br><small>Identified by it's email</small></th>
                                 <td>
-                                    <?php $controls->select('mode', array('update' => 'Update', 'overwrite' => 'Overwrite', 'skip' => 'Skip')); ?>
+                                    <?php $controls->select('mode', array('update' => 'Aktualisieren', 'overwrite' => 'Überschreiben', 'skip' => 'Überspringen')); ?>
                                     <p class="description">
-                                        <strong>Update</strong>: <?php esc_html_e('subscriber data will be updated, existing lists will be left untouched and new ones will be added.', 'newsletter') ?><br />
-                                        <strong>Overwrite</strong>: <?php esc_html_e('subscriber data will be cleared and set again', 'newsletter') ?><br />
-                                        <strong>Skip</strong>: <?php esc_html_e('subscriber won\'t be changed', 'newsletter') ?>
+                                        <strong>Update</strong>: <?php esc_html_e('Die Abonnentendaten werden aktualisiert, bestehende Listen bleiben unverändert und neue werden hinzugefügt.', 'newsletter') ?><br />
+                                        <strong>Overwrite</strong>: <?php esc_html_e('Die Abonnentendaten werden gelöscht und erneut gesetzt.', 'newsletter') ?><br />
+                                        <strong>Skip</strong>: <?php esc_html_e('Der Abonnent wird nicht geändert.', 'newsletter') ?>
                                     </p>
                                 </td>
                             </tr>
                             <tr>
-                                <th><?php esc_html_e('Import Subscribers As', 'newsletter') ?></th>
+                                <th><?php esc_html_e('Abonnenten importieren als', 'newsletter') ?></th>
                                 <td>
                                     <?php
                                     $controls->select('import_as', [
-                                        'C' => __('Confirmed', 'newsletter'),
-                                        'S' => __('Not confirmed', 'newsletter'),
-                                        'U' => __('Unsubscribed', 'newsletter'),
-                                        'B' => __('Bounced', 'newsletter'),
-                                        TNP_User::STATUS_COMPLAINED => __('Complained', 'newsletter'),
+                                        'C' => __('Bestätigt', 'newsletter'),
+                                        'S' => __('Nicht bestätigt', 'newsletter'),
+                                        'U' => __('Abgemeldet', 'newsletter'),
+                                        'B' => __('Zurückgewiesen', 'newsletter'),
+                                        TNP_User::STATUS_COMPLAINED => __('Beschwert', 'newsletter'),
                                             ], 'Select...');
                                     ?>
                                     <br>
-                                    <?php $controls->checkbox('override_status', __('Override status of existing users', 'newsletter')) ?>
+                                    <?php $controls->checkbox('override_status', __('Status vorhandener Benutzer überschreiben', 'newsletter')) ?>
                                 </td>
                             </tr>
                         </table>
@@ -119,8 +119,8 @@ if ($handle) {
                         <table class="widefat" style="width: auto">
                             <thead>
                                 <tr>
-                                    <th>Subscriber field</th>
-                                    <th>CSV column</th>
+                                    <th>Abonnentenfeld</th>
+                                    <th>CSV-Spalte</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -141,30 +141,30 @@ if ($handle) {
                                     <td>
                                         <?php $controls->select('language', $csv_fields) ?>
                                         <div class="description">
-                                            It should be 2 lowercase characters code (<a href="https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes" target="_blank">ISO 639-1</a>)
-                                            or the 2 lowercase characters code used by your multilanguage plugin.
+                                            Es sollte ein 2-stelliger Kleinbuchstabencode sein (<a href="https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes" target="_blank">ISO 639-1</a>)
+                                            oder der 2-stellige Kleinbuchstabencode, der von Ihrem Mehrsprachen-Plugin verwendet wird.
                                         </div>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td>Gender</td>
+                                    <td>Geschlecht</td>
                                     <td>
                                         <?php $controls->select('gender', $csv_fields) ?>
                                         <div class="description">
-                                            It should be "f" or "m" or "n".
+                                            Es sollte "f" oder "m" oder "n" sein.
                                         </div>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td>IP Address</td>
+                                    <td>IP-Adresse</td>
                                     <td><?php $controls->select('ip', $csv_fields) ?></td>
                                 </tr>
                                 <tr>
-                                    <td>Country</td>
+                                    <td>Land</td>
                                     <td>
                                         <?php $controls->select('country', $csv_fields) ?>
                                         <p class="description">
-                                            It should be the country <a href="https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2" target="_blank">ISO 3166-1 alpha 2 code</a>
+                                            Es sollte der Ländercode <a href="https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2" target="_blank">ISO 3166-1 alpha 2 code</a> sein.
                                         </p>
                                     </td>
                                 </tr>
@@ -172,11 +172,11 @@ if ($handle) {
                                     <td>Region</td>
                                     <td>
                                         <?php $controls->select('region', $csv_fields) ?>
-                                        <p class="description">Can be a state, county, province and so on</p>
+                                        <p class="description">Kann ein Bundesland, Landkreis, Provinz und so weiter sein</p>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td>City</td>
+                                    <td>Stadt</td>
                                     <td>
                                         <?php $controls->select('city', $csv_fields) ?>
                                     </td>
@@ -186,7 +186,7 @@ if ($handle) {
                     </div>
                     <div class="psource-tab-panel" id="tabs-lists">
                         <p>
-                            Lists can't be assigned using CSV fields.
+                            Listen können nicht mit CSV-Feldern zugewiesen werden.
                         </p>
                         <table class="form-table">
                             <tr>
@@ -194,27 +194,27 @@ if ($handle) {
                                 <td>
                                     <?php $controls->preferences_group('lists', true); ?>
                                     <div class="hints">
-                                        Every created or updated subscriber will be associate with selected lists.
+                                        Jeder erstellte oder aktualisierte Abonnent wird mit den ausgewählten Listen verknüpft.
                                     </div>
                                 </td>
                             </tr>
                         </table>
                     </div>
                     <div class="psource-tab-panel" id="tabs-extra">
-                        <p><a href="?page=newsletter_subscription_customfields">Manage custom fields</a>.</p>
+                        <p><a href="?page=newsletter_subscription_customfields">Benutzerdefinierte Felder verwalten</a>.</p>
                         <?php
                         $profiles = Newsletter::instance()->get_profiles();
                         ?>
                         <?php if (empty($profiles)) { ?>
                             <p style="font-weight: strong">
-                                There are not extra profile fields defined.
+                                Es sind keine zusätzlichen Profilfelder definiert.
                             </p>
                         <?php } else { ?>
                             <table class="widefat" style="width: auto">
                                 <thead>
                                     <tr>
-                                        <th>Subscriber field</th>
-                                        <th>CSV column</th>
+                                        <th>Abonnentenfeld</th>
+                                        <th>CSV-Spalte</th>
                                     </tr>
                                 </thead>
                                 <tbody>

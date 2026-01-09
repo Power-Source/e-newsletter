@@ -10,27 +10,16 @@ if (!isset($controls) || !$controls) {
 
 // Channel-ID aus GET holen
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-$channels = get_option('tnp_automated_channels', []);
-if ($id && isset($channels[$id])) {
-    $channel = (object) $channels[$id];
-} else {
-    $channel = new stdClass();
-    $channel->id = 0;
-    $channel->data = [
-        'name' => '',
-        'track' => 1,
-        'frequency' => 'weekly',
-        'day_1' => 1,
-    ];
-}
+require_once NEWSLETTER_DIR . '/main/automated_channels.php';
+$channel = AutomatedChannels::get($id);
 
 // Template laden
-$template_option = get_option('tnp_automated_template_' . $channel->id);
+$template_option = get_option('tnp_automated_template_' . $channel['id']);
 
 // Dummy-E-Mail-Objekt für Composer
 $email = new stdClass();
-$email->id = $channel->id;
-$email->subject = $channel->subject ?? '';
+$email->id = $channel['id'];
+$email->subject = $channel['subject'] ?? '';
 $email->status = '';
 $email->send_on = 0;
 $email->options = [];
@@ -50,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'updated' => time(),
     ];
 
-    update_option('tnp_automated_template_' . $channel->id, $template_data);
+    update_option('tnp_automated_template_' . $channel['id'], $template_data);
     echo '<div class="notice notice-success"><p>' . esc_html__('Vorlage gespeichert.', 'newsletter') . '</p></div>';
     $template_option = $template_data;
     // Werte ins Dummy-Objekt übernehmen, damit sie im Composer angezeigt werden

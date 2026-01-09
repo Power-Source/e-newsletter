@@ -218,16 +218,22 @@ class NewsletterMailerAddon extends NewsletterAddon {
         return null;
     }
 
-    function get_last_run() {
-        return get_option('newsletter_' . $this->name . '_last_run', 0);
+    function get_last_run($sub = '') {
+        if (empty($sub)) {
+            $sub = $this->name;
+        }
+        return get_option('newsletter_' . $sub . '_last_run', 0);
     }
 
-    function save_last_run($time) {
-        update_option('newsletter_' . $this->name . '_last_run', $time);
+    function save_last_run($time, $sub = '') {
+        if (empty($sub)) {
+            $sub = $this->name;
+        }
+        update_option('newsletter_' . $sub . '_last_run', $time);
     }
 
-    function save_options($options, $language = '') {
-        parent::save_options($options, $language);
+    function save_options($options, $set = '', $language = null) {
+        parent::save_options($options, $set, $language);
         $this->enabled = !empty($options['enabled']);
     }
 

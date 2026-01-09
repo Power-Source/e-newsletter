@@ -88,7 +88,7 @@ foreach (['subscription_text', 'error_text'] as $key) {
     <?php include NEWSLETTER_ADMIN_HEADER ?>
 
     <div id="tnp-heading">
-        <?php $controls->title_help('/subscription') ?>
+        <?php //$controls->title_help('/subscription') ?>
 <!--        <h2><?php esc_html_e('Subscription', 'newsletter') ?></h2>-->
         <?php include __DIR__ . '/nav.php' ?>
     </div>
@@ -102,8 +102,8 @@ foreach (['subscription_text', 'error_text'] as $key) {
 
             <div class="psource-tabs" id="tabs">
                 <div class="psource-tabs-nav">
-                    <button class="psource-tab active" data-tab="tabs-subscription"><?php esc_html_e('Subscription', 'newsletter') ?></button>
-                    <button class="psource-tab" data-tab="tabs-advanced"><?php esc_html_e('Advanced', 'newsletter') ?></button>
+                    <button class="psource-tab active" data-tab="tabs-subscription"><?php esc_html_e('Abonnement', 'newsletter') ?></button>
+                    <button class="psource-tab" data-tab="tabs-advanced"><?php esc_html_e('Erweitert', 'newsletter') ?></button>
                     <?php if (NEWSLETTER_DEBUG) { ?>
                         <button class="psource-tab" data-tab="tabs-debug">Debug</button>
                     <?php } ?>
@@ -113,15 +113,15 @@ foreach (['subscription_text', 'error_text'] as $key) {
                         <?php $this->language_notice(); ?>
                         <table class="form-table">
                             <tr>
-                                <th><?php $controls->field_label(__('Opt In', 'newsletter'), '/subscription/subscription/') ?></th>
+                                <th><?php $controls->field_label(__('Opt-in', 'newsletter'), '/subscription/subscription/') ?></th>
                                 <td>
-                                    <?php $controls->select('noconfirmation', array(0 => __('Double Opt In', 'newsletter'), 1 => __('Single Opt In', 'newsletter'))); ?>
+                                    <?php $controls->select('noconfirmation', array(0 => __('Doppelte Opt-in-Funktion', 'newsletter'), 1 => __('Single Opt In', 'newsletter'))); ?>
                                 </td>
                             </tr>
                             <tr>
-                                <th><?php esc_html_e('Subscription page', 'newsletter') ?></th>
+                                <th><?php esc_html_e('Abonnement-Seite', 'newsletter') ?></th>
                                 <td>
-                                    <?php $controls->checkbox2('subscription_text_custom', 'Customize'); ?>
+                                    <?php $controls->checkbox2('subscription_text_custom', 'Anpassen'); ?>
                                     <div data-tnpshow="subscription_text_custom=1">
                                         <?php $controls->wp_editor('subscription_text', ['editor_height' => 150], ['default' => $this->get_default_text('subscription_text')]); ?>
                                         <p class="description">

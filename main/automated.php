@@ -9,6 +9,7 @@ class NewsletterAutomated {
     }
 
     function init() {
+        require_once NEWSLETTER_DIR . '/main/automated_channels.php';
         add_action('admin_menu', array($this, 'add_menu'));
 
         // Cronjob registrieren (nur einmal)
@@ -88,10 +89,10 @@ class NewsletterAutomated {
     }
 
     function tnp_automated_cron() {
-        $channels = get_option('tnp_automated_channels', []);
+        $channels = AutomatedChannels::all();
         $now = current_time('timestamp');
 
-        foreach ($channels as $channel) {
+        foreach ($channels as $id => $channel) {
             // 1. Ist der Channel aktiviert?
             if (empty($channel['enabled'])) continue;
 
@@ -99,13 +100,20 @@ class NewsletterAutomated {
             $weekday = (int)date('N', $now); // 1=Montag ... 7=Sonntag
             if (empty($channel['day_' . $weekday])) continue;
 
-            // 3. Ist die Uhrzeit erreicht?
+            // 3. mögliche Fenster berechnen
             $hour = (int)date('G', $now); // 0-23
-            if ($hour < (int)$channel['hour']) continue;
+            $windows = [
+                ['hour' => (int)$channel['hour'], 'last_key' => 'last_sent_1', 'suffix' => 'w1']
+            ];
+            if (!empty($channel['hour2_enabled'])) {
+                $windows[] = ['hour' => (int)$channel['hour2'], 'last_key' => 'last_sent_2', 'suffix' => 'w2'];
+            }
 
-            // 4. Wurde heute schon gesendet?
-            $last_sent = isset($channel['last_sent']) ? (int)$channel['last_sent'] : 0;
-            if (date('Y-m-d', $last_sent) === date('Y-m-d', $now)) continue;
+            foreach ($windows as $win) {
+                if ($hour < $win['hour']) continue;
+
+                $last_sent_window = isset($channel[$win['last_key']]) ? (int)$channel[$win['last_key']] : 0;
+                if (date('Y-m-d', $last_sent_window) === date('Y-m-d', $now)) continue; // bereits heute gesendet in diesem Fenster
 
             // 5. Gibt es neue Inhalte?
             $args = [
@@ -131,12 +139,12 @@ class NewsletterAutomated {
             global $wpdb;
             $exists = $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM " . NEWSLETTER_EMAILS_TABLE . " WHERE type = %s AND DATE(FROM_UNIXTIME(send_on)) = %s",
-                'automated_' . $channel['id'],
+                'automated_' . $channel['id'] . '_' . $win['suffix'],
                 date('Y-m-d', $now)
             ));
             if ($exists) {
                 error_log('Newsletter für Channel ' . $channel['id'] . ' heute schon in Queue.');
-                continue;
+                continue; // ins nächste Fenster
             }
 
             // 8. Newsletter-Inhalt generieren (Composer-Logik)
@@ -158,7 +166,7 @@ class NewsletterAutomated {
             $email = [
                 'subject' => $subject,
                 'message' => $message,
-                'type' => 'automated_' . $channel['id'],
+                'type' => 'automated_' . $channel['id'] . '_' . $win['suffix'],
                 'status' => 'new',
                 'send_on' => $now,
                 'track' => $channel['track'],
@@ -174,12 +182,25 @@ class NewsletterAutomated {
                 continue;
             }
 
-            // 11. Letzten Versandzeitpunkt speichern
+            // 11. Letzten Versandzeitpunkt speichern und Email-Referenz ablegen
+            $email_id = (int)$wpdb->insert_id;
             $channel['last_sent'] = $now;
+            $channel[$win['last_key']] = $now;
+            $channel['sent'] = isset($channel['sent']) ? ((int)$channel['sent'] + 1) : 1;
+            $channel['email'] = [
+                'id' => $email_id,
+                'subject' => $subject,
+                'send_on' => $now,
+                'status' => 'new'
+            ];
             $channels[$channel['id']] = $channel;
+
+            // Nur ein Fenster pro Durchlauf bedienen
+            break;
+            }
         }
 
         // Channels mit aktualisiertem last_sent speichern
-        update_option('tnp_automated_channels', $channels);
+        AutomatedChannels::save($channels);
     }
 }
