@@ -869,6 +869,149 @@ $template_url = trailingslashit($theme_url_data['url']);
     transform: rotate(180deg);
 }
 
+/* Inline Benachrichtigungen */
+.enewsletter-notification {
+    position: fixed;
+    top: 32px;
+    right: 20px;
+    min-width: 300px;
+    max-width: 500px;
+    padding: 15px 20px;
+    background: white;
+    border-left: 4px solid #0073aa;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-radius: 3px;
+    z-index: 100000;
+    animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-in 2.7s;
+    opacity: 1;
+}
+
+.enewsletter-notification.success {
+    border-left-color: #46b450;
+}
+
+.enewsletter-notification.error {
+    border-left-color: #dc3232;
+}
+
+.enewsletter-notification.warning {
+    border-left-color: #ffb900;
+}
+
+.enewsletter-notification .notification-icon {
+    display: inline-block;
+    margin-right: 10px;
+    font-size: 18px;
+    vertical-align: middle;
+}
+
+.enewsletter-notification.success .notification-icon {
+    color: #46b450;
+}
+
+.enewsletter-notification.error .notification-icon {
+    color: #dc3232;
+}
+
+.enewsletter-notification.warning .notification-icon {
+    color: #ffb900;
+}
+
+.enewsletter-notification .notification-message {
+    display: inline-block;
+    vertical-align: middle;
+    font-size: 14px;
+    color: #23282d;
+    font-weight: 500;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        transform: translateX(400px);
+    }
+}
+
+/* Modal Dialog */
+.enewsletter-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.enewsletter-modal {
+    background: white;
+    border-radius: 3px;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+    min-width: 400px;
+    max-width: 600px;
+    animation: scaleIn 0.2s ease-out;
+}
+
+.enewsletter-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #ddd;
+}
+
+.enewsletter-modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #23282d;
+}
+
+.enewsletter-modal-body {
+    padding: 24px;
+    font-size: 14px;
+    color: #555;
+    line-height: 1.6;
+}
+
+.enewsletter-modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #ddd;
+    text-align: right;
+    background: #f5f5f5;
+}
+
+.enewsletter-modal-footer .button {
+    margin-left: 8px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
 .accordion-content {
     padding: 15px;
     background: white;
@@ -981,6 +1124,63 @@ jQuery(document).ready(function($) {
     var builderSettings = <?php echo wp_json_encode($builder_settings); ?>;
     var brandingSettings = <?php echo wp_json_encode($branding_settings); ?>;
     
+    // Benachrichtigungssystem
+    window.showNotification = function(message, type) {
+        type = type || 'info';
+        var iconClass = type === 'success' ? 'dashicons-yes' : 
+                       type === 'error' ? 'dashicons-warning' : 
+                       type === 'warning' ? 'dashicons-info' : 'dashicons-info';
+        
+        var $notification = $('<div class="enewsletter-notification ' + type + '">' +
+            '<span class="notification-icon dashicons ' + iconClass + '"></span>' +
+            '<span class="notification-message">' + message + '</span>' +
+        '</div>');
+        
+        $('body').append($notification);
+        
+        setTimeout(function() {
+            $notification.remove();
+        }, 3000);
+    };
+
+    // Modal Dialog System
+    window.showModal = function(title, message, onConfirm, confirmText, cancelText) {
+        confirmText = confirmText || '<?php _e('Bestätigen', 'email-newsletter'); ?>';
+        cancelText = cancelText || '<?php _e('Abbrechen', 'email-newsletter'); ?>';
+        
+        var $modal = $('<div class="enewsletter-modal-overlay">' +
+            '<div class="enewsletter-modal">' +
+                '<div class="enewsletter-modal-header">' +
+                    '<h2>' + title + '</h2>' +
+                '</div>' +
+                '<div class="enewsletter-modal-body">' +
+                    message +
+                '</div>' +
+                '<div class="enewsletter-modal-footer">' +
+                    '<button class="button modal-cancel">' + cancelText + '</button>' +
+                    '<button class="button button-primary modal-confirm">' + confirmText + '</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>');
+        
+        $('body').append($modal);
+        
+        $modal.find('.modal-cancel').on('click', function() {
+            $modal.remove();
+        });
+        
+        $modal.find('.modal-confirm').on('click', function() {
+            $modal.remove();
+            if (onConfirm) onConfirm();
+        });
+        
+        $modal.on('click', function(e) {
+            if ($(e.target).hasClass('enewsletter-modal-overlay')) {
+                $modal.remove();
+            }
+        });
+    };
+    
     // Initialize CodeMirror editors
     var htmlEditor = CodeMirror.fromTextArea(document.getElementById('template-html-editor'), {
         mode: 'htmlmixed',
@@ -1091,10 +1291,10 @@ jQuery(document).ready(function($) {
             nonce: nonce
         }, function(response) {
             if(response.success) {
-                alert('<?php _e('Datei gespeichert!', 'email-newsletter'); ?>');
+                showNotification('<?php _e('Datei gespeichert!', 'email-newsletter'); ?>', 'success');
                 updatePreview();
             } else {
-                alert('<?php _e('Fehler beim Speichern', 'email-newsletter'); ?>');
+                showNotification('<?php _e('Fehler beim Speichern', 'email-newsletter'); ?>', 'error');
             }
         });
     });
@@ -1112,10 +1312,10 @@ jQuery(document).ready(function($) {
             nonce: nonce
         }, function(response) {
             if(response.success) {
-                alert('<?php _e('CSS gespeichert!', 'email-newsletter'); ?>');
+                showNotification('<?php _e('CSS gespeichert!', 'email-newsletter'); ?>', 'success');
                 updatePreview();
             } else {
-                alert('<?php _e('Fehler beim Speichern', 'email-newsletter'); ?>');
+                showNotification('<?php _e('Fehler beim Speichern', 'email-newsletter'); ?>', 'error');
             }
         });
     });
@@ -1478,12 +1678,13 @@ a {
         }, function(response) {
             if(response.success) {
                 builderSettings = builderSettingsPayload;
-                alert('<?php _e('Einstellungen gespeichert!', 'email-newsletter'); ?>');
+                showNotification('<?php _e('Einstellungen gespeichert!', 'email-newsletter'); ?>', 'success');
                 updatePreview();
             } else {
-                alert('<?php _e('Fehler beim Speichern', 'email-newsletter'); ?>');
+                showNotification('<?php _e('Fehler beim Speichern', 'email-newsletter'); ?>', 'error');
             }
         });
     });
 });
+
 </script>

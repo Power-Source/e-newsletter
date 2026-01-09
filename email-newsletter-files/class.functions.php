@@ -2242,7 +2242,7 @@ class Email_Newsletter_functions {
         }
     }
 
-	function upgrade( $blog_id = '', $prev ) {
+	function upgrade( $prev, $blog_id = '' ) {
 		global $wpdb;
 
 		if ( $this->is_plugin_active_for_network(plugin_basename($this->plugin_main_file)) ) {
