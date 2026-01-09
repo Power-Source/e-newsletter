@@ -1,9 +1,9 @@
 jQuery( document ).ready( function() {
 
-    jQuery("#subscribes_form").submit(function() {
+    jQuery("#subscribes_form").submit(function(event) {
         event.preventDefault(); //disable default behavior
     });
-    jQuery("#subscribes_form .enewletter_widget_submit").click(function(event){
+    jQuery("#subscribes_form .enewletter_widget_submit").on('click', function(event){
         var stop = 0;
 
         event.preventDefault(); //disable default behavior
@@ -12,34 +12,34 @@ jQuery( document ).ready( function() {
 
         parent.find("#newsletter_action").val(jQuery(this).attr('id'));
 
-        parent.find("#message").text( email_newsletter_widget_scripts.saving ).slideDown();
+        parent.find("#message").text( email_newsletter_widget_scripts.saving ).css('display', 'block').css('opacity', '1');
 
         if ( jQuery(this).attr('id') == "new_subscribe" ) {
             if ( "" == parent.find("#e_newsletter_email").val() ) {
                 // append a error message
-                parent.find("#message").text( email_newsletter_widget_scripts.empty_email ).slideDown();
+                parent.find("#message").text( email_newsletter_widget_scripts.empty_email ).css('display', 'block').css('opacity', '1');
                 stop = 1;
             }
         }
 
         if(stop == 0) {
-            var e_newsletter_groups_id = new Array(); //prepers data for pdata filter
+            var e_newsletter_groups_id = []; //prepers data for pdata filter
             jQuery.each(parent.find('input[name="e_newsletter_groups_id[]"]' ), function() {
                 if(jQuery(this).is(':checked') || jQuery(this).attr('type') == 'hidden')
                     e_newsletter_groups_id.push(jQuery(this).val());
             });
 
-            var e_newsletter_auto_groups_id = new Array(); //prepers data for pdata filter
+            var e_newsletter_auto_groups_id = []; //prepers data for pdata filter
             jQuery.each(parent.find('input[name="e_newsletter_auto_groups_id[]"]' ), function() {
                 e_newsletter_auto_groups_id.push(jQuery(this).val());
             });
 
-            var e_newsletter_add_groups_id = new Array(); //prepers data for pdata filter
+            var e_newsletter_add_groups_id = []; //prepers data for pdata filter
             jQuery.each(parent.find('input[name="e_newsletter_add_groups_id[]"]' ), function() {
                 e_newsletter_add_groups_id.push(jQuery(this).val());
             });
 
-            var e_newsletter_remove_groups_id = new Array(); //prepers data for pdata filter
+            var e_newsletter_remove_groups_id = []; //prepers data for pdata filter
             jQuery.each(parent.find('input[name="e_newsletter_remove_groups_id[]"]' ), function() {
                 e_newsletter_remove_groups_id.push(jQuery(this).val());
             });
@@ -58,25 +58,25 @@ jQuery( document ).ready( function() {
             };
 
             jQuery.post(email_newsletter_widget_scripts.ajax_url, data, function(data){ //post data to specified action trough special WP ajax page
-                data = jQuery.parseJSON(data);
+                data = JSON.parse(data);
 
                 if(typeof data.redirect !== 'undefined' && data.redirect)
                     window.location = data.redirect;
                 else {
-                    parent.find("#message").slideUp('fast', function() {
-                        jQuery(this).text(data.message).slideDown('fast');
-                    });
+                    const messageEl = parent.find("#message");
+                    messageEl.css('display', 'none');
+                    messageEl.text(data.message).css('display', 'block').css('opacity', '1');
 
                     if(typeof data.subscribe_groups !== "undefined") {
                         jQuery.each(data.subscribe_groups, function(index, value) {
-                            parent.find('.e_newsletter_groups_id_'+value).attr("checked", true);
+                            parent.find('.e_newsletter_groups_id_'+value).prop("checked", true);
                         });
                     }
                     if(typeof data.unsubscribe_code !== "undefined") {
                         parent.find("#unsubscribe_code").val(data.unsubscribe_code);
                     }
-                    parent.find('#'+data.view).slideDown('fast');
-                    parent.find('#'+data.hide).slideUp('fast');
+                    parent.find('#'+data.view).css('display', 'block').css('opacity', '1');
+                    parent.find('#'+data.hide).css('display', 'none');
                 }
             });
         }

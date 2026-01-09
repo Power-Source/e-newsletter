@@ -66,12 +66,12 @@
                             </tr>
                             <tr valign="top">
                                 <th scope="row">
-                                    <?php _e( 'Contact information:', 'email-newsletter' ) ?>
+                                    <?php _e( 'Kontaktdatenrmation:', 'email-newsletter' ) ?>
                                 </th>
                                 <td>
                                     <textarea name="settings[contact_info]" class="contact-information" ><?php echo isset($this->settings['contact_info']) ? esc_textarea($this->settings['contact_info']) : "";?></textarea>
                                     <br />
-                                    <span class="description"><?php _e( 'Default contact information will be added to the bottom of each email.', 'email-newsletter' ) ?> <?php _e( 'It can be easily changed for each newsletter', 'email-newsletter' ) ?></span>
+                                    <span class="description"><?php _e( 'Default Kontaktdatenrmation will be added to the bottom of each email.', 'email-newsletter' ) ?> <?php _e( 'It can be easily changed for each newsletter', 'email-newsletter' ) ?></span>
                                 </td>
                             </tr>
                             <tr valign="top">

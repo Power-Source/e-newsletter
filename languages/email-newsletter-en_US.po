@@ -507,11 +507,11 @@ msgstr "Email subject"
 
 #: email-newsletter-files/builder/class.builder.php:727
 msgid "Email Inhalt"
-msgstr "Email content"
+msgstr "E-Mail-Inhalt"
 
 #: email-newsletter-files/builder/class.builder.php:637
 msgid "Email Titel"
-msgstr "Email title"
+msgstr "E-Mail-Titel"
 
 #: email-newsletter-files/page-settings.php:336
 msgid "Emails pro"
@@ -836,11 +836,11 @@ msgstr "comma"
 
 #: email-newsletter-files/page-settings.php:73
 msgid "Kontakt Informationen:"
-msgstr "Contact Information:"
+msgstr "Kontaktdatenrmation:"
 
 #: email-newsletter-files/builder/class.builder.php:737
 msgid "Kontaktinformation"
-msgstr "Contact information"
+msgstr "Kontaktdatenrmation"
 
 #: email-newsletter-files/builder/class.builder.php:624
 msgid "Linkfarbe"
@@ -1125,7 +1125,7 @@ msgstr "Standard groups:"
 
 #: email-newsletter-files/page-settings.php:78
 msgid "Standardkontaktinformationen werden am Ende jeder E-Mail hinzugefügt."
-msgstr "Standard contact information is added to the bottom of each email."
+msgstr "Standard Kontaktdatenrmation is added to the bottom of each email."
 
 #: email-newsletter-files/page-settings.php:58
 msgid "Standardname \"von\" beim Versenden von Newslettern."

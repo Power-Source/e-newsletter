@@ -84,7 +84,7 @@ class Builder_TinyMCE_Control extends WP_Customize_Control {
 					}
 				}, 2000);
 
-				//enables resizing of email content box
+				//enables resizing of E-Mail-Inhalt box
 				var resize;
 				var prev_emce_width = 0;
 				jQuery('#accordion-section-builder_email_content').on('mousedown', '.mce-i-resize, #content_tinymce_resize', function(){

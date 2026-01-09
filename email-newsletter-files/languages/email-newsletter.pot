@@ -551,7 +551,7 @@ msgid "Link Color"
 msgstr ""
 
 #: email-newsletter-files/builder/class.builder.php:625
-msgid "Email Title"
+msgid "E-Mail-Titel"
 msgstr ""
 
 #: email-newsletter-files/builder/class.builder.php:638
@@ -587,7 +587,7 @@ msgid "Bounce Email"
 msgstr ""
 
 #: email-newsletter-files/builder/class.builder.php:715
-msgid "Email Content"
+msgid "E-Mail-Inhalt"
 msgstr ""
 
 #: email-newsletter-files/builder/class.builder.php:720
@@ -595,7 +595,7 @@ msgid "Branding HTML/text"
 msgstr ""
 
 #: email-newsletter-files/builder/class.builder.php:725
-msgid "Contact Info"
+msgid "Kontaktdaten"
 msgstr ""
 
 #: email-newsletter-files/builder/class.builder.php:730
@@ -1334,11 +1334,11 @@ msgid "It can be easily changed for each newsletter"
 msgstr ""
 
 #: email-newsletter-files/page-settings.php:69
-msgid "Contact information:"
+msgid "Kontaktdatenrmation:"
 msgstr ""
 
 #: email-newsletter-files/page-settings.php:74
-msgid "Default contact information will be added to the bottom of each email."
+msgid "Default Kontaktdatenrmation will be added to the bottom of each email."
 msgstr ""
 
 #: email-newsletter-files/page-settings.php:79

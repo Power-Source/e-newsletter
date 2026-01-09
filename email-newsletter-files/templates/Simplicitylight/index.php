@@ -13,7 +13,7 @@ define('BUILDER_DEFAULT_ALTERNATIVE_COLOR', '#99aa00');
 
 define('BUILDER_DEFAULT_TITLE_COLOR', '#99aa00');
 
-define('BUILDER_DEFAULT_EMAIL_TITLE', 'Default Email Title');
+define('BUILDER_DEFAULT_EMAIL_TITLE', 'Standard-E-Mail-Titel');
 
 
 /* You can define settings for this template here */

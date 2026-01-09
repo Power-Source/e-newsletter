@@ -77,11 +77,12 @@ class WpmuDev_HelpTooltips {
 		?>
 <style type="text/css">
 .wpmudev-help { display: none; }
-.wpmudev-help-trigger { cursor: help; padding-left: 4px; }
+.wpmudev-help-trigger { cursor: help; padding-left: 4px; position: relative; }
 .wpmudev-help-trigger span { position: absolute; left: -9999px; }
 <?php if ($this->_icon_url) : ?>
 .wpmudev-help-trigger { background: url(<?php echo $this->_icon_url; ?>) no-repeat center center; width: 16px; height: 16px; display: inline-block; }
 <?php endif; ?>
+.wpmudev-tooltip{position:absolute;z-index:9999;max-width:320px;background:#fff;border:1px solid rgba(0,0,0,.15);box-shadow:0 4px 12px rgba(0,0,0,.12);padding:8px 10px;border-radius:4px;font-size:13px;line-height:1.4;color:#111;}
 </style>
 		<?php
 	}
@@ -104,6 +105,24 @@ class WpmuDev_HelpTooltips {
 		return $me.parent().find('.wpmudev-help');
 	}
 
+	function show_simple_tooltip(trigger, html){
+		remove_tooltip();
+		var $tip = $('<div class="wpmudev-tooltip" role="tooltip"></div>').html(html);
+		$('body').append($tip);
+		var offset = $(trigger).offset();
+		var top = offset.top - ($tip.outerHeight()/2) + ($(trigger).outerHeight()/2);
+		var left = offset.left + $(trigger).outerWidth() + 8;
+		// Clamp within viewport
+		var maxLeft = $(window).width() - $tip.outerWidth() - 8;
+		if(left > maxLeft) left = maxLeft;
+		if(top < 8) top = 8;
+		$tip.css({top: top, left: left});
+	}
+
+	function remove_tooltip(){
+		$('.wpmudev-tooltip').remove();
+	}
+
 	$(function(){
 		// Place bound tips next to targets
 		$.each($.parseJSON('<?php echo $selectors; ?>'), function(tip_id, selector){
@@ -116,21 +135,13 @@ class WpmuDev_HelpTooltips {
 
 		$('.wpmudev-help').each(function(){ initialize_help_item($(this)); });
 
-		if(window.tippy){
-			$('.wpmudev-help-trigger').each(function(){
-				var $help = get_help_block($(this));
-				if(!$help.length) return true;
-				tippy(this, {
-					content: $help.html(),
-					allowHTML: true,
-					interactive: true,
-					placement: '<?php echo is_rtl() ? 'left' : 'right'; ?>',
-					theme: 'light-border',
-					maxWidth: 320,
-					duration: [150, 100]
-				});
-			});
-		}
+		$(document).on('mouseenter focus', '.wpmudev-help-trigger', function(){
+			var $help = get_help_block($(this));
+			if(!$help.length) return;
+			show_simple_tooltip(this, $help.html());
+		}).on('mouseleave blur click', '.wpmudev-help-trigger', function(){
+			remove_tooltip();
+		});
 	});
 })(jQuery);
 </script>

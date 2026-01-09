@@ -28,8 +28,9 @@
             <center>
                 <p>The Newsletter was sent to <span id="count_sent">0</span> out of <?php echo $count_send_members; ?> members</p>
                 <div class="enewsletter_progressbar">
-                    <div id="progressbar">
-                        <span id="progressbar_text">
+                    <div id="progressbar" style="position: relative; width: 100%; max-width: 400px; margin: 20px auto;">
+                        <progress id="progressbar_value" value="0" max="100" style="width: 100%; height: 30px; border: 1px solid #ccc; border-radius: 4px;"></progress>
+                        <span id="progressbar_text" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #333; pointer-events: none;">
                             <?php echo _e( "Sending", 'email-newsletter' ) ?>
                         </span>
                     </div>
@@ -52,9 +53,8 @@
                     var pause = 0;
 
                     jQuery( function() {
-                        jQuery( "#progressbar" ).progressbar({
-                            value: 0
-                        });
+                        // Using native HTML5 progress element instead of jQuery UI progressbar
+                        jQuery( "#progressbar_value" ).attr( 'value', 0 );
                     });
 
                     jQuery( '#send_cron' ).click( function () {
@@ -98,7 +98,8 @@
 
                                     value = step * send;
 
-                                    jQuery( "#progressbar" ).progressbar( "option", "value", value );
+                                    // Update native HTML5 progress element
+                                    jQuery( "#progressbar_value" ).attr( 'value', value );
 
                                     send++;
                                     if ( 1 != pause )
@@ -110,7 +111,7 @@
                                      jQuery( "#send_cron" ).hide();
                                      jQuery( "#progressbar_text" ).html( '<?php echo _e( 'Done', 'email-newsletter' ) ?>' );
 									 jQuery( "#send_cancel" ).val('finish');
-                                     jQuery( ".ui-progressbar-value" ).fadeOut();
+                                     jQuery( "#progressbar_value" ).fadeOut();
                                 } else {
                                     alert( html );
                                 }

@@ -353,22 +353,14 @@ class Email_Newsletter extends Email_Newsletter_functions {
         if ( isset( $_REQUEST['page'] ) && 1 == $this->is_enewsletter_page( $_REQUEST['page'] ) ) {
             wp_enqueue_script( 'jquery' );
 
-            //including JS scripts
-            wp_enqueue_script( 'jquery-ui-tabs' );
+            //including JS scripts (tabs handled locally, no jQuery UI tabs)
             wp_enqueue_script( 'jquery-ui-core' );
 
-            //modern tooltip library (replaces deprecated jquery.tools)
-            wp_enqueue_script( 'popper-js', 'https://unpkg.com/@popperjs/core@2', array(), '2', true );
-            wp_enqueue_script( 'tippy-js', 'https://unpkg.com/tippy.js@6/dist/tippy-bundle.umd.min.js', array( 'popper-js' ), '6', true );
-            wp_enqueue_style( 'tippy-css', 'https://unpkg.com/tippy.js@6/dist/tippy.css', array(), '6' );
+            // tooltips handled by local helper (no external CDN)
 
-            //including JS scripts for progressbar
-            //wp_register_script( 'jquery_ui_widget', $this->plugin_url . 'email-newsletter-files/js/ui.widget.js' );
-            wp_enqueue_script( 'jquery-ui-widget' );
-
-            //including JS scripts for progressbar
-            //wp_register_script( 'jquery_progressbar', $this->plugin_url . 'email-newsletter-files/js/jquery.ui.progressbar.js' );
-            wp_enqueue_script( 'jquery-ui-progressbar' );
+            //progressbar now uses native HTML5 <progress> element instead of jQuery UI
+            //wp_enqueue_script( 'jquery-ui-widget' );
+            //wp_enqueue_script( 'jquery-ui-progressbar' );
 
             // Including CSS file
             wp_register_style( 'enewsletter-style', $this->plugin_url . 'email-newsletter-files/css/admin.css' );

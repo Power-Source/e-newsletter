@@ -202,6 +202,19 @@ class Email_Newsletter_Builder  {
 		if ( function_exists( 'wp_enqueue_media' ) ) {
 			wp_enqueue_media();
 		}
+		
+		// Remove deprecated jQuery UI scripts from Customizer context
+		// These are enqueued by WordPress/ClassicPress core but not used in the email newsletter builder
+		// They are deprecated in CP-2.2.0 and will be removed in CP-3.0.0
+		$deprecated_scripts = array(
+			'jquery-ui-sortable',
+			'jquery-ui-menu',
+			'jquery-ui-tabs',
+			'jquery-ui-accordion',
+		);
+		foreach ( $deprecated_scripts as $script ) {
+			wp_dequeue_script( $script );
+		}
 	}
 	function filter_email_footer($current_content, $newsletter_id) {
 		global $wp_customize;
@@ -635,7 +648,7 @@ class Email_Newsletter_Builder  {
 				'type' => 'newsletter_save'
 			) );
 			$instance->add_control( new Builder_TextArea_Control( $instance, 'email_title', array(
-				'label'   => __('Email Title','email-newsletter'),
+				'label'   => __('E-Mail-Titel','email-newsletter'),
 				'section' => 'builder_email_content',
 				'type'    => 'text',
 			) ) );
@@ -725,7 +738,7 @@ class Email_Newsletter_Builder  {
 			'type'    => 'text',
 		) );
 		$instance->add_control( new Builder_TinyMCE_Control( $instance, 'email_content', array(
-			'label'   => __('Email Content','email-newsletter'),
+			'label'   => __('E-Mail-Inhalt','email-newsletter'),
 			'section' => 'builder_email_content',
 			'settings'   => 'email_content',
 		) ) );
@@ -735,7 +748,7 @@ class Email_Newsletter_Builder  {
 			'settings'   => 'branding_html',
 		) ) );
 		$instance->add_control( new Builder_TextArea_Control( $instance, 'contact_info', array(
-			'label'   => __('Contact Info','email-newsletter'),
+			'label'   => __('Kontaktdaten','email-newsletter'),
 			'section' => 'builder_email_content',
 			'settings'   => 'contact_info',
 		) ) );
