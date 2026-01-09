@@ -148,8 +148,19 @@ if(!empty($index_php_content)) {
     }
 }
 
-// Default Lorem Ipsum content
-$default_lorem = '<h2>Lorem Ipsum</h2><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>';
+// Default Lorem Ipsum content with format examples
+$default_lorem = '<h1>Hauptüberschrift H1</h1>
+<p>Dies ist ein Beispiel-Absatz mit normalem Text. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+
+<h2>Unterüberschrift H2</h2>
+<p>Ein weiterer Absatz mit <a href="#">einem Beispiel-Link</a> und normalem Text. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+
+<h3>Zweitüberschrift H3</h3>
+<p>Dieser Absatz zeigt, wie die Typographie-Einstellungen auf verschiedene Elemente angewendet werden. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+
+<blockquote>Dies ist ein Zitat-Beispiel. Es zeigt, wie die blockquote-Formatierung mit Farbe und Rahmen dargestellt wird.</blockquote>
+
+<p>Und hier ist noch ein normaler Absatz zum Abschluss. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>';
 
 if(empty($template_html_content)) {
     $template_html_content = '<table><tr><td>{CONTENT}</td></tr></table>';

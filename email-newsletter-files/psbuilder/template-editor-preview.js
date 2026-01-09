@@ -118,8 +118,8 @@
             '        body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }\n' +
             '        table { width: 100%; max-width: 600px; margin: 0 auto; background-color: white; }\n' +
             styleCss + '\n' +
-            contentTypographyCss + '\n' +
             builderCss + '\n' +
+            contentTypographyCss + '\n' +
             '    </style>\n' +
             '</head>\n' +
             '<body>\n' +
