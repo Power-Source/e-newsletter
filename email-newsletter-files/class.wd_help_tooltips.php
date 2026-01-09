@@ -125,7 +125,7 @@ class WpmuDev_HelpTooltips {
 
 	$(function(){
 		// Place bound tips next to targets
-		$.each($.parseJSON('<?php echo $selectors; ?>'), function(tip_id, selector){
+		$.each(JSON.parse('<?php echo $selectors; ?>'), function(tip_id, selector){
 			var $tip = $('#'+tip_id);
 			if(!$tip.length) return true;
 			var $selector = $(selector);

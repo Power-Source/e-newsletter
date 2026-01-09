@@ -207,6 +207,8 @@ class Email_Newsletter_Builder  {
 		// These are enqueued by WordPress/ClassicPress core but not used in the email newsletter builder
 		// They are deprecated in CP-2.2.0 and will be removed in CP-3.0.0
 		$deprecated_scripts = array(
+			'jquery-ui-core',
+			'jquery-ui-autocomplete',
 			'jquery-ui-sortable',
 			'jquery-ui-menu',
 			'jquery-ui-tabs',

@@ -26,8 +26,8 @@
 
 ?>
     <div class="wrap">
-        <h2><?php _e( 'My Subscriptions', 'email-newsletter' ) ?></h2>
-        <p><?php _e( 'At this page you can Subscribe or Unsubscribe to Newsletters', 'email-newsletter' ) ?></p>
+        <h2><?php _e( 'Meine Abonnements', 'email-newsletter' ) ?></h2>
+        <p><?php _e( 'Auf dieser Seite kannst du Newsletter abonnieren oder abbestellen', 'email-newsletter' ) ?></p>
         <?php
         if ( "" != $member_data['unsubscribe_code']) {
         ?>
@@ -40,7 +40,7 @@
                 <table id="subscribes_table" class="form-table">
                     <tr valign="top">
                         <th scope="row">
-                            <?php _e( 'Newsletters:', 'email-newsletter' ) ?>
+                            <?php _e( 'Newsletter:', 'email-newsletter' ) ?>
                         </th>
                         <td>
                             <?php
@@ -61,8 +61,8 @@
             }
             ?>
 			<p class="submit">
-				<?php if ( $groups ) { ?><input class="button button-primary" type="button" id="save_subscribes" value="<?php _e( 'Save Subscribes', 'email-newsletter' ) ?>" /><?php } ?>
-				<input class="button button-secondary" type="button" id="unsubscribe" value="<?php _e( 'Unsubscribe from all newsletters', 'email-newsletter' ) ?>" />
+				<?php if ( $groups ) { ?><input class="button button-primary" type="button" id="save_subscribes" value="<?php _e( 'Abonnements speichern', 'email-newsletter' ) ?>" /><?php } ?>
+				<input class="button button-secondary" type="button" id="unsubscribe" value="<?php _e( 'Von allen Newslettern abmelden', 'email-newsletter' ) ?>" />
 			</p>
         </form>
         <?php
@@ -71,7 +71,7 @@
         <form action="" method="post" name="" id="" >
             <p class="submit">
                 <input type="hidden" name="newsletter_action" id="subscribe" value="subscribe" />
-                <input class="button button-primary" type="submit" value="<?php _e( 'Subscribe on Newsletters', 'email-newsletter' ) ?>" />
+                <input class="button button-primary" type="submit" value="<?php _e( 'Newsletter abonnieren', 'email-newsletter' ) ?>" />
             </p>
         </form>
         <?php

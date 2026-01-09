@@ -353,8 +353,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
         if ( isset( $_REQUEST['page'] ) && 1 == $this->is_enewsletter_page( $_REQUEST['page'] ) ) {
             wp_enqueue_script( 'jquery' );
 
-            //including JS scripts (tabs handled locally, no jQuery UI tabs)
-            wp_enqueue_script( 'jquery-ui-core' );
+            //all jQuery UI dependencies removed - now using native JavaScript and HTML5 elements
 
             // tooltips handled by local helper (no external CDN)
 
