@@ -1,9 +1,10 @@
 === PS eNewsletter ===
 Contributors: DerN3rd (PSOURCE)
 Tags: newsletter
-Requires at least: 3.7
-Tested up to: 5.6
-Stable tag: 1.0.0
+Requires at least: 4.9
+Tested up to: 6.8.1
+ClassicPress: 2.6.0
+Stable tag: 1.0.1
 Requires PHP: 7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -37,6 +38,11 @@ zu verbessern.
 
 
 == ChangeLog ==
+
+= 1.0.1 =
+
+* Eliche Bugfixes
+* Etliche Security Fixes
 
 = 1.0.0 =
 

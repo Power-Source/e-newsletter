@@ -5,13 +5,13 @@ Plugin Name: PS-eNewsletter
 Plugin URI: https://power-source.github.io/e-newsletter/
 Description: Das ultimative Newsletter Plugin für ClassicPress. Keine Drittanbieterdienste oder Abo-Kosten, Newsletter direkt aus dem ClassicPress-Dashboard managen und versenden.
 Natürlich mit der großartigen Piestingtal.Source Kompatibilität.
-Version: 1.0.0
+Version: 1.0.1
 Text Domain: newsletter
 Author: PSOURCE
 Author URI: https://github.com/Power-Source
 
 
-Copyright 2018-2024 PSOURCE (https://github.com/Power-Source)
+Copyright 2018-2026 PSOURCE (https://github.com/Power-Source)
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License (Version 2 - GPLv2) as published by
@@ -68,7 +68,7 @@ add_action( 'admin_notices', function() {
     }
 });
 
-define('NEWSLETTER_VERSION', '1.0.0');
+define('NEWSLETTER_VERSION', '1.0.1');
 
 global $wpdb, $newsletter;
 
