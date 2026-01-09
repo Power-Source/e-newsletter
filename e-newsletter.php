@@ -251,6 +251,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
         add_action( 'wp_ajax_enewsletter_save_template_file', array( &$GLOBALS['ps_builder'], 'ajax_save_template_file' ) );
         add_action( 'wp_ajax_enewsletter_save_template_css', array( &$GLOBALS['ps_builder'], 'ajax_save_template_css' ) );
         add_action( 'wp_ajax_enewsletter_save_builder_settings', array( &$GLOBALS['ps_builder'], 'ajax_save_builder_settings' ) );
+        add_action( 'wp_ajax_enewsletter_save_content_typography', array( &$GLOBALS['ps_builder'], 'ajax_save_content_typography' ) );
     }
 
     /**

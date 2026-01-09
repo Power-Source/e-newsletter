@@ -604,4 +604,13 @@ class PS_Builder {
             wp_send_json_error(__('Failed to save settings', 'email-newsletter'));
         }
     }
+    
+    /**
+     * AJAX handler: Save content typography settings to index.php
+     * Delegates to external handler for better file organization
+     */
+    public function ajax_save_content_typography() {
+        require_once(dirname(__FILE__) . '/ajax-content-typography.php');
+        enewsletter_ajax_save_content_typography($this->email_newsletter);
+    }
 }

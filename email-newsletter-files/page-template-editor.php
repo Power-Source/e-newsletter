@@ -101,6 +101,50 @@ if(!empty($index_php_content)) {
     }
     if(preg_match("/define\('BUILDER_SETTING_USE_DEFAULT_STYLES',\s*(true|false)\)/", $index_php_content, $m)) {
         $builder_settings['use_default_styles'] = ($m[1] === 'true');
+    
+        // Content Typography Settings
+        if(preg_match("/define\('BUILDER_CONTENT_H1_SIZE',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['h1_size'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_H1_COLOR',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['h1_color'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_H2_SIZE',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['h2_size'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_H2_COLOR',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['h2_color'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_H3_SIZE',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['h3_size'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_H3_COLOR',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['h3_color'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_P_SIZE',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['p_size'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_P_LINE_HEIGHT',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['p_line_height'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_FONT_FAMILY',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['font_family'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_BLOCKQUOTE_COLOR',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['blockquote_color'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_BLOCKQUOTE_BORDER',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['blockquote_border'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_LINK_DECORATION',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['link_decoration'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_CONTAINER_BORDER',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['container_border'] = $m[1];
+        }
+        if(preg_match("/define\('BUILDER_CONTENT_CONTAINER_PADDING',\s*'([^']+)'\)/", $index_php_content, $m)) {
+            $builder_settings['container_padding'] = $m[1];
+        }
     }
 }
 
@@ -233,6 +277,113 @@ $template_url = trailingslashit($theme_url_data['url']);
                 </div>
                 </div>
             </div>
+            
+            <!-- Accordion Section: Content Typografie -->
+            <div class="sidebar-accordion-section">
+                <h3 class="accordion-header">
+                    <span class="dashicons dashicons-editor-paragraph"></span>
+                    <?php _e('Content Typografie', 'email-newsletter'); ?>
+                    <span class="accordion-toggle dashicons dashicons-arrow-down-alt2"></span>
+                </h3>
+                
+                <div class="accordion-content" style="display: none;">
+                    <div class="content-typography-form">
+                    
+                                <!-- Font Family -->
+                                <div class="setting-group">
+                                    <label><?php _e('Schriftart:', 'email-newsletter'); ?></label>
+                                    <select id="content-font-family" class="builder-select">
+                                        <option value="Arial, Helvetica, sans-serif" <?php selected($builder_settings['font_family'] ?? '', 'Arial, Helvetica, sans-serif'); ?>>Arial</option>
+                                        <option value="'Georgia', serif" <?php selected($builder_settings['font_family'] ?? '', "'Georgia', serif"); ?>>Georgia</option>
+                                        <option value="'Times New Roman', Times, serif" <?php selected($builder_settings['font_family'] ?? '', "'Times New Roman', Times, serif"); ?>>Times New Roman</option>
+                                        <option value="'Courier New', Courier, monospace" <?php selected($builder_settings['font_family'] ?? '', "'Courier New', Courier, monospace"); ?>>Courier New</option>
+                                        <option value="Verdana, Geneva, sans-serif" <?php selected($builder_settings['font_family'] ?? '', 'Verdana, Geneva, sans-serif'); ?>>Verdana</option>
+                                        <option value="'Trebuchet MS', sans-serif" <?php selected($builder_settings['font_family'] ?? '', "'Trebuchet MS', sans-serif"); ?>>Trebuchet MS</option>
+                                    </select>
+                                </div>
+                    
+                                <!-- H1 Settings -->
+                                <div class="setting-group">
+                                    <label><?php _e('Überschrift H1:', 'email-newsletter'); ?></label>
+                                    <div style="display: flex; gap: 8px;">
+                                        <input type="text" id="content-h1-size" class="builder-text-input" style="flex: 1;" value="<?php echo esc_attr($builder_settings['h1_size'] ?? '28px'); ?>" placeholder="28px">
+                                        <input type="color" id="content-h1-color" class="color-picker" value="<?php echo esc_attr($builder_settings['h1_color'] ?? '#333333'); ?>">
+                                    </div>
+                                    <small><?php _e('Größe (z.B. 28px) und Farbe', 'email-newsletter'); ?></small>
+                                </div>
+                    
+                                <!-- H2 Settings -->
+                                <div class="setting-group">
+                                    <label><?php _e('Überschrift H2:', 'email-newsletter'); ?></label>
+                                    <div style="display: flex; gap: 8px;">
+                                        <input type="text" id="content-h2-size" class="builder-text-input" style="flex: 1;" value="<?php echo esc_attr($builder_settings['h2_size'] ?? '24px'); ?>" placeholder="24px">
+                                        <input type="color" id="content-h2-color" class="color-picker" value="<?php echo esc_attr($builder_settings['h2_color'] ?? '#333333'); ?>">
+                                    </div>
+                                    <small><?php _e('Größe (z.B. 24px) und Farbe', 'email-newsletter'); ?></small>
+                                </div>
+                    
+                                <!-- H3 Settings -->
+                                <div class="setting-group">
+                                    <label><?php _e('Überschrift H3:', 'email-newsletter'); ?></label>
+                                    <div style="display: flex; gap: 8px;">
+                                        <input type="text" id="content-h3-size" class="builder-text-input" style="flex: 1;" value="<?php echo esc_attr($builder_settings['h3_size'] ?? '20px'); ?>" placeholder="20px">
+                                        <input type="color" id="content-h3-color" class="color-picker" value="<?php echo esc_attr($builder_settings['h3_color'] ?? '#333333'); ?>">
+                                    </div>
+                                    <small><?php _e('Größe (z.B. 20px) und Farbe', 'email-newsletter'); ?></small>
+                                </div>
+                    
+                                <!-- Paragraph Settings -->
+                                <div class="setting-group">
+                                    <label><?php _e('Absatz (p):', 'email-newsletter'); ?></label>
+                                    <div style="display: flex; gap: 8px;">
+                                        <input type="text" id="content-p-size" class="builder-text-input" style="flex: 1;" value="<?php echo esc_attr($builder_settings['p_size'] ?? '14px'); ?>" placeholder="14px">
+                                        <input type="text" id="content-p-line-height" class="builder-text-input" style="flex: 1;" value="<?php echo esc_attr($builder_settings['p_line_height'] ?? '1.6'); ?>" placeholder="1.6">
+                                    </div>
+                                    <small><?php _e('Schriftgröße und Zeilenhöhe', 'email-newsletter'); ?></small>
+                                </div>
+                    
+                                <!-- Link Decoration -->
+                                <div class="setting-group">
+                                    <label><?php _e('Link Dekoration:', 'email-newsletter'); ?></label>
+                                    <select id="content-link-decoration" class="builder-select">
+                                        <option value="underline" <?php selected($builder_settings['link_decoration'] ?? '', 'underline'); ?>><?php _e('Unterstrichen', 'email-newsletter'); ?></option>
+                                        <option value="none" <?php selected($builder_settings['link_decoration'] ?? '', 'none'); ?>><?php _e('Keine', 'email-newsletter'); ?></option>
+                                        <option value="underline dotted" <?php selected($builder_settings['link_decoration'] ?? '', 'underline dotted'); ?>><?php _e('Gepunktet', 'email-newsletter'); ?></option>
+                                        <option value="underline dashed" <?php selected($builder_settings['link_decoration'] ?? '', 'underline dashed'); ?>><?php _e('Gestrichelt', 'email-newsletter'); ?></option>
+                                    </select>
+                                </div>
+                    
+                                <!-- Blockquote Settings -->
+                                <div class="setting-group">
+                                    <label><?php _e('Zitat (blockquote):', 'email-newsletter'); ?></label>
+                                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                        <input type="color" id="content-blockquote-color" class="color-picker" value="<?php echo esc_attr($builder_settings['blockquote_color'] ?? '#666666'); ?>">
+                                        <input type="text" id="content-blockquote-border" class="builder-text-input" style="flex: 1;" value="<?php echo esc_attr($builder_settings['blockquote_border'] ?? '3px solid #cccccc'); ?>" placeholder="3px solid #ccc">
+                                    </div>
+                                    <small><?php _e('Farbe und linker Rahmen (z.B. 3px solid #ccc)', 'email-newsletter'); ?></small>
+                                </div>
+                    
+                                <!-- Container Border -->
+                                <div class="setting-group">
+                                    <label><?php _e('Content Container Rahmen:', 'email-newsletter'); ?></label>
+                                    <input type="text" id="content-container-border" class="builder-text-input" value="<?php echo esc_attr($builder_settings['container_border'] ?? 'none'); ?>" placeholder="none oder 1px solid #ddd">
+                                    <small><?php _e('z.B. "none" oder "1px solid #ddd"', 'email-newsletter'); ?></small>
+                                </div>
+                    
+                                <!-- Container Padding -->
+                                <div class="setting-group">
+                                    <label><?php _e('Content Container Innenabstand:', 'email-newsletter'); ?></label>
+                                    <input type="text" id="content-container-padding" class="builder-text-input" value="<?php echo esc_attr($builder_settings['container_padding'] ?? '20px'); ?>" placeholder="20px">
+                                    <small><?php _e('z.B. "20px" oder "20px 30px"', 'email-newsletter'); ?></small>
+                                </div>
+                    
+                                <button class="button button-primary save-content-typography-btn" style="width: 100%; margin-top: 15px;">
+                                    <span class="dashicons dashicons-yes"></span>
+                                    <?php _e('Typografie speichern', 'email-newsletter'); ?>
+                                </button>
+                            </div>
+                    </div>
+                </div>
             
             <!-- Accordion Section: Branding & Kontakt -->
             <div class="sidebar-accordion-section">
@@ -1027,6 +1178,15 @@ $template_url = trailingslashit($theme_url_data['url']);
     margin-top: 0;
 }
 
+.content-typography-form .setting-group {
+    margin-bottom: 14px;
+}
+.content-typography-form small {
+    display: block;
+    color: #666;
+    margin-top: 4px;
+}
+
 .builder-textarea {
     width: 100%;
     padding: 6px 8px;
@@ -1124,6 +1284,15 @@ jQuery(document).ready(function($) {
     var builderSettings = <?php echo wp_json_encode($builder_settings); ?>;
     var brandingSettings = <?php echo wp_json_encode($branding_settings); ?>;
     
+    // Make global for preview script
+    window.loremIpsum = loremIpsum;
+    window.builderSettings = builderSettings;
+    window.enewsletterTemplateUrl = '<?php echo esc_js($template_url); ?>';
+    window.enewsletterSiteData = {
+        name: '<?php echo esc_js(get_bloginfo('name')); ?>',
+        email: '<?php echo esc_js(get_bloginfo('admin_email')); ?>'
+    };
+    
     // Benachrichtigungssystem
     window.showNotification = function(message, type) {
         type = type || 'info';
@@ -1219,6 +1388,11 @@ jQuery(document).ready(function($) {
         styleActiveLine: true
     });
     
+    // Make editors global for preview script
+    window.htmlEditor = htmlEditor;
+    window.cssEditor = cssEditor;
+    window.cssHeaderEditor = cssHeaderEditor;
+    
     // Accordion functionality
     $('.accordion-header').on('click', function() {
         var $header = $(this);
@@ -1276,7 +1450,7 @@ jQuery(document).ready(function($) {
             cssHeaderEditor.refresh();
         }
         
-        updatePreview();
+        window.updatePreview();
     });
     
     // Save template.html
@@ -1292,7 +1466,7 @@ jQuery(document).ready(function($) {
         }, function(response) {
             if(response.success) {
                 showNotification('<?php _e('Datei gespeichert!', 'email-newsletter'); ?>', 'success');
-                updatePreview();
+                window.updatePreview();
             } else {
                 showNotification('<?php _e('Fehler beim Speichern', 'email-newsletter'); ?>', 'error');
             }
@@ -1313,7 +1487,7 @@ jQuery(document).ready(function($) {
         }, function(response) {
             if(response.success) {
                 showNotification('<?php _e('CSS gespeichert!', 'email-newsletter'); ?>', 'success');
-                updatePreview();
+                window.updatePreview();
             } else {
                 showNotification('<?php _e('Fehler beim Speichern', 'email-newsletter'); ?>', 'error');
             }
@@ -1326,7 +1500,7 @@ jQuery(document).ready(function($) {
         var value = $(this).val();
         settings[setting] = value;
         generateCSS();
-        updatePreview();
+        window.updatePreview();
     });
     
     // Spacing input changes
@@ -1335,7 +1509,7 @@ jQuery(document).ready(function($) {
         var value = $(this).val();
         settings[setting] = value;
         generateCSS();
-        updatePreview();
+        window.updatePreview();
     });
     
     // Typography changes
@@ -1344,7 +1518,7 @@ jQuery(document).ready(function($) {
         var value = $(this).val();
         settings[setting] = value;
         generateCSS();
-        updatePreview();
+        window.updatePreview();
     });
     
     // Select header image from media library
@@ -1362,7 +1536,7 @@ jQuery(document).ready(function($) {
         mediaUploader.on('select', function() {
             var attachment = mediaUploader.state().get('selection').first().toJSON();
             $('#header-image-url').val(attachment.url);
-            updatePreview();
+            window.updatePreview();
         });
         
         mediaUploader.open();
@@ -1370,7 +1544,7 @@ jQuery(document).ready(function($) {
     
     // Refresh preview button
     $('.refresh-preview-btn').on('click', function() {
-        updatePreview();
+        window.updatePreview();
     });
     
     // Generate CSS from settings (legacy settings tab)
@@ -1467,84 +1641,13 @@ a {
         return '';
     }
     
-    // Update live preview
-    function updatePreview() {
-        var htmlContent = htmlEditor.getValue();
-        var styleCss = cssEditor.getValue();
-        var builderCss = '';
-        var templateBase = '<?php echo esc_js($template_url); ?>';
-        var headerImagePath = builderSettings.header_image ? builderSettings.header_image : '';
-        var bgImagePath = builderSettings.bg_image ? builderSettings.bg_image : '';
-        var resolvedHeader = '';
-        var resolvedBg = '';
-        if(headerImagePath) {
-            resolvedHeader = /^https?:\/\//i.test(headerImagePath) ? headerImagePath : templateBase + headerImagePath.replace(/^\//, '');
-        }
-        if(bgImagePath) {
-            resolvedBg = /^https?:\/\//i.test(bgImagePath) ? bgImagePath : templateBase + bgImagePath.replace(/^\//, '');
-        }
-        
-        // Apply builder settings to live CSS
-        builderCss += 'body { background-color: ' + (builderSettings.bg_color || '#ffffff') + ';';
-        if(resolvedBg) {
-            builderCss += ' background-image: url("' + resolvedBg + '"); background-size: cover; background-repeat: no-repeat;';
-        }
-        builderCss += ' color: ' + (builderSettings.body_color || '#333333') + '; }';
-        builderCss += ' a { color: ' + (builderSettings.link_color || '#0073aa') + '; }';
-        builderCss += ' h1, h2, h3, h4, h5, h6 { color: ' + (builderSettings.title_color || '#000000') + '; }';
-        builderCss += ' .alt, .alternate, .alt-row { background-color: ' + (builderSettings.alternative_color || '#666666') + '; }';
-        
-        // Sample data for placeholder replacement
-        var sampleData = {
-            'CONTENT': loremIpsum,
-            'EMAIL_TITLE': builderSettings.email_title ? builderSettings.email_title : '<?php _e('Beispiel Newsletter-Titel', 'email-newsletter'); ?>',
-            'EMAIL_BODY': loremIpsum,
-            'UNSUBSCRIBE_LINK': '<a href="#unsubscribe"><?php _e('Abmelden', 'email-newsletter'); ?></a>',
-            'UNSUBSCRIBE_URL': '#unsubscribe',
-            'VIEW_LINK': '<a href="#view"><?php _e('Im Browser anzeigen', 'email-newsletter'); ?></a>',
-            'VIEW_LINK_TEXT': '<?php _e('Im Browser anzeigen', 'email-newsletter'); ?>',
-            'FROM_NAME': '<?php echo esc_js(get_bloginfo('name')); ?>',
-            'FROM_EMAIL': '<?php echo esc_js(get_bloginfo('admin_email')); ?>',
-            'FROM_EMAI': '<?php echo esc_js(get_bloginfo('admin_email')); ?>',
-            'BRANDING_HTML': generateBrandingHTML(),
-            'CONTACT_INFO': generateBrandingHTML(),
-            'HEADER_IMAGE': headerImagePath ? '<img src="' + resolvedHeader + '" alt="Header" style="max-width:100%; height:auto; display:block;">' : '',
-            'EMAIL_SUBJECT': builderSettings.email_title ? builderSettings.email_title : '<?php _e('Beispiel Betreff', 'email-newsletter'); ?>',
-            'DATE': new Date().toLocaleDateString()
-        };
-        
-        // Replace all placeholders (both {PLACEHOLDER} and {{PLACEHOLDER}} format)
-        for (var key in sampleData) {
-            var value = sampleData[key];
-            htmlContent = htmlContent.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), value);
-            htmlContent = htmlContent.replace(new RegExp('\\{' + key + '\\}', 'g'), value);
-        }
-        
-        // Build preview HTML
-        var previewHtml = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
-        table { width: 100%; max-width: 600px; margin: 0 auto; background-color: white; }
-            ${styleCss}
-            ${builderCss}
-    </style>
-</head>
-<body>
-    ${htmlContent}
-</body>
-</html>`;
-        
-        var frame = document.getElementById('preview-frame');
-        frame.srcdoc = previewHtml;
-    }
+    // Make global for preview script
+    window.generateBrandingHTML = generateBrandingHTML;
     
     // Initial preview
-    updatePreview();
+    if (typeof window.updatePreview === 'function') {
+        window.updatePreview();
+    }
 
     // Live update for color inputs
     $('.builder-color-input').on('input change', function() {
@@ -1566,20 +1669,20 @@ a {
                 builderSettings.title_color = $(this).val();
                 break;
         }
-        updatePreview();
+        window.updatePreview();
     });
 
     // Live update for text input
     $('#builder-email-title').on('input change', function() {
         builderSettings.email_title = $(this).val();
-        updatePreview();
+        window.updatePreview();
     });
 
     // Live update for checkboxes
     $('#builder-use-header-footer, #builder-use-styles').on('change', function() {
         builderSettings.use_default_header_footer = $('#builder-use-header-footer').is(':checked');
         builderSettings.use_default_styles = $('#builder-use-styles').is(':checked');
-        updatePreview();
+        window.updatePreview();
     });
     
     // Live update for branding inputs
@@ -1594,13 +1697,13 @@ a {
         brandingSettings.instagram = $('#branding-instagram').val();
         brandingSettings.linkedin = $('#branding-linkedin').val();
         brandingSettings.youtube = $('#branding-youtube').val();
-        updatePreview();
+        window.updatePreview();
     });
     
     // Live update for branding layout
     $('#branding-layout').on('change', function() {
         brandingSettings.branding_layout = $(this).val();
-        updatePreview();
+        window.updatePreview();
     });
     
     // Builder Settings: Media Picker for Background Image
@@ -1623,7 +1726,7 @@ a {
             var url = attachment.url;
             $('#builder-bg-image').val(url);
             builderSettings.bg_image = url;
-            updatePreview();
+            window.updatePreview();
         });
         
         mediaUploader.open();
@@ -1649,12 +1752,51 @@ a {
             var url = attachment.url;
             $('#builder-header-image').val(url);
             builderSettings.header_image = url;
-            updatePreview();
+            window.updatePreview();
         });
         
         mediaUploader.open();
     });
     
+    // Content Typography: Live Preview Update
+    $('#content-font-family, #content-h1-size, #content-h1-color, #content-h2-size, #content-h2-color, #content-h3-size, #content-h3-color, #content-p-size, #content-p-line-height, #content-link-decoration, #content-blockquote-color, #content-blockquote-border, #content-container-border, #content-container-padding').on('input change', function() {
+        window.updatePreview();
+    });
+
+    // Save Content Typography Settings
+    $('.save-content-typography-btn').on('click', function() {
+        var contentTypographyPayload = {
+            font_family: $('#content-font-family').val(),
+            h1_size: $('#content-h1-size').val(),
+            h1_color: $('#content-h1-color').val(),
+            h2_size: $('#content-h2-size').val(),
+            h2_color: $('#content-h2-color').val(),
+            h3_size: $('#content-h3-size').val(),
+            h3_color: $('#content-h3-color').val(),
+            p_size: $('#content-p-size').val(),
+            p_line_height: $('#content-p-line-height').val(),
+            link_decoration: $('#content-link-decoration').val(),
+            blockquote_color: $('#content-blockquote-color').val(),
+            blockquote_border: $('#content-blockquote-border').val(),
+            container_border: $('#content-container-border').val(),
+            container_padding: $('#content-container-padding').val()
+        };
+
+        $.post(ajaxurl, {
+            action: 'enewsletter_save_content_typography',
+            stylesheet: stylesheet,
+            settings: contentTypographyPayload,
+            nonce: nonce
+        }, function(response) {
+            if(response.success) {
+                showNotification('<?php _e('Typografie gespeichert!', 'email-newsletter'); ?>', 'success');
+                window.updatePreview();
+            } else {
+                showNotification('<?php _e('Fehler beim Speichern', 'email-newsletter'); ?>', 'error');
+            }
+        });
+    });
+
     // Save Builder Settings
     $('.save-builder-settings-btn').on('click', function() {
         var builderSettingsPayload = {
@@ -1669,7 +1811,7 @@ a {
             use_default_header_footer: $('#builder-use-header-footer').is(':checked'),
             use_default_styles: $('#builder-use-styles').is(':checked')
         };
-        
+
         $.post(ajaxurl, {
             action: 'enewsletter_save_builder_settings',
             stylesheet: stylesheet,
@@ -1679,7 +1821,7 @@ a {
             if(response.success) {
                 builderSettings = builderSettingsPayload;
                 showNotification('<?php _e('Einstellungen gespeichert!', 'email-newsletter'); ?>', 'success');
-                updatePreview();
+                window.updatePreview();
             } else {
                 showNotification('<?php _e('Fehler beim Speichern', 'email-newsletter'); ?>', 'error');
             }
@@ -1688,3 +1830,4 @@ a {
 });
 
 </script>
+<script src="<?php echo esc_url($this->plugin_url . 'email-newsletter-files/psbuilder/template-editor-preview.js'); ?>?ver=<?php echo time(); ?>"></script>
