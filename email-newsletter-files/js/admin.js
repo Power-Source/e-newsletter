@@ -4,14 +4,14 @@ jQuery( document ).ready( function() {
     //Groups page
 
 
-    jQuery( "#add_group" ).click( function() {
+    jQuery( "#add_group" ).on('click', function() {
         if ( "" == jQuery( "#group_name" ).val() ) {
             alert( 'Please write Group name' );
             return false;
         }
 
         jQuery( "#newsletter_action" ).val( "create_group" );
-        jQuery( "#create_group" ).submit();
+        jQuery( "#create_group" )[0].submit();
     });
 
     var group_name      = "";
@@ -33,10 +33,10 @@ jQuery( document ).ready( function() {
                 jQuery( "#public_block_" + id ).html( '<input type="checkbox" name="edit_public" id="public" value="1" />' );
 
 
-            jQuery( '#edit_group input[type="button"]' ).attr( 'disabled', true );
+            jQuery( '#edit_group input[type="button"]' ).prop( 'disabled', true );
 
             jQuery( this ).val(enewsletter.close);
-            jQuery( this ).attr( 'disabled', false );
+            jQuery( this ).prop( 'disabled', false );
 
             jQuery( "#save_block_" + id ).html( '<input class="button button-secondary" type="button" name="save_button" onClick="jQuery(this).saveGroup();" value="'+enewsletter.save+'" />' );
 
@@ -48,7 +48,7 @@ jQuery( document ).ready( function() {
             jQuery( "#public_block_" + id ).html( group_public );
 
             jQuery( this ).val(enewsletter.edit);
-            jQuery( '#edit_group input[type="button"]' ).attr( 'disabled', false );
+            jQuery( '#edit_group input[type="button"]' ).prop( 'disabled', false );
 
              jQuery( "#save_block_" + id ).html( '' );
 
@@ -64,14 +64,14 @@ jQuery( document ).ready( function() {
         }
 
         jQuery( "#newsletter_action2" ).val( "edit_group" );
-        jQuery( "#edit_group" ).submit();
+        jQuery( "#edit_group" )[0].submit();
     };
 
 
     jQuery.fn.deleteGroup = function ( id ) {
         jQuery( "#newsletter_action2" ).val( "delete_group" );
         jQuery( "#group_id" ).val( id );
-        jQuery( "#edit_group" ).submit();
+        jQuery( "#edit_group" )[0].submit();
     };
 
 
@@ -79,31 +79,31 @@ jQuery( document ).ready( function() {
 
 
     //Add new member
-    jQuery( "#add_member" ).click( function() {
+    jQuery( "#add_member" ).on('click', function() {
         if ( "" == jQuery( "#member_email" ).val() ) {
             alert(enewsletter.write_email);
             return false;
         }
         jQuery( "#newsletter_action2" ).val( 'add_member' );
-        jQuery( "#add_new_member" ).submit();
+        jQuery( "#add_new_member" )[0].submit();
 
     });
 
     //Import new members
-    jQuery( "#import_members" ).click( function() {
+    jQuery( "#import_members" ).on('click', function() {
         if ( "" == jQuery( "#import_members_file" ).val() ) {
             jQuery( "#import_file_line" ).attr('class', 'newsletter_error');
             return false;
         }
 
         jQuery( "#newsletter_action2" ).val( 'import_members' );
-        jQuery( "#add_new_member" ).submit();
+        jQuery( "#add_new_member" )[0].submit();
 
     });
 
 
     //Some actions
-    jQuery( "#apply" ).click( function() {
+    jQuery( "#apply" ).on('click', function() {
         if ( -1 == jQuery( "#some_action" ).val() ) {
             return false;
         } else if ( ( 'add_members_group' == jQuery( "#some_action" ).val() || 'delete_members_group' == jQuery( "#some_action" ).val() )
@@ -112,12 +112,12 @@ jQuery( document ).ready( function() {
         }
 
         jQuery( "#newsletter_action" ).val( jQuery( "#some_action" ).val() );
-        jQuery( "#form_members" ).submit();
+        jQuery( "#form_members" )[0].submit();
         return false;
     });
 
     //show/hide select box of groups list
-    jQuery( "#some_action" ).change( function() {
+    jQuery( "#some_action" ).on('change', function() {
         if ( 'add_members_group' == jQuery( "#some_action" ).val() || 'delete_members_group' == jQuery( "#some_action" ).val() ) {
             jQuery( "#list_group_id" ).show();
         } else {
@@ -127,15 +127,15 @@ jQuery( document ).ready( function() {
 
 
     //change per page count
-    jQuery( "#per_page" ).change( function() {
+    jQuery( "#per_page" ).on('change', function() {
         jQuery( "#newsletter_action" ).val( '' );
         jQuery( "#members_per_page" ).val(jQuery(this).val());
-        jQuery( "#form_members" ).submit();
+        jQuery( "#form_members" )[0].submit();
         return false;
     });
 
 
-    jQuery( "#show_add_form" ).click( function() {
+    jQuery( "#show_add_form" ).on('click', function() {
         jQuery( "#panel" ).slideToggle( "slow" );
 
         if ( enewsletter.show_add_member == jQuery(this).val() )
@@ -146,7 +146,7 @@ jQuery( document ).ready( function() {
         return false;
     });
 
-    jQuery( "#show_add_form2" ).click( function() {
+    jQuery( "#show_add_form2" ).on('click', function() {
         jQuery( "#panel2" ).slideToggle( "slow" );
 
         if ( enewsletter.show_export_member == jQuery(this).val() )
@@ -171,10 +171,10 @@ jQuery( document ).ready( function() {
 
             jQuery( "#member_email_block_" + id ).html( '<input type="text" size="30" name="edit_member_email" id="edit_member_email"  value="' + member_email + '" />' );
 
-            jQuery( '#form_members input[type="button"]' ).attr( 'disabled', true );
+            jQuery( '#form_members input[type="button"]' ).prop( 'disabled', true );
 
             jQuery( this ).val(enewsletter.close);
-            jQuery( this ).attr( 'disabled', false );
+            jQuery( this ).prop( 'disabled', false );
 
             jQuery( "#save_block_" + id ).html( '<input class="button button-secondary" type="button" id="save_member_button" name="save_button" onClick="jQuery(this).saveMember();" value="'+enewsletter.save+'" />' );
 
@@ -188,7 +188,7 @@ jQuery( document ).ready( function() {
             jQuery( "#member_email_block_" + id ).html( member_email );
 
             jQuery( this ).val(enewsletter.edit);
-            jQuery( '#form_members input[type="button"]' ).attr( 'disabled', false );
+            jQuery( '#form_members input[type="button"]' ).prop( 'disabled', false );
 
              jQuery( "#save_block_" + id ).html( '' );
 
@@ -204,14 +204,14 @@ jQuery( document ).ready( function() {
         }
 
         jQuery( "#newsletter_action" ).val( "edit_member" );
-        jQuery( "#form_members" ).submit();
+        jQuery( "#form_members" )[0].submit();
     };
 
     jQuery.fn.deleteMember = function ( id ) {
         if (confirm(enewsletter.confirm)) {
             jQuery( "#newsletter_action" ).val( "delete_member" );
             jQuery( "#member_id" ).val( id );
-            jQuery( "#form_members" ).submit();
+            jQuery( "#form_members" )[0].submit();
         }
     };
 
@@ -219,11 +219,11 @@ jQuery( document ).ready( function() {
         if ( enewsletter.save_groups == jQuery( "#change_button_" + id ).val() ) {
             jQuery( "#newsletter_action" ).val( "change_group" );
             jQuery( "#member_id" ).val( id );
-            jQuery( "#form_members" ).submit();
+            jQuery( "#form_members" )[0].submit();
             return;
         }
         jQuery( "body" ).css( "cursor", "wait" );
-        jQuery( "#form_members input[type=button]" ).attr( 'disabled', true );
+        jQuery( "#form_members input[type=button]" ).prop( 'disabled', true );
         jQuery.ajax({
             type: "POST",
             url: ajaxurl,
@@ -235,7 +235,7 @@ jQuery( document ).ready( function() {
                 jQuery( "#change_button_" + id ).val(enewsletter.save_groups);
 
                 if ( jQuery( "#change_group_block_" + id + " input[type=checkbox]" ).length )
-                    jQuery( "#change_button_" + id ).attr( 'disabled', false );
+                    jQuery( "#change_button_" + id ).prop( 'disabled', false );
 
                 jQuery( "body" ).css( "cursor", "default" );
             }
@@ -243,7 +243,7 @@ jQuery( document ).ready( function() {
     };
 
     jQuery.fn.closeChangeGroups = function ( id ) {
-        jQuery( "#form_members input[type=button]" ).attr( 'disabled', false );
+        jQuery( "#form_members input[type=button]" ).prop( 'disabled', false );
         jQuery( "#change_group_block_" + id ).html( '' );
         jQuery( "#close_block_" + id ).html( '' );
         jQuery( "#change_button_" + id ).val(enewsletter.change_groups);
@@ -268,13 +268,13 @@ jQuery( document ).ready( function() {
     var cron = 0;
     var assoontext = jQuery('#timestamp b').html();
 
-    jQuery( '#add_cron' ).click( function() {
+    jQuery( '#add_cron' ).on('click', function() {
         cron = 1;
-        jQuery( '#send_form' ).submit();
+        jQuery( '#send_form' )[0].submit();
     });
 
 
-    jQuery( '#send_form' ).submit( function() {
+    jQuery( '#send_form' ).on('submit', function() {
         error = '1';
 
         if ( true == jQuery( "input[name='all_members']" ).prop( 'checked' ) )
@@ -316,7 +316,7 @@ jQuery( document ).ready( function() {
         }
     });
 
-    jQuery('a.edit-timestamp').click(function() {
+    jQuery('a.edit-timestamp').on('click', function() {
         if (jQuery('#timestampdiv').is(":hidden")) {
             jQuery('#timestampdiv').slideDown('fast');
             jQuery('#mm').focus();
@@ -325,7 +325,7 @@ jQuery( document ).ready( function() {
         return false;
     });
 
-    jQuery('.save-timestamp', '#timestampdiv').click(function () {
+    jQuery('.save-timestamp', '#timestampdiv').on('click', function () {
         aa = jQuery('#aa').val(), mm = jQuery('#mm').val(), jj = jQuery('#jj').val(), hh = jQuery('#hh').val(), mn = jQuery('#mn').val();
 
         jQuery('#timestamp b').html(
@@ -341,7 +341,7 @@ jQuery( document ).ready( function() {
 
         return false;
     });
-    jQuery('.cancel-timestamp', '#timestampdiv').click(function() {
+    jQuery('.cancel-timestamp', '#timestampdiv').on('click', function() {
         jQuery('#timestampdiv').slideUp('fast');
         jQuery('a.edit-timestamp').show();
         jQuery('#timestamp b').html(assoontext);
@@ -361,7 +361,7 @@ jQuery( document ).ready( function() {
     jQuery(current_tab).show().siblings('div').hide();
     jQuery(current_tab).addClass('active');
 
-    jQuery('#newsletter-tabs a').click(function(e) {
+    jQuery('#newsletter-tabs a').on('click', function(e) {
         var tab = jQuery(this).attr('href');
         jQuery( "#newsletter_setting_page" ).val(tab.substring(1));
         jQuery(this).addClass('nav-tab-active').siblings('a').removeClass('nav-tab-active');
@@ -374,51 +374,51 @@ jQuery( document ).ready( function() {
 
     jQuery('.newsletter-settings-tabs').show();
 
-    jQuery( "input[type=button][name='save']" ).click( function() {
-        if ( "" == jQuery( "#smtp_host" ).val() && jQuery( "#smtp_method" ).attr( 'checked' ) ) {
+    jQuery( "input[type=button][name='save']" ).on('click', function() {
+        if ( "" == jQuery( "#smtp_host" ).val() && jQuery( "#smtp_method" ).prop( 'checked' ) ) {
             alert(enewsletter.smtp_warning);
             return false;
         }
 
         jQuery( "#newsletter_action" ).val( "save_settings" );
-        jQuery( "#settings_form" ).submit();
+        jQuery( "#settings_form" )[0].submit();
     });
 
     //install plugin data
-    jQuery( "#install" ).click( function() {
-        if ( "" == jQuery( "#smtp_host" ).val() && jQuery( "#smtp_method" ).attr( 'checked' ) ) {
+    jQuery( "#install" ).on('click', function() {
+        if ( "" == jQuery( "#smtp_host" ).val() && jQuery( "#smtp_method" ).prop( 'checked' ) ) {
             alert(enewsletter.smtp_warning);
             return false;
         }
 
         jQuery( "#newsletter_action" ).val( "install" );
-        jQuery( "#settings_form" ).submit();
+        jQuery( "#settings_form" )[0].submit();
         return false;
     });
 
 
 
     //uninstall plugin data
-    jQuery( "#uninstall_yes" ).click( function() {
+    jQuery( "#uninstall_yes" ).on('click', function() {
         jQuery( "#newsletter_action" ).val( "uninstall" );
-        jQuery( "#settings_form" ).submit();
+        jQuery( "#settings_form" )[0].submit();
         return false;
 
     });
 
-    jQuery( "#uninstall" ).click( function() {
+    jQuery( "#uninstall" ).on('click', function() {
         jQuery( "#uninstall_confirm" ).show( );
         return false;
     });
 
-    jQuery( "#uninstall_no" ).click( function() {
+    jQuery( "#uninstall_no" ).on('click', function() {
         jQuery( "#uninstall_confirm" ).hide( );
         return false;
     });
 
 
     //Test connection to bounces email
-    jQuery( "#test_bounce_conn" ).click( function() {
+    jQuery( "#test_bounce_conn" ).on('click', function() {
         var bounce_email    = encodeURIComponent(jQuery( "#bounce_email" ).val());
         var bounce_host     = encodeURIComponent(jQuery( "#bounce_host" ).val());
         var bounce_port     = encodeURIComponent(jQuery( "#bounce_port" ).val());
@@ -427,14 +427,14 @@ jQuery( document ).ready( function() {
         var bounce_security = encodeURIComponent(jQuery( "#bounce_security" ).val());
 
         jQuery( "#test_bounce_loading" ).show();
-        jQuery( "#test_bounce_conn" ).attr( 'disabled', true );
+        jQuery( "#test_bounce_conn" ).prop( 'disabled', true );
 
         jQuery.ajax({
             type: "POST",
             url: ajaxurl,
             data: "action=test_bounces&bounce_email=" + bounce_email + "&bounce_host=" + bounce_host + "&bounce_port=" + bounce_port + "&bounce_username=" + bounce_username + "&bounce_password=" + bounce_password + "&bounce_security=" + bounce_security,
             success: function( html ){
-                jQuery( "#test_bounce_conn" ).attr( 'disabled', false );
+                jQuery( "#test_bounce_conn" ).prop( 'disabled', false );
                 jQuery( "#test_bounce_loading" ).hide();
                 alert( html );
             }
@@ -442,7 +442,7 @@ jQuery( document ).ready( function() {
     });
 
     //Test connection to bounces email
-    jQuery( "#test_smtp_conn" ).click( function() {
+    jQuery( "#test_smtp_conn" ).on('click', function() {
         var smtp_host     = encodeURIComponent(jQuery( "#smtp_host" ).val());
         var smtp_port     = encodeURIComponent(jQuery( "#smtp_port" ).val());
         var smtp_from = encodeURIComponent(jQuery( "#smtp_from" ).val());
@@ -451,14 +451,14 @@ jQuery( document ).ready( function() {
         var smtp_security = encodeURIComponent(jQuery( "#smtp_security" ).val());
 
         jQuery( "#test_smtp_loading" ).show();
-        jQuery( "#test_smtp_conn" ).attr( 'disabled', true );
+        jQuery( "#test_smtp_conn" ).prop( 'disabled', true );
 
         jQuery.ajax({
             type: "POST",
             url: ajaxurl,
             data: "action=test_smtp&smtp_from=" + smtp_from + "&smtp_host=" + smtp_host + "&smtp_port=" + smtp_port + "&smtp_username=" + smtp_username + "&smtp_password=" + smtp_password + "&smtp_security=" + smtp_security,
             success: function( html ){
-                jQuery( "#test_smtp_conn" ).attr( 'disabled', false );
+                jQuery( "#test_smtp_conn" ).prop( 'disabled', false );
                 jQuery( "#test_smtp_loading" ).hide();
                 alert( html );
             }
@@ -475,7 +475,7 @@ jQuery( document ).ready( function() {
     }
 
     set_out_option();
-    jQuery( '.email_out_type' ).change( function() {
+    jQuery( '.email_out_type' ).on('change', function() {
         set_out_option();
         if( jQuery( this )[0].checked ){
             jQuery( '.email_out' ).hide();
@@ -483,9 +483,9 @@ jQuery( document ).ready( function() {
         }
     });
 
-    jQuery('table.permissionTable thead .check-column input:checkbox').change(function() {
+    jQuery('table.permissionTable thead .check-column input:checkbox').on('change', function() {
         if(jQuery(this).is(':checked')) {
-            jQuery(this).parents('table').find('.check-column input:checkbox').not(jQuery(this)).attr('checked','checked');
+            jQuery(this).parents('table').find('.check-column input:checkbox').not(jQuery(this)).prop('checked', true);
         } else {
             jQuery(this).parents('table').find('.check-column input:checkbox').not(jQuery(this)).prop("checked", false);
         }
@@ -496,16 +496,16 @@ jQuery( document ).ready( function() {
 
 
     //save subscribes
-    jQuery( "#save_subscribes" ).click( function() {
+    jQuery( "#save_subscribes" ).on('click', function() {
         jQuery( "#newsletter_action" ).val( 'save_subscribes' );
-        jQuery( "#subscribes_form" ).submit();
+        jQuery( "#subscribes_form" )[0].submit();
 
     });
 
     //unsubscribe
-    jQuery( "#unsubscribe" ).click( function() {
+    jQuery( "#unsubscribe" ).on('click', function() {
         jQuery( "#newsletter_action" ).val( 'unsubscribe' );
-        jQuery( "#subscribes_form" ).submit();
+        jQuery( "#subscribes_form" )[0].submit();
 
     });
 });
