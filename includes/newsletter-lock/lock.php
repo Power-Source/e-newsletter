@@ -1,16 +1,12 @@
 <?php
 
-class NewsletterLock {
+class NewsletterLock extends NewsletterAddon {
 
     static $instance;
 
     function __construct($version) {
+        parent::__construct('lock', $version);
         self::$instance = $this;
-        $this->setup_options();
-    }
-
-    private function setup_options() {
-        // Hier ggf. Standardwerte für Optionen setzen, falls benötigt.
     }
 
     function init() {
