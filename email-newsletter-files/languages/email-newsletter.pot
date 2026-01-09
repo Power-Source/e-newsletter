@@ -624,7 +624,7 @@ msgid "Membership Plugin Levels"
 msgstr ""
 
 #: email-newsletter-files/class.functions.php:686
-msgid "WordPress User Roles"
+msgid "ClassicPress User Roles"
 msgstr ""
 
 #: email-newsletter-files/class.functions.php:695
@@ -1416,11 +1416,11 @@ msgid "Default newsletter that will be sent on user subscription."
 msgstr ""
 
 #: email-newsletter-files/page-settings.php:168
-msgid "WordPress User registration:"
+msgid "ClassicPress User registration:"
 msgstr ""
 
 #: email-newsletter-files/page-settings.php:179
-msgid "Choose if user registering(with WordPress) to your site is automatically subscribed to newsletter."
+msgid "Choose if user registering(with ClassicPress) to your site is automatically subscribed to newsletter."
 msgstr ""
 
 #: email-newsletter-files/page-settings.php:185
@@ -1468,7 +1468,7 @@ msgid "WP mail"
 msgstr ""
 
 #: email-newsletter-files/page-settings.php:229
-msgid "This method uses default WordPress email related functions for sending newsletters and emails. It will let you use other plugins to send emails but may stop bounce checking from working."
+msgid "This method uses default ClassicPress email related functions for sending newsletters and emails. It will let you use other plugins to send emails but may stop bounce checking from working."
 msgstr ""
 
 #: email-newsletter-files/page-settings.php:235

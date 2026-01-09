@@ -337,8 +337,8 @@ msgstr ""
 
 #. Description of the plugin
 msgid ""
-"Das ultimative Newsletter Plugin für WordPress. Keine Drittanbieterdienste "
-"oder Abo-Kosten, Newsletter direkt aus dem WordPress-Dashboard managen und "
+"Das ultimative Newsletter Plugin für ClassicPress. Keine Drittanbieterdienste "
+"oder Abo-Kosten, Newsletter direkt aus dem ClassicPress-Dashboard managen und "
 "versenden."
 msgstr ""
 
@@ -410,7 +410,7 @@ msgstr ""
 
 #: email-newsletter-files/page-settings.php:233
 msgid ""
-"Diese Methode verwendet Standardfunktionen für WordPress-E-Mails zum Senden "
+"Diese Methode verwendet Standardfunktionen für ClassicPress-E-Mails zum Senden "
 "von Newslettern und E-Mails. Du kannst andere Plugins zum Senden von E-Mails "
 "verwenden, aber möglicherweise funktioniert die Absprungprüfung nicht mehr."
 msgstr ""
@@ -713,7 +713,7 @@ msgstr ""
 
 #: email-newsletter-files/page-members.php:74
 msgid ""
-"Hinweis: Änderungen an Abonnenten werden nicht mit WordPress-Benutzern "
+"Hinweis: Änderungen an Abonnenten werden nicht mit ClassicPress-Benutzern "
 "synchronisiert, sondern umgekehrt."
 msgstr ""
 
@@ -1239,7 +1239,7 @@ msgid "Wirf einen Blick auf Deine Newsletter-Berichte."
 msgstr ""
 
 #: email-newsletter-files/page-settings.php:172
-msgid "WordPress-Benutzerregistrierung:"
+msgid "ClassicPress-Benutzerregistrierung:"
 msgstr ""
 
 #: email-newsletter-files/page-members.php:309
@@ -1269,7 +1269,7 @@ msgstr ""
 
 #: email-newsletter-files/page-settings.php:183
 msgid ""
-"Wähle ob Benutzer, die sich (mit WordPress) auf Deiner Website registrieren, "
+"Wähle ob Benutzer, die sich (mit ClassicPress) auf Deiner Website registrieren, "
 "automatisch den Newsletter abonnieren."
 msgstr ""
 

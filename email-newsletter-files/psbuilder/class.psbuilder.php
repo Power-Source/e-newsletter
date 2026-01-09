@@ -247,7 +247,7 @@ class PS_Builder {
         }
         
         $stylesheet = sanitize_text_field($_POST['stylesheet']);
-        // Use wp_unslash to properly handle WordPress magic quotes
+        // Use wp_unslash to properly handle ClassicPress magic quotes
         $file_content = isset($_POST['file_content']) ? wp_unslash($_POST['file_content']) : '';
         $file_name = isset($_POST['file_name']) ? sanitize_text_field($_POST['file_name']) : '';
         

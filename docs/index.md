@@ -11,15 +11,15 @@ title: "PS-eNewsletter"
 
 
 
-**Das ultimative Newsletter Plugin für WordPress. Keine Drittanbieterdienste oder Abo-Kosten, Newsletter direkt aus dem WordPress-Dashboard managen und versenden.**
+**Das ultimative Newsletter Plugin für ClassicPress. Keine Drittanbieterdienste oder Abo-Kosten, Newsletter direkt aus dem ClassicPress-Dashboard managen und versenden.**
 
-## PS-eNewsletter bringt professionelle Newsletter-Erstellung und Abonnentenverwaltung in WordPress.
+## PS-eNewsletter bringt professionelle Newsletter-Erstellung und Abonnentenverwaltung in ClassicPress.
 
 Denke an all das Geld, das Du sparst, wenn Du auf den E-Mail-Dienst eines Drittanbieters verzichtest. Auch werden keine Daten Deiner Benutzer an Dritte gesendet, Du hast die volle Kontrolle.
 
 ### Einfache Newsletter-Erstellung
 
-Verwende den bekannten WordPress-Customizer, um eine E-Mail-Vorlage und einen Layoutinhalt auszuwählen. Sieh Dir genau an, wie Deine Nachricht aussehen wird, bevor Du auf „Senden“ klickst. Wähle aus den professionell erstellten Vorlagen oder erstelle Deine eigenen.
+Verwende den bekannten ClassicPress-Customizer, um eine E-Mail-Vorlage und einen Layoutinhalt auszuwählen. Sieh Dir genau an, wie Deine Nachricht aussehen wird, bevor Du auf „Senden“ klickst. Wähle aus den professionell erstellten Vorlagen oder erstelle Deine eigenen.
 
 ![Layout erstaunlich aussehender Newsletter wirklich schnell.](assets/images/color-pick-735x470.jpeg)
 
@@ -44,7 +44,7 @@ Um einen Newsletter zu versenden, wähle einfach die entsprechenden Empfänger a
 
 ### **Installieren:**
 
-Melde Dich bei Deinem Admin-Panel für WordPress oder Multisite an und aktiviere das Plugin. Nach der Installation und Aktivierung siehst Du einen neuen Menüpunkt in Deinem Admin-Bereich: eNewsletter.
+Melde Dich bei Deinem Admin-Panel für ClassicPress oder Multisite an und aktiviere das Plugin. Nach der Installation und Aktivierung siehst Du einen neuen Menüpunkt in Deinem Admin-Bereich: eNewsletter.
 
 ![e-newsletter-2590-menu](assets/images/e-newsletter-2590-menu.png)
 
@@ -90,7 +90,7 @@ Wenn Du die Webmail-Dienste Deines Hosts nutzt, kannst Du die benötigten Einste
 
 ### Erstellen eines Newsletters
 
-Nachdem Du nun alles in den Einstellungen konfiguriert hast, können wir einen Newsletter erstellen! Klicke in Deinem eNewsletter-Menü auf „Newsletter erstellen“. Du siehst den Newsletter-Builder, der die WordPress-Anpassungsfunktion nutzt, um Dir die Arbeit wirklich zu erleichtern. Es wird auch in Echtzeit aktualisiert!
+Nachdem Du nun alles in den Einstellungen konfiguriert hast, können wir einen Newsletter erstellen! Klicke in Deinem eNewsletter-Menü auf „Newsletter erstellen“. Du siehst den Newsletter-Builder, der die ClassicPress-Anpassungsfunktion nutzt, um Dir die Arbeit wirklich zu erleichtern. Es wird auch in Echtzeit aktualisiert!
 
 ![Vollständig anpassbare Vorlagen mit dem WYSIWYG-Builder.](assets/images/e-newsletter-builder.png)
 
@@ -134,10 +134,10 @@ Wenn Du bereit bist, einen Newsletter zu versenden, klicke einfach auf die Schal
 * Abonnenten mit bestimmten Benutzerrollen
 * Administratoren aller Netzwerkseiten
 
-Wenn Du „Alle aktiven Mitglieder“ auswählst, wird Dein Newsletter an alle gesendet, die sich in jeder Gruppe angemeldet haben. Mit _eNewsletter Groups_ kannst Du nur an Abonnenten ausgewählter Gruppen senden. Die Option „Membership Plugin Levels“ wird nur angezeigt, wenn auf Deiner Webseite unser [PS Mitgliedschaften Plugin](https://cp-psource.github.io/mitgliedschaften-pro/) Plugin aktiv ist. Hier kannst Du auswählen, ob Du Deinen Newsletter an Abonnenten mit bestimmten Mitgliedschaftszugangsebenen senden möchtest. Wähle beliebige _WordPress-Benutzerrollen_ aus, um den Newsletter an alle Abonnenten mit diesen ausgewählten Rollen auf Deiner Webseite zu senden. Wenn Du das Kontrollkästchen „Admins aller Sites“ aktivierst, wird Dein Newsletter an alle Subseiten-Administratoren in Deinem Netzwerk gesendet. Beachte, dass mit dieser Option Dein Newsletter an alle Subseiten-Administratoren gesendet wird, unabhängig davon, ob diese abonniert sind oder nicht. Du kannst die Benutzer filtern, die Deinen Newsletter erhalten sollen, sodass diejenigen, die ihn bereits erhalten haben, ihn nicht noch einmal erhalten. Du kannst auch festlegen, dass ein Newsletter nur an ausgewählte Benutzer erneut gesendet wird, deren vorheriger Versand zurückgesendet wurde. Abschließend hast Du 3 Möglichkeiten, Deinen Newsletter zu versenden:
+Wenn Du „Alle aktiven Mitglieder“ auswählst, wird Dein Newsletter an alle gesendet, die sich in jeder Gruppe angemeldet haben. Mit _eNewsletter Groups_ kannst Du nur an Abonnenten ausgewählter Gruppen senden. Die Option „Membership Plugin Levels“ wird nur angezeigt, wenn auf Deiner Webseite unser [PS Mitgliedschaften Plugin](https://cp-psource.github.io/mitgliedschaften-pro/) Plugin aktiv ist. Hier kannst Du auswählen, ob Du Deinen Newsletter an Abonnenten mit bestimmten Mitgliedschaftszugangsebenen senden möchtest. Wähle beliebige _ClassicPress-Benutzerrollen_ aus, um den Newsletter an alle Abonnenten mit diesen ausgewählten Rollen auf Deiner Webseite zu senden. Wenn Du das Kontrollkästchen „Admins aller Sites“ aktivierst, wird Dein Newsletter an alle Subseiten-Administratoren in Deinem Netzwerk gesendet. Beachte, dass mit dieser Option Dein Newsletter an alle Subseiten-Administratoren gesendet wird, unabhängig davon, ob diese abonniert sind oder nicht. Du kannst die Benutzer filtern, die Deinen Newsletter erhalten sollen, sodass diejenigen, die ihn bereits erhalten haben, ihn nicht noch einmal erhalten. Du kannst auch festlegen, dass ein Newsletter nur an ausgewählte Benutzer erneut gesendet wird, deren vorheriger Versand zurückgesendet wurde. Abschließend hast Du 3 Möglichkeiten, Deinen Newsletter zu versenden:
 
 * Klicke auf die große blaue Schaltfläche „Newsletter jetzt senden“, um ihn sofort an alle Personen zu senden, die Du oben ausgewählt hast.
-* Klicke auf die Schaltfläche „Im Hintergrund senden“, damit WordPress sich über CRON darum kümmert, während Du Dich um andere Geschäfte kümmerst.
+* Klicke auf die Schaltfläche „Im Hintergrund senden“, damit ClassicPress sich über CRON darum kümmert, während Du Dich um andere Geschäfte kümmerst.
 * Klicke auf den Link „Bearbeiten“, um das Formular zu öffnen, in dem Du Deinen Newsletter für ein bestimmtes Datum und eine bestimmte Uhrzeit planen kannst.
 
 ### Gruppen-Mailinglisten
@@ -200,8 +200,8 @@ Ja! Du kannst Deine eigenen benutzerdefinierten Newsletter-Themen erstellen. Kop
 
 Ja, da ist noch mehr! Du kannst die folgenden Data-Builder-Tags (Makros) entweder im Newsletter-Builder oder in Deinen benutzerdefinierten Designvorlagen verwenden.
 
-* „{FIRST_NAME}“ zeigt den WordPress-Vornamen des Benutzers im Newsletter an
-* „{USER_NAME}“ zeigt den WordPress-Benutzernamen des Benutzers im Newsletter an
+* „{FIRST_NAME}“ zeigt den ClassicPress-Vornamen des Benutzers im Newsletter an
+* „{USER_NAME}“ zeigt den ClassicPress-Benutzernamen des Benutzers im Newsletter an
 * „{TO_EMAIL}“ zeigt die E-Mail-Adresse an, an die der Newsletter gesendet wurde
 * „{VIEW_LINK}“ zeigt den Link zum Anzeigen des Newsletters in einem Browser an
 * „{DATE}“ zeigt das Datum an, an dem der Newsletter gesendet wurde

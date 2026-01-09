@@ -204,7 +204,7 @@ class Email_Newsletter_Builder  {
 		}
 		
 		// Remove deprecated jQuery UI scripts from Customizer context
-		// These are enqueued by WordPress/ClassicPress core but not used in the email newsletter builder
+		// These are enqueued by ClassicPress/ClassicPress core but not used in the email newsletter builder
 		// They are deprecated in CP-2.2.0 and will be removed in CP-3.0.0
 		$deprecated_scripts = array(
 			'jquery-ui-core',
@@ -981,7 +981,7 @@ class Email_Newsletter_Builder  {
 	}
 
 	// Anything that isnt a text input has to have its own function because
-	// WordPress only gives us the $default value to match in the filter
+	// ClassicPress only gives us the $default value to match in the filter
 	function get_builder_template($default) {
 		return $this->get_customizer_theme();
 	}

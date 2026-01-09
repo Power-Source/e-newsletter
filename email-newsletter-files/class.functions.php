@@ -683,7 +683,7 @@ class Email_Newsletter_functions {
         if($roles) {
             $roles = $this->get_roles();
             foreach ($roles as $role_id => $role) {
-                $targets['roles']['name'] = __( 'WordPress User Roles', 'email-newsletter' );
+                $targets['roles']['name'] = __( 'ClassicPress User Roles', 'email-newsletter' );
                 $targets['roles'][] = '<label><input type="checkbox" name="target[roles][]" value="'.$role_id.'"> '.$role['name'].'</input></label>';
             }
         }

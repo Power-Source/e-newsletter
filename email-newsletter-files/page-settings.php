@@ -165,7 +165,7 @@
 
                            <tr valign="top">
                                 <th scope="row">
-                                    <?php _e( 'WordPress User registration:', 'email-newsletter' ) ?>
+                                    <?php _e( 'ClassicPress User registration:', 'email-newsletter' ) ?>
                                 </th>
                                 <td>
                                     <?php
@@ -176,7 +176,7 @@
                                         <option value="1"<?php selected( $this->settings['wp_user_register_subscribe'], 1); ?>><?php _e( 'Subscribe', 'email-newsletter' ) ?></option>
                                         <option value="0"<?php selected( $this->settings['wp_user_register_subscribe'], 0); ?>><?php _e( 'Disable', 'email-newsletter' ) ?></option>
                                     </select>
-                                    <span class="description"><?php _e( 'Choose if user registering(with WordPress) to your site is automatically subscribed to newsletter.', 'email-newsletter' ) ?></span>
+                                    <span class="description"><?php _e( 'Choose if user registering(with ClassicPress) to your site is automatically subscribed to newsletter.', 'email-newsletter' ) ?></span>
                                 </td>
                             </tr>
 
@@ -226,7 +226,7 @@
                                         <label id="tip_wpmail">
                                             <input type="radio" name="settings[outbound_type]" value="wpmail" class="email_out_type" <?php echo (isset($this->settings['outbound_type']) && $this->settings['outbound_type'] == 'wpmail') ? 'checked="checked"' : '';?> /><?php echo _e( 'WP mail', 'email-newsletter' );?>
                                         </label>
-                                        <?php $tips->bind_tip(__( "This method uses default WordPress email related functions for sending newsletters and emails. It will let you use other plugins to send emails but may stop bounce checking from working.", 'email-newsletter' ), '#tip_wpmail'); ?>
+                                        <?php $tips->bind_tip(__( "This method uses default ClassicPress email related functions for sending newsletters and emails. It will let you use other plugins to send emails but may stop bounce checking from working.", 'email-newsletter' ), '#tip_wpmail'); ?>
  
                                     </td>
                                 </tr>
