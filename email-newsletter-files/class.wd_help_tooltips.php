@@ -1,0 +1,141 @@
+<?php
+/**
+ * Very simple tooltip implementation for admin pages.
+ */
+class WpmuDev_HelpTooltips {
+
+	private $_inline_tips = array();
+	private $_bound_tips = array();
+	private $_bound_selectors = array();
+	private $_icon_url;
+	private $_use_notice = true; // kept for API compatibility
+	private $_screen_id = false;
+
+	public function __construct() {
+		global $wp_version;
+		$version = preg_replace('/-.*$/', '', $wp_version);
+		if (version_compare($version, '3.3', '>=')) {
+			add_action('admin_footer', array($this, 'add_bound_tips'), 999);
+			add_action('admin_print_footer_scripts', array($this, 'initialize'));
+		}
+	}
+
+	public function set_icon_url($icon_url) {
+		$this->_icon_url = $icon_url;
+	}
+
+	public function set_use_notice($use_notice = true) {
+		$this->_use_notice = $use_notice;
+	}
+
+	public function set_screen_id($screen_id) {
+		$this->_screen_id = $screen_id;
+	}
+
+	public function add_tip($tip) {
+		if (!$this->_check_screen()) return false;
+		$this->_inline_tips[] = $tip;
+		return $this->_get_tip_markup($tip);
+	}
+
+	public function bind_tip($tip, $bind_to_selector) {
+		$tip_id = 'wpmudev-help-tip-for-' . md5($bind_to_selector);
+		$this->_bound_tips[$tip_id] = $tip;
+		$this->_bound_selectors[$tip_id] = $bind_to_selector;
+	}
+
+	public function add_bound_tips() {
+		if (!$this->_check_screen()) return false;
+		if (!$this->_bound_tips) return false;
+		foreach ($this->_bound_tips as $id => $tip) {
+			echo $this->_get_tip_markup($tip, 'id="' . $id . '" style="display:none"');
+		}
+	}
+
+	public function initialize() {
+		if (!$this->_check_screen()) return false;
+		if (!$this->_inline_tips && !$this->_bound_tips) return false;
+		$this->_print_styles();
+		$this->_print_scripts();
+	}
+
+	private function _check_screen() {
+		if (!$this->_screen_id) return true;
+		$screen = get_current_screen();
+		if (!is_object($screen)) return false;
+		if ($this->_screen_id != @$screen->id) return false;
+		return true;
+	}
+
+	private function _get_tip_markup($tip, $arg = '') {
+		return "<span class='wpmudev-help' {$arg}>{$tip}</span>";
+	}
+
+	private function _print_styles() {
+		if (defined('WPMUDEV_TOOLTIPS_CSS_ADDED')) return false;
+		define('WPMUDEV_TOOLTIPS_CSS_ADDED', true);
+		?>
+<style type="text/css">
+.wpmudev-help { display: none; }
+.wpmudev-help-trigger { cursor: help; padding-left: 4px; }
+.wpmudev-help-trigger span { position: absolute; left: -9999px; }
+<?php if ($this->_icon_url) : ?>
+.wpmudev-help-trigger { background: url(<?php echo $this->_icon_url; ?>) no-repeat center center; width: 16px; height: 16px; display: inline-block; }
+<?php endif; ?>
+</style>
+		<?php
+	}
+
+	private function _print_scripts() {
+		if (defined('WPMUDEV_TOOLTIPS_JS_ADDED')) return false;
+		define('WPMUDEV_TOOLTIPS_JS_ADDED', true);
+		$selectors = json_encode($this->_bound_selectors);
+		?>
+<script type="text/javascript">
+(function($){
+	function initialize_help_item($me){
+		var $prev = $me.prev();
+		var help = '&nbsp;<a class="wpmudev-help-trigger" href="#help"><span><?php _e('Help'); ?></span></a>';
+		$prev.length ? $prev.after(help) : $me.before(help);
+		$me.hide();
+	}
+
+	function get_help_block($me){
+		return $me.parent().find('.wpmudev-help');
+	}
+
+	$(function(){
+		// Place bound tips next to targets
+		$.each($.parseJSON('<?php echo $selectors; ?>'), function(tip_id, selector){
+			var $tip = $('#'+tip_id);
+			if(!$tip.length) return true;
+			var $selector = $(selector);
+			if(!$selector.length) return true;
+			$selector.append($tip);
+		});
+
+		$('.wpmudev-help').each(function(){ initialize_help_item($(this)); });
+
+		if(window.tippy){
+			$('.wpmudev-help-trigger').each(function(){
+				var $help = get_help_block($(this));
+				if(!$help.length) return true;
+				tippy(this, {
+					content: $help.html(),
+					allowHTML: true,
+					interactive: true,
+					placement: '<?php echo is_rtl() ? 'left' : 'right'; ?>',
+					theme: 'light-border',
+					maxWidth: 320,
+					duration: [150, 100]
+				});
+			});
+		}
+	});
+})(jQuery);
+</script>
+		<?php
+	}
+}
+
+?>
