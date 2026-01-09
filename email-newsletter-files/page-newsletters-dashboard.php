@@ -23,30 +23,30 @@
         <h2><?php _e( 'Newsletters Dashboard', 'email-newsletter' ) ?></h2>
 		<p><?php _e( 'Take a look at newsletter reports.', 'email-newsletter' ) ?></p>
 
-		<h3><?php _e( 'Statistics for current members:', 'email-newsletter' ) ?></h3>
+		<h3><?php _e( 'Statistiken für aktuelle Mitglieder:', 'email-newsletter' ) ?></h3>
         <table class="widefat post table_slim table_centered">
             <thead>
                 <tr>
                     <th>
-                        <?php _e( 'Newsletters', 'email-newsletter' ) ?>
+                        <?php _e( 'Newsletter', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Members', 'email-newsletter' ) ?>
+                        <?php _e( 'Mitglieder', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Groups', 'email-newsletter' ) ?>
+                        <?php _e( 'Gruppen', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Sent', 'email-newsletter' ) ?>
+                        <?php _e( 'Gesendet', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Opened', 'email-newsletter' ) ?>
+                        <?php _e( 'Geöffnet', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Bounced', 'email-newsletter' ) ?>
+                        <?php _e( 'Unzustellbar', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Waiting', 'email-newsletter' ) ?>
+                        <?php _e( 'Wartend', 'email-newsletter' ) ?>
                     </th>
                     <th>
                         <?php _e( 'CRON', 'email-newsletter' ) ?>
@@ -88,27 +88,27 @@
         <?php
         if ( $newsletters ) {
         ?>
-        <h3><?php _e( '5 Latest Newsletters:', 'email-newsletter' ) ?></h3>
+        <h3><?php _e( '5 Neuesten Newsletter:', 'email-newsletter' ) ?></h3>
         <table class="widefat post newsletter_table_center">
             <thead>
                 <tr>
                     <th>
-                        <?php _e( 'Create Date', 'email-newsletter' ) ?>
+                        <?php _e( 'Erstellungsdatum', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Email Subject', 'email-newsletter' ) ?>
+                        <?php _e( '-Mail-Betreff', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Sent To', 'email-newsletter' ) ?>
+                        <?php _e( 'Gesendet an', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Opened', 'email-newsletter' ) ?>
+                        <?php _e( 'Geöffnet', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Bounced', 'email-newsletter' ) ?>
+                        <?php _e( 'Unzustellbar', 'email-newsletter' ) ?>
                     </th>
                     <th class="newsletters_actions">
-                        <?php _e( 'Actions', 'email-newsletter' ) ?>
+                        <?php _e( 'Aktionen', 'email-newsletter' ) ?>
                     </th>
                 </tr>
             </thead>
@@ -131,23 +131,23 @@
                 </td>
 
                 <td>
-                     <?php echo $newsletter['count_sent']; ?> <?php _e( 'members', 'email-newsletter' ) ?>
+                     <?php echo $newsletter['count_sent']; ?> <?php _e( 'Mitglieder', 'email-newsletter' ) ?>
                 </td>
                 <td>
-                     <?php echo $newsletter['count_opened']; ?> <?php _e( 'members', 'email-newsletter' ) ?>
+                     <?php echo $newsletter['count_opened']; ?> <?php _e( 'Mitglieder', 'email-newsletter' ) ?>
                 </td>
                 <td>
-                     <?php echo $newsletter['count_bounced']; ?> <?php _e( 'members', 'email-newsletter' ) ?>
+                     <?php echo $newsletter['count_bounced']; ?> <?php _e( 'Mitglieder', 'email-newsletter' ) ?>
                 </td>
                 <td style="width: 180px;">
                     <a href="?page=newsletters-dashboard&amp;newsletter_action=delete_newsletter&amp;newsletter_id=<?php echo $newsletter['newsletter_id'];?>">
-                        <input class="button button-secondary" type="button" value="<?php _e( 'Delete', 'email-newsletter' ) ?>" />
+                        <input class="button button-secondary" type="button" value="<?php _e( 'Löschen', 'email-newsletter' ) ?>" />
                     </a>
                     <a href="<?php echo $email_builder->generate_builder_link($newsletter['newsletter_id']); ?>">
-                        <input class="button button-secondary" type="button" value="<?php _e( 'Edit', 'email-newsletter' ) ?>" />
+                        <input class="button button-secondary" type="button" value="<?php _e( 'Bearbeiten', 'email-newsletter' ) ?>" />
                     </a>
                     <a href="?page=newsletters-dashboard&amp;newsletter_action=send_newsletter&amp;newsletter_id=<?php echo $newsletter['newsletter_id'];?>">
-                        <input class="button button-primary" type="button" value="<?php _e( 'Send', 'email-newsletter' ) ?>" />
+                        <input class="button button-primary" type="button" value="<?php _e( 'Senden', 'email-newsletter' ) ?>" />
                     </a>
                 </td>
             </tr>
@@ -161,11 +161,11 @@
 
         if(current_user_can('create_newsletter')) { ?>
 		<p class="submit">
-            <a class="button button-primary" href="<?php echo admin_url( 'admin.php?newsletter_builder_action=create_newsletter' ); ?>"><?php _e( 'Create New Newsletter', 'email-newsletter' ) ?></a>
+            <a class="button button-primary" href="<?php echo admin_url( 'admin.php?newsletter_builder_action=create_newsletter' ); ?>"><?php _e( 'Neuen Newsletter erstellen', 'email-newsletter' ) ?></a>
         </p>
         <?php } ?>
 
-        <h3><?php _e( '5 Latest Members:', 'email-newsletter' ) ?></h3>
+        <h3><?php _e( '5 Neueste Mitglieder:', 'email-newsletter' ) ?></h3>
            <table id="members_table" class="widefat post">
                 <thead>
                     <tr>
@@ -174,7 +174,7 @@
                         </th>
                         <th class="members-email manage-column column-name">
 
-                                <span><?php _e( 'Email Address', 'email-newsletter' ) ?>   </span>
+                                <span><?php _e( 'E-Mail Adresse', 'email-newsletter' ) ?>   </span>
 
                         </th>
                         <th class="members-name manage-column column-name">
@@ -184,26 +184,26 @@
                         </th>
                         <th class="members-join manage-column column-name">
 
-                                <span><?php _e( 'Join Date', 'email-newsletter' ) ?>   </span>
+                                <span><?php _e( 'Beitrittsdatum', 'email-newsletter' ) ?>   </span>
 
                         </th>
                         <th class="members-count manage-column column-name">
 
-                                <span><?php _e( 'Sent', 'email-newsletter' ) ?>   </span>
+                                <span><?php _e( 'Gesendet', 'email-newsletter' ) ?>   </span>
 
                         </th>
                         <th class="members-count manage-column column-name">
 
-                                <span><?php _e( 'Opened', 'email-newsletter' ) ?>   </span>
+                                <span><?php _e( 'Geöffnet', 'email-newsletter' ) ?>   </span>
 
                         </th>
                         <th class="members-count manage-column column-name">
 
-                                <span><?php _e( 'Bounced', 'email-newsletter' ) ?></span>
+                                <span><?php _e( 'Unzustellbar', 'email-newsletter' ) ?></span>
 
                         </th>
                         <th class="members-groups manage-column column-name">
-                            <?php _e( 'Groups', 'email-newsletter' ) ?>
+                            <?php _e( 'Gruppen', 'email-newsletter' ) ?>
                         </th>
                     </tr>
                 </thead>
@@ -269,7 +269,7 @@
                                 echo substr( $memeber_groups, 0, strlen( $memeber_groups )-2 );
                             }
                         } else {
-                            echo __( 'Unsubscribed', 'email-newsletter' );
+                            echo __( 'Deabonniert', 'email-newsletter' );
                         }
                     ?>
                     </td>

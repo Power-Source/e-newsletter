@@ -279,111 +279,19 @@ class Email_Newsletter_Builder  {
 		?>
 		<script type="text/javascript">
 			_wpCustomizeControlsL10n.save = _wpCustomizeControlsL10n.publish = _wpCustomizeControlsL10n.published = "<?php _e('Save Newsletter','email-newsletter'); ?>";
-			var activate_theme = "<?php _e('Activate Theme','email-newsletter'); ?>";
-			var current_theme = "<?php echo $this->get_customizer_theme(); ?>";
-			var wp_version = <?php echo floatval($wp_version); ?>;
-
-			email_templates = [
-				<?php foreach($themes as $theme): ?>
-				{	"name": <?php echo json_encode($theme->get('Name')); ?>,
-					"description": <?php echo json_encode($theme->get('Description')); ?>,
-					"screenshot": <?php $template = $email_newsletter->get_theme_dir_url($theme, $theme->stylesheet); echo json_encode($template['url'].'screenshot.jpg'); ?>,
-					"stylesheet": <?php echo json_encode($theme->stylesheet); ?>,
-				},
-				<?php endforeach; ?>
-			];
-			email_templates.sort(function(a, b){
-				var aName = a.name.toLowerCase();
-				var bName = b.name.toLowerCase();
-				return ((aName < bName) ? -1 : ((aName > bName) ? 1 : 0));
-			});
-
-			var current = jQuery('#customize-info .accordion-section-content');
-			var copy = jQuery('<div class="accordion-section-content">');
-
-			if(current.length > 0) {
-				current.html('');
-			}
-			else {
-				jQuery('#customize-info').append(copy.clone());
-				current = jQuery('#customize-info .accordion-section-content');
-			}
-			
-			jQuery.each(email_templates, function(i,e) {
-				var clone = copy.clone();
-
-				if( e.stylesheet != current_theme ) {
-					clone.append('<h3>'+e.name+"</h3>");
-					clone.append('<input type="button" value="'+activate_theme+'" id="activate_theme" class="button button-primary save">');
-					clone.append('<img src="" class="theme-screenshot" />');
-					clone.append('<div class="theme-description"></div>');
-
-					clone.find('img.theme-screenshot').attr('src',e.screenshot);
-					clone.find('.theme-description').text(e.description);
-					clone.data('theme',e);
-
-					jQuery('#customize-info').append(clone);
-				} else {
-					// Use this opportunity to change the theme preview area
-					jQuery('#customize-info .preview-notice').html("<strong class='theme-name panel-title'>"+e.name+"</strong><?php _e('Choose template','email-newsletter'); ?>");
-
-					current.addClass('current_theme');
-					current.append('<h3>'+e.name+"</h3>");
-					current.append('<img src="" class="theme-screenshot" />');
-					current.append('<div class="theme-description"></div>');
-
-					current.find('img.theme-screenshot').attr('src',e.screenshot);
-					current.find('.theme-description').text(e.description);
-					current.data('theme',e);
-
-					jQuery('#customize-info .accordion-section-title').after(current);
-				}
-
-			});
-
-			jQuery('#customize-info').on('click', '.accordion-section-title', function() {
-				var new_theme;
-				var parent = jQuery(this).parent();
-
-				if(wp_version >= 4.3) {
-					if(parent.hasClass('open'))
-						jQuery(this).parent().removeClass('open');
-					else
-						jQuery(this).parent().addClass('open');
-				}
-
-				jQuery('#customize-info #activate_theme').on('click', function(event) {
-					data = jQuery(this).parent().data('theme');
-					new_theme = data.stylesheet;
-
-					if( typeof new_theme != 'undefined') {
-						event.preventDefault();
-
-						// Use string replace to redirect the url
-						jQuery('[data-customize-setting-link="template"]').val(new_theme);
-						jQuery('[data-customize-setting-link="template"]').trigger('change');
-
-						//make sure it is set
-						var set_val = setInterval(function () {
-							if(jQuery('[data-customize-setting-link="template"]').val() == new_theme) {
-					        	jQuery("#save").trigger('click');
-					        	clearInterval(set_val);
-					        }
-					    },100);
-					}
-				});
-
-				wp.customize.bind( 'saved', function() {
-					var new_theme = jQuery('[data-customize-setting-link="template"]').val();
-					if(current_theme != new_theme)
-						window.location.href = window.location.href.replace('theme='+current_theme,'theme='+new_theme);
-				});
-			});
 
 			window.onbeforeunload = function() {
 				if(!jQuery("#save").is(":disabled"))
 					return "<?php _e('You have unsaved data in this newsletter.','email-newsletter'); ?>";
 			};
+
+			wp.customize.bind('saved', function() {
+				var current_theme = "<?php echo $this->get_customizer_theme(); ?>";
+				var new_theme = jQuery('[data-customize-setting-link="template"]').val();
+				if(current_theme != new_theme) {
+					window.location.href = window.location.href.replace('theme='+current_theme,'theme='+new_theme);
+				}
+			});
 		</script>
 
 		<style type="text/css">
@@ -411,31 +319,139 @@ class Email_Newsletter_Builder  {
 			.wp-full-overlay.expanded {
 				margin-left: 550px;
 			}
-			#customize-info .accordion-section-content {
-				text-align: center;
-				position: relative;
-				min-height: 360px;
+			/* Grid Template Styles - contained within accordion */
+			#accordion-section-builder_templates .accordion-section-content {
+				padding: 0 !important;
+				min-height: auto !important;
+				max-height: 420px;
+				overflow-y: auto;
 			}
-			.theme-screenshot {
-				min-height:258px;
+			.template-grid-actions {
+				padding: 15px 15px 10px;
+				border-bottom: 1px solid #ddd;
+				background: #f9f9f9;
+			}
+			.template-grid-actions .button {
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+			}
+			.template-grid-actions .dashicons {
+				font-size: 16px;
+				width: 16px;
+				height: 16px;
+			}
+			.email-templates-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+				gap: 10px;
+				padding: 15px;
+				width: 100%;
+				box-sizing: border-box;
+			}
+			.email-template-item {
+				background: #f9f9f9;
+				border: 2px solid #ddd;
+				border-radius: 5px;
+				padding: 8px;
+				cursor: pointer;
+				transition: all 0.3s ease;
+				position: relative;
+				display: flex;
+				flex-direction: column;
+				text-align: center;
+			}
+			.email-template-item:hover {
+				border-color: #0073aa;
+				background: #f5f5f5;
+				box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+				transform: translateY(-2px);
+			}
+			.email-template-item.current-template {
+				border: 2px solid #0073aa;
+				background: #e8f4f8;
+				box-shadow: 0 0 0 3px rgba(0,115,170,0.2);
+			}
+			.email-template-item.current-template::before {
+				content: "✓ AKTIV";
+				position: absolute;
+				top: 5px;
+				right: 5px;
+				background: #0073aa;
+				color: white;
+				padding: 2px 6px;
+				font-size: 10px;
+				border-radius: 3px;
+				font-weight: bold;
+				z-index: 10;
+			}
+			.custom-badge {
+				position: absolute;
+				top: 5px;
+				left: 5px;
+				background: #46b450;
+				color: white;
+				padding: 2px 6px;
+				font-size: 10px;
+				border-radius: 3px;
+				font-weight: bold;
+				z-index: 10;
+			}
+			.template-thumbnail {
+				width: 100%;
+				height: 80px;
+				object-fit: cover;
+				border-radius: 3px;
+				margin-bottom: 8px;
+				display: block;
+			}
+			.template-name {
+				margin: 0 0 8px 0;
+				font-size: 12px;
+				font-weight: 600;
+				color: #333;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				min-height: 16px;
+				flex-grow: 1;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			.template-actions {
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+				margin-top: auto;
+			}
+			.template-actions .button {
+				width: 100%;
+				padding: 4px 4px !important;
+				font-size: 11px !important;
+				height: auto !important;
+				line-height: 1.3 !important;
+				display: flex !important;
+				align-items: center;
+				justify-content: center;
+				gap: 3px;
+			}
+			.template-actions .dashicons {
+				font-size: 14px;
+				width: 14px;
+				height: 14px;
+			}
+			.email-template-item.current-template .activate-template-btn {
+				background-color: #6c757d !important;
+				border-color: #5a6268 !important;
+				color: white !important;
+				cursor: default !important;
 			}
 			.wp-full-overlay {
 				z-index: 15000;
 			}
 			#TB_overlay, #TB_window {
 				z-index: 16000!important;
-			}
-			.open #activate_theme {
-				display: inline-block;
-				position: absolute;
-				top: 280px;
-				width:120px;
-				left:50%;
-				margin-left: -50px;
-			}
-			.current_theme {
-				border-bottom: 1px solid #fff;
-				box-shadow: inset 0 -1px 0 0 #dfdfdf;
 			}
 			#accordion-panel-nav_menus, .customize-panel-description {
 				display: none !important;
@@ -529,6 +545,13 @@ class Email_Newsletter_Builder  {
 
 		$theme = $email_newsletter->get_selected_theme($email_data['template']);
 		$template_url  = $theme['url'];
+
+		// Get all themes for the template grid
+		$themes = wp_get_themes();
+		foreach($themes as $key => $theme_item) {
+			if($theme_item->theme_root != $email_newsletter->template_directory && $theme_item->theme_root != $email_newsletter->template_custom_directory )
+				unset($themes[$key]);
+		}
 
 		//pharse theme settings
 		$possible_settings = array('BG_COLOR', 'BG_IMAGE', 'HEADER_IMAGE', 'LINK_COLOR', 'BODY_COLOR', 'ALTERNATIVE_COLOR', 'TITLE_COLOR', 'EMAIL_TITLE' );
@@ -658,6 +681,10 @@ class Email_Newsletter_Builder  {
 
 		// Setup Sections
 
+		$instance->add_section( 'builder_templates', array(
+			'title'          => __('Vorlagen','email-newsletter'),
+			'priority'       => 30,
+		) );
 		$instance->add_section( 'builder_email_settings', array(
 			'title'          => __('Settings','email-newsletter'),
 			'priority'       => 35,
@@ -718,6 +745,15 @@ class Email_Newsletter_Builder  {
 			'label'   => __('Template','email-newsletter'),
 			'section' => 'builder_email_settings',
 			'settings'   => 'template',
+		) ) );
+		
+		// Add template grid control to templates section
+		require_once($email_newsletter->plugin_dir . 'email-newsletter-files/builder/class.template-grid-control.php');
+		$instance->add_control( new Builder_Template_Grid_Control( $instance, 'template_grid', array(
+			'label'   => __('Select Template','email-newsletter'),
+			'section' => 'builder_templates',
+			'themes'  => $themes,
+			'current_theme' => $this->get_customizer_theme(),
 		) ) );
 		$instance->add_control( 'subject', array(
 			'label'   => __('Email Subject','email-newsletter'),
