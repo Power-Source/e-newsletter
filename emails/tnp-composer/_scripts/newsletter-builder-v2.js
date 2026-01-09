@@ -193,79 +193,103 @@ function BuilderAreaHelper() {
 }
 
 let builderAreaHelper = new BuilderAreaHelper();
+let contentSortable = null;
 
 function init_builder_area() {
 
-    //Drag & Drop
-    jQuery("#tnpb-content").sortable({
-        revert: false,
-        placeholder: "tnpb-placeholder",
-        forcePlaceholderSize: true,
-        opacity: 0.6,
-        tolerance: "pointer",
-        helper: function (e) {
-            var helper = jQuery(document.getElementById("tnpb-sortable-helper")).clone();
-            return helper;
-        },
-        update: function (event, ui) {
-            if (ui.item.attr("id") === "tnpb-draggable-helper") {
-                loading_row = jQuery('<div style="text-align: center; padding: 20px; background-color: #d4d5d6; color: #52BE7F;"><i class="fa fa-cog fa-2x fa-spin" /></div>');
-                ui.item.before(loading_row);
-                ui.item.remove();
-                var data = new Array(
+    //Drag & Drop mit SortableJS
+    const contentEl = document.getElementById("tnpb-content");
+    if (contentEl) {
+        contentSortable = new Sortable(contentEl, {
+            group: {
+                name: 'blocks',
+                pull: true,
+                put: ['blocks']
+            },
+            animation: 150,
+            ghostClass: 'tnpb-placeholder',
+            chosenClass: 'tnpb-chosen',
+            dragClass: 'tnpb-drag',
+            forceFallback: false,
+            fallbackClass: 'tnpb-sortable-fallback',
+            swapThreshold: 0.65,
+            direction: 'vertical',
+            
+            onStart: function(evt) {
+                // Zeige Drop-Hinweis wenn Content leer
+                if (!jQuery('.tnpc-row').length) {
+                    jQuery('#tnpb-content').append('<div class="tnpc-drop-here">Drag&Drop blocks here!</div>');
+                }
+            },
+            
+            onAdd: function(evt) {
+                // Wird aufgerufen wenn ein Element von außen hinzugefügt wird
+                jQuery('.tnpc-drop-here').remove();
+                
+                const item = evt.item;
+                const clone = evt.clone;
+                
+                console.log('onAdd triggered', item, item.classList);
+                
+                // Prüfe ob es ein neuer Block aus der Sidebar ist
+                if (item.classList.contains('tnpb-block-icon')) {
+                    const loading_row = jQuery('<div style="text-align: center; padding: 20px; background-color: #d4d5d6; color: #52BE7F;"><i class="fa fa-cog fa-2x fa-spin" /></div>');
+                    jQuery(item).before(loading_row);
+                    item.remove();
+                    
+                    const blockId = item.dataset.id;
+                    
+                    console.log('Rendering block:', blockId);
+                    
+                    var data = new Array(
                         {"name": 'action', "value": 'tnpc_render'},
-                        {"name": 'id', "value": ui.item.data("id")},
-                        {"name": 'b', "value": ui.item.data("id")},
+                        {"name": 'id', "value": blockId},
+                        {"name": 'b', "value": blockId},
                         {"name": 'full', "value": 1},
                         {"name": '_wpnonce', "value": tnp_nonce}
-                );
+                    );
 
-                tnpc_add_global_options(data);
+                    tnpc_add_global_options(data);
 
-                jQuery.post(ajaxurl, data, function (response) {
-
-                    var new_row = jQuery(response);
-//                    ui.item.before(new_row);
-//                    ui.item.remove();
-                    loading_row.before(new_row);
-                    loading_row.remove();
-                    new_row.add_delete();
-                    new_row.add_block_edit();
-                    new_row.add_block_clone();
-                    // new_row.find(".tnpc-row-edit").hover_edit();
-                    if (new_row.hasClass('tnpc-row-block')) {
-                        new_row.find(".tnpc-row-edit-block").click();
-                    }
-                }).fail(function () {
-                    alert("Block rendering failed.");
-                    loading_row.remove();
-                }).always(function () {
-                });
+                    jQuery.post(ajaxurl, data, function (response) {
+                        var new_row = jQuery(response);
+                        loading_row.before(new_row);
+                        loading_row.remove();
+                        new_row.add_delete();
+                        new_row.add_block_edit();
+                        new_row.add_block_clone();
+                        if (new_row.hasClass('tnpc-row-block')) {
+                            new_row.find(".tnpc-row-edit-block").click();
+                        }
+                    }).fail(function () {
+                        alert("Block rendering failed.");
+                        loading_row.remove();
+                    });
+                }
+            },
+            
+            onEnd: function(evt) {
+                jQuery('.tnpc-drop-here').remove();
             }
-        }
-    });
-
-    jQuery(".tnpb-block-icon").draggable({
-        connectToSortable: "#tnpb-content",
-
-        // Build the helper for dragging
-        helper: function (e) {
-            var helper = jQuery(document.getElementById("tnpb-draggable-helper")).clone();
-            // Do not uset .data() with jQuery
-            helper.attr("data-id", e.currentTarget.dataset.id);
-            helper.html(e.currentTarget.dataset.name);
-            return helper;
-        },
-        revert: false,
-        start: function () {
-            if (jQuery('.tnpc-row').length) {
-            } else {
-                jQuery('#tnpb-content').append('<div class="tnpc-drop-here">Drag&Drop blocks here!</div>');
+        });
+    }
+    
+    // Erstelle Sortable für alle Sidebar-Sektionen (clone mode)
+    const sidebarSections = document.querySelectorAll('.tnpb-block-icons');
+    sidebarSections.forEach(function(section) {
+        new Sortable(section, {
+            group: {
+                name: 'blocks',
+                pull: 'clone',
+                put: false
+            },
+            sort: false,
+            animation: 150,
+            onClone: function(evt) {
+                // Original bleibt in Sidebar
+                console.log('Block geklont:', evt.item.dataset.id);
             }
-        },
-        stop: function (event, ui) {
-            jQuery('.tnpc-drop-here').remove();
-        }
+        });
     });
 
     jQuery(".tnpc-row").add_delete();

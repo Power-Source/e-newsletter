@@ -149,12 +149,9 @@ class NewsletterAdmin extends NewsletterModuleAdmin {
 
         // Styles and scripts only for our admin pages
         if (self::is_admin_page()) {
-            // Lade jQuery UI direkt aus dem Plugin-Verzeichnis (unabhängig von WordPress/ClassicPress)
-            wp_enqueue_script('newsletter-jquery-ui-draggable', $url . '/vendor/jquery-ui/jquery-ui-draggable.min.js', ['jquery'], NEWSLETTER_VERSION, true);
-            wp_enqueue_script('newsletter-jquery-ui-sortable', $url . '/vendor/jquery-ui/jquery-ui-sortable.min.js', ['jquery'], NEWSLETTER_VERSION, true);
-            
-            // jQuery UI Initialisierung und Verfügbarkeits-Check
-            wp_enqueue_script('newsletter-jquery-ui-init', $url . '/assets/js/newsletter-jquery-ui-init.js', ['jquery', 'newsletter-jquery-ui-draggable', 'newsletter-jquery-ui-sortable'], NEWSLETTER_VERSION, true);
+            // Moderne SortableJS Library (ersetzt jQuery UI Sortable)
+            wp_enqueue_script('sortablejs', $url . '/vendor/sortablejs/Sortable.min.js', [], '1.15.2', true);
+            wp_enqueue_style('sortablejs-styles', $url . '/vendor/sortablejs/sortable-styles.css', [], '1.15.2');
             
             wp_enqueue_media();
 
@@ -189,12 +186,10 @@ class NewsletterAdmin extends NewsletterModuleAdmin {
             wp_enqueue_style('tnp-admin-fontawesome', $url . '/vendor/fa/css/all.min.css', [], NEWSLETTER_VERSION);
             wp_enqueue_style('tnp-admin-jquery-ui', $url . '/vendor/jquery-ui/jquery-ui.min.css', [], NEWSLETTER_VERSION);
 
-            // Entfernt: jQuery Modal - wir verwenden PSource UI Modal
-            // wp_enqueue_script('tnp-jquery-modal', $url . '/vendor/jquery-modal/jquery.modal.min.js', ['jquery', 'newsletter-jquery-ui-init'], NEWSLETTER_VERSION);
-            // wp_enqueue_style('tnp-jquery-modal', $url . '/vendor/jquery-modal/jquery.modal.min.css', [], NEWSLETTER_VERSION);
-            
-            // Entfernt: Newsletter Modal Init - nicht mehr benötigt
-            // wp_enqueue_script('newsletter-modal-init', $url . '/assets/js/newsletter-modal-init.js', ['jquery', 'tnp-jquery-modal'], NEWSLETTER_VERSION, true);
+            // Micromodal.js - Moderne Vanilla Modal-Lösung (ersetzt jQuery Modal)
+            wp_enqueue_script('micromodal', $url . '/vendor/micromodal/micromodal.min.js', [], '0.4.10', true);
+            wp_enqueue_script('micromodal-compat', $url . '/vendor/micromodal/micromodal-compat.js', ['micromodal', 'jquery'], NEWSLETTER_VERSION, true);
+            wp_enqueue_style('micromodal', $url . '/vendor/micromodal/micromodal.css', [], '0.4.10');
 
             wp_enqueue_style('tnp-admin', $url . '/admin/css/all.css', [], NEWSLETTER_VERSION);
 
