@@ -242,11 +242,14 @@ class Email_Newsletter extends Email_Newsletter_functions {
         add_action( 'wp_ajax_nopriv_newsletter_unsubscribe', array( &$this, 'unsubscribe_ajax' ) );
         add_action( 'wp_ajax_newsletter_unsubscribe', array( &$this, 'unsubscribe_ajax' ) );
         
-        // Template Management AJAX handlers
-        add_action( 'wp_ajax_enewsletter_clone_template', array( &$this, 'ajax_clone_template' ) );
-        add_action( 'wp_ajax_enewsletter_upload_template', array( &$this, 'ajax_upload_template' ) );
-        add_action( 'wp_ajax_enewsletter_export_template', array( &$this, 'ajax_export_template' ) );
-        add_action( 'wp_ajax_enewsletter_preview_template', array( &$this, 'ajax_preview_template' ) );
+        // Template Management AJAX handlers (delegated to PSBuilder)
+        add_action( 'wp_ajax_enewsletter_clone_template', array( &$GLOBALS['ps_builder'], 'ajax_clone_template' ) );
+        add_action( 'wp_ajax_enewsletter_upload_template', array( &$GLOBALS['ps_builder'], 'ajax_upload_template' ) );
+        add_action( 'wp_ajax_enewsletter_export_template', array( &$GLOBALS['ps_builder'], 'ajax_export_template' ) );
+        add_action( 'wp_ajax_enewsletter_preview_template', array( &$GLOBALS['ps_builder'], 'ajax_preview_template' ) );
+        add_action( 'wp_ajax_enewsletter_delete_template', array( &$GLOBALS['ps_builder'], 'ajax_delete_template' ) );
+        add_action( 'wp_ajax_enewsletter_save_template_file', array( &$GLOBALS['ps_builder'], 'ajax_save_template_file' ) );
+        add_action( 'wp_ajax_enewsletter_save_template_css', array( &$GLOBALS['ps_builder'], 'ajax_save_template_css' ) );
     }
 
     /**
@@ -2303,6 +2306,11 @@ class Email_Newsletter extends Email_Newsletter_functions {
             add_submenu_page( $slug, __( 'Gruppen', 'email-newsletter' ), __( 'Gruppen', 'email-newsletter' ), 'edit_newsletter_group', 'newsletters-groups', array( &$this, 'member_groups_page' ) );
             add_submenu_page( $slug, __( 'Abonnenten', 'email-newsletter' ), __( 'Abonnenten', 'email-newsletter' ), 'view_newsletter_members', 'newsletters-members',  array( &$this, 'members_page' ) );
             add_submenu_page( $slug, __( 'Einstellungen', 'email-newsletter' ), __( 'Einstellungen', 'email-newsletter' ), 'save_newsletter_settings', 'newsletters-settings', array( &$this, 'settings_page' ) );
+            
+            // Template Management (PSBuilder)
+            if(isset($GLOBALS['ps_builder'])) {
+                add_submenu_page( $slug, __( 'Templates', 'email-newsletter' ), __( 'Templates', 'email-newsletter' ), 'manage_options', 'newsletters-template-management', array( &$GLOBALS['ps_builder'], 'display_template_management' ) );
+            }
 
             //menu for lowest level users
             add_submenu_page( $slug, __( 'Meine Abonnements', 'email-newsletter' ), __( 'Meine Abonnements', 'email-newsletter' ), 'read', 'newsletters-subscribes', array( &$this, 'newsletters_subscribe_page' ) );
@@ -2747,185 +2755,19 @@ class Email_Newsletter extends Email_Newsletter_functions {
         $this->unsubscribe_by_code( $_REQUEST['unsubscribe_code'] );
         die();
     }
-    
-    /**
-     * Template Management Functions
-     **/
-    function ajax_clone_template() {
-        check_ajax_referer('enewsletter_template_actions', 'nonce');
-        
-        if(!current_user_can('manage_options')) {
-            wp_send_json_error(__('Insufficient permissions', 'email-newsletter'));
-        }
-        
-        $stylesheet = sanitize_text_field($_POST['stylesheet']);
-        $new_name = sanitize_text_field($_POST['new_name']);
-        
-        if(empty($stylesheet) || empty($new_name)) {
-            wp_send_json_error(__('Missing required parameters', 'email-newsletter'));
-        }
-        
-        // Register theme directories and get theme
-        $this->register_enewsletter_themes();
-        $source_theme = wp_get_theme($stylesheet);
-        
-        if(!$source_theme->exists()) {
-            wp_send_json_error(__('Source template not found', 'email-newsletter'));
-        }
-        
-        // Verify it's actually a newsletter template
-        if($source_theme->theme_root != $this->template_directory && $source_theme->theme_root != $this->template_custom_directory) {
-            wp_send_json_error(__('Source template not found', 'email-newsletter'));
-        }
-        
-        // Create safe folder name
-        $folder_name = sanitize_file_name(str_replace(' ', '-', strtolower($new_name)));
-        $dest_path = $this->template_custom_directory . '/' . $folder_name;
-        
-        // Check if already exists
-        if(file_exists($dest_path)) {
-            wp_send_json_error(__('A template with this name already exists', 'email-newsletter'));
-        }
-        
-        // Create custom themes directory if it doesn't exist
-        if(!file_exists($this->template_custom_directory)) {
-            wp_mkdir_p($this->template_custom_directory);
-        }
-        
-        // Copy directory
-        $this->recursive_copy($source_theme->get_stylesheet_directory(), $dest_path);
-        
-        // Update style.css header
-        $style_file = $dest_path . '/style.css';
-        if(file_exists($style_file)) {
-            $style_content = file_get_contents($style_file);
-            $style_content = preg_replace('/Theme Name:.*/', 'Theme Name: ' . $new_name, $style_content);
-            file_put_contents($style_file, $style_content);
-        }
-        
-        wp_send_json_success(array(
-            'message' => __('Template cloned successfully', 'email-newsletter'),
-            'stylesheet' => $folder_name,
-            'editor_url' => admin_url('admin.php?page=newsletters-template-editor&template=' . urlencode($folder_name))
-        ));
-    }
-    
-    function ajax_upload_template() {
-        check_ajax_referer('enewsletter_template_actions', 'nonce');
-        
-        if(!current_user_can('manage_options')) {
-            wp_send_json_error(__('Insufficient permissions', 'email-newsletter'));
-        }
-        
-        if(empty($_FILES['template_zip'])) {
-            wp_send_json_error(__('No file uploaded', 'email-newsletter'));
-        }
-        
-        $file = $_FILES['template_zip'];
-        
-        // Check file type
-        if($file['type'] !== 'application/zip' && $file['type'] !== 'application/x-zip-compressed') {
-            wp_send_json_error(__('Only ZIP files are allowed', 'email-newsletter'));
-        }
-        
-        // Check for upload errors
-        if($file['error'] !== UPLOAD_ERR_OK) {
-            wp_send_json_error(__('Upload error occurred', 'email-newsletter'));
-        }
-        
-        // Unzip to custom templates directory
-        WP_Filesystem();
-        global $wp_filesystem;
-        
-        $result = unzip_file($file['tmp_name'], $this->template_custom_directory);
-        
-        if(is_wp_error($result)) {
-            wp_send_json_error($result->get_error_message());
-        }
-        
-        wp_send_json_success(array('message' => __('Template uploaded successfully', 'email-newsletter')));
-    }
-    
-    function ajax_export_template() {
-        check_ajax_referer('enewsletter_template_actions', 'nonce');
-        
-        if(!current_user_can('manage_options')) {
-            wp_die(__('Insufficient permissions', 'email-newsletter'));
-        }
-        
-        $stylesheet = sanitize_text_field($_GET['stylesheet']);
-        
-        if(empty($stylesheet)) {
-            wp_die(__('No template specified', 'email-newsletter'));
-        }
-        
-        // Register theme directories and get theme
-        $this->register_enewsletter_themes();
-        $template = wp_get_theme($stylesheet);
-        
-        if(!$template->exists()) {
-            wp_die(__('Template not found', 'email-newsletter'));
-        }
-        
-        // Verify it's actually a newsletter template
-        if($template->theme_root != $this->template_directory && $template->theme_root != $this->template_custom_directory) {
-            wp_die(__('Template not found', 'email-newsletter'));
-        }
-        
-        // Create ZIP
-        $template_dir = $template->get_stylesheet_directory();
-        $zip_file = tempnam(sys_get_temp_dir(), 'template_');
-        
-        $zip = new ZipArchive();
-        if($zip->open($zip_file, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
-            wp_die(__('Could not create ZIP file', 'email-newsletter'));
-        }
-        
-        $this->add_dir_to_zip($zip, $template_dir, $stylesheet);
-        $zip->close();
-        
-        // Send file
-        header('Content-Type: application/zip');
-        header('Content-Disposition: attachment; filename="' . $stylesheet . '.zip"');
-        header('Content-Length: ' . filesize($zip_file));
-        readfile($zip_file);
-        unlink($zip_file);
-        die();
-    }
-    
-    function recursive_copy($src, $dst) {
-        $dir = opendir($src);
-        @mkdir($dst);
-        while(false !== ($file = readdir($dir))) {
-            if(($file != '.') && ($file != '..')) {
-                if(is_dir($src . '/' . $file)) {
-                    $this->recursive_copy($src . '/' . $file, $dst . '/' . $file);
-                } else {
-                    copy($src . '/' . $file, $dst . '/' . $file);
-                }
-            }
-        }
-        closedir($dir);
-    }
-    
-    function add_dir_to_zip($zip, $dir, $base_name, $parent = '') {
-        $files = scandir($dir);
-        foreach($files as $file) {
-            if($file === '.' || $file === '..') continue;
-            
-            $file_path = $dir . '/' . $file;
-            $zip_path = $parent ? $parent . '/' . $file : $base_name . '/' . $file;
-            
-            if(is_dir($file_path)) {
-                $zip->addEmptyDir($zip_path);
-                $this->add_dir_to_zip($zip, $file_path, $base_name, $zip_path);
-            } else {
-                $zip->addFile($file_path, $zip_path);
-            }
-        }
-    }
 }
-global $email_newsletter, $email_builder;
+
+global $email_newsletter, $email_builder, $ps_builder;
 $email_newsletter = new Email_Newsletter();
+
+// Load original Email_Newsletter_Builder for existing functionality
 $email_builder = new Email_Newsletter_Builder();
+
+// Load PSBuilder for template management
+require_once(dirname(__FILE__) . '/email-newsletter-files/psbuilder/class.psbuilder.php');
+$ps_builder = new PS_Builder($email_newsletter);
+
+
+
+
 
