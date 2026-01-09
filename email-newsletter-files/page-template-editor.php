@@ -620,14 +620,32 @@ $template_url = trailingslashit($theme_url_data['url']);
             <div class="sidebar-section">
                 <div class="preview-header">
                     <h3><?php _e('Live-Vorschau', 'email-newsletter'); ?></h3>
-                    <button type="button" class="button button-small refresh-preview-btn" title="<?php _e('Vorschau aktualisieren', 'email-newsletter'); ?>">
-                        <span class="dashicons dashicons-update"></span>
-                    </button>
+                    <div class="preview-actions">
+                        <button type="button" class="button button-small refresh-preview-btn" title="<?php _e('Vorschau aktualisieren', 'email-newsletter'); ?>">
+                            <span class="dashicons dashicons-update"></span>
+                        </button>
+                        <button type="button" class="button button-small fullscreen-preview-btn" title="<?php _e('Vollbild-Vorschau', 'email-newsletter'); ?>">
+                            <span class="dashicons dashicons-fullscreen-alt"></span>
+                        </button>
+                    </div>
                 </div>
                 <div class="live-preview-container">
                     <iframe id="preview-frame" class="preview-frame" srcdoc="<p><?php _e('Laden...', 'email-newsletter'); ?></p>"></iframe>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Preview Modal -->
+    <div id="fullscreen-preview-modal" class="fullscreen-modal" style="display: none;">
+        <div class="fullscreen-modal-header">
+            <h2><?php _e('Newsletter-Vorschau', 'email-newsletter'); ?></h2>
+            <button type="button" class="button close-fullscreen-btn" title="<?php _e('Schließen', 'email-newsletter'); ?>">
+                <span class="dashicons dashicons-no-alt"></span>
+            </button>
+        </div>
+        <div class="fullscreen-modal-body">
+            <iframe id="fullscreen-preview-frame" class="fullscreen-preview-frame"></iframe>
         </div>
     </div>
 </div>
@@ -1276,6 +1294,87 @@ $template_url = trailingslashit($theme_url_data['url']);
     justify-content: center;
     gap: 5px;
 }
+
+/* Preview Actions */
+.preview-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.fullscreen-preview-btn {
+    padding: 4px 8px;
+    height: auto;
+}
+
+/* Fullscreen Modal */
+.fullscreen-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+}
+
+.fullscreen-modal-header {
+    background: #23282d;
+    color: #fff;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #000;
+}
+
+.fullscreen-modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 400;
+    color: #fff;
+}
+
+.close-fullscreen-btn {
+    background: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 8px 12px;
+    height: auto;
+    transition: background-color 0.2s;
+}
+
+.close-fullscreen-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.close-fullscreen-btn .dashicons {
+    color: #fff;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+}
+
+.fullscreen-modal-body {
+    flex: 1;
+    padding: 20px;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.fullscreen-preview-frame {
+    width: 100%;
+    max-width: 800px;
+    height: 100%;
+    min-height: 600px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: #fff;
+}
 </style>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
@@ -1556,6 +1655,46 @@ jQuery(document).ready(function($) {
     // Refresh preview button
     $('.refresh-preview-btn').on('click', function() {
         window.updatePreview();
+    });
+    
+    // Fullscreen preview button
+    $('.fullscreen-preview-btn').on('click', function() {
+        // Get current preview content
+        var previewFrame = document.getElementById('preview-frame');
+        var fullscreenFrame = document.getElementById('fullscreen-preview-frame');
+        
+        if (previewFrame && fullscreenFrame) {
+            // Copy srcdoc content to fullscreen iframe
+            fullscreenFrame.srcdoc = previewFrame.srcdoc;
+        }
+        
+        // Show modal
+        $('#fullscreen-preview-modal').fadeIn(200);
+        
+        // Prevent body scroll
+        $('body').css('overflow', 'hidden');
+    });
+    
+    // Close fullscreen modal
+    $('.close-fullscreen-btn, .fullscreen-modal').on('click', function(e) {
+        // Only close if clicking the close button or modal overlay (not the iframe content)
+        if ($(e.target).hasClass('fullscreen-modal') || $(e.target).hasClass('close-fullscreen-btn') || $(e.target).closest('.close-fullscreen-btn').length) {
+            $('#fullscreen-preview-modal').fadeOut(200);
+            $('body').css('overflow', '');
+        }
+    });
+    
+    // Prevent closing modal when clicking inside modal body
+    $('.fullscreen-modal-body').on('click', function(e) {
+        e.stopPropagation();
+    });
+    
+    // ESC key to close modal
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape' && $('#fullscreen-preview-modal').is(':visible')) {
+            $('#fullscreen-preview-modal').fadeOut(200);
+            $('body').css('overflow', '');
+        }
     });
     
     // Generate CSS from settings (legacy settings tab)
