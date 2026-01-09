@@ -89,6 +89,7 @@ class NewsletterComposerAdmin extends NewsletterModuleAdmin {
      * Used by Composer 3
      */
     function ajax_tnpc_block_form() {
+        check_ajax_referer('save');
         $block_id = sanitize_key($_REQUEST['id']);
         $block = NewsletterComposer::instance()->get_block($block_id);
         if (!$block) {
@@ -135,6 +136,7 @@ class NewsletterComposerAdmin extends NewsletterModuleAdmin {
      * @global wpdb $wpdb
      */
     function ajax_tnpc_options() {
+        check_ajax_referer('save');
         global $wpdb;
         $block_id = sanitize_key($_REQUEST['id']);
         $block = NewsletterComposer::instance()->get_block($block_id);
@@ -188,10 +190,12 @@ class NewsletterComposerAdmin extends NewsletterModuleAdmin {
      * Retrieves the presets list (no id in GET) or a specific preset id in GET)
      */
     function ajax_get_all_presets() {
+        check_ajax_referer('save');
         wp_send_json_success($this->get_all_preset());
     }
 
     function ajax_get_preset() {
+        check_ajax_referer('save');
         $id = sanitize_key($_REQUEST['id']);
         $email = null;
 
@@ -222,6 +226,7 @@ class NewsletterComposerAdmin extends NewsletterModuleAdmin {
     }
 
     function ajax_tnpc_preview() {
+        check_ajax_referer('save');
         $email = $this->get_email((int) $_REQUEST['id']);
 
         echo $email->message;
@@ -230,6 +235,7 @@ class NewsletterComposerAdmin extends NewsletterModuleAdmin {
     }
 
     function ajax_tnpc_css() {
+        check_ajax_referer('save');
         include NEWSLETTER_DIR . '/emails/tnp-composer/css/newsletter.css';
         wp_die();
     }

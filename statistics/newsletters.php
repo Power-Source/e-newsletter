@@ -55,13 +55,13 @@ foreach ($emails as $email) {
             <tbody>
                 <?php foreach ($emails as $email) { ?>
                     <tr>
-                        <td><?php echo $email->id ?></td>
-                        <td><?php echo esc_html($email->subject ?: 'Newsletter #' . $email->id) ?></td>
-                        <td><?php echo $email->report->total ?></td>
-                        <td><?php echo $email->report->open_rate ?></td>
-                        <td><?php echo $email->report->click_rate ?></td>
-                        <td><?php echo $email->report->reactivity ?></td>
-                        <td><?php $controls->button_icon_statistics('?page=newsletter_statistics_view&id=' . $email->id); ?></td>
+                        <td><?php echo absint($email->id) ?></td>
+                        <td><?php echo esc_html($email->subject ?: 'Newsletter #' . absint($email->id)) ?></td>
+                        <td><?php echo absint($email->report->total) ?></td>
+                        <td><?php echo esc_html($email->report->open_rate) ?></td>
+                        <td><?php echo esc_html($email->report->click_rate) ?></td>
+                        <td><?php echo esc_html($email->report->reactivity) ?></td>
+                        <td><?php $controls->button_icon_statistics('?page=newsletter_statistics_view&id=' . absint($email->id)); ?></td>
                     </tr>
                 <?php } ?>
             </tbody>

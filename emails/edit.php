@@ -39,8 +39,14 @@ if ($controls->is_action('continue')) {
 }
 
 if ($controls->is_action('abort')) {
+    if (!current_user_can('manage_options')) {
+        wp_die(__('Insufficient permissions', 'newsletter'));
+    }
     $this->logger->info('Newsletter ' . $email_id . ' aborted');
-    $wpdb->query("update " . NEWSLETTER_EMAILS_TABLE . " set last_id=0, sent=0, status='new' where id=" . $email_id);
+    $wpdb->query($wpdb->prepare(
+        "UPDATE " . NEWSLETTER_EMAILS_TABLE . " SET last_id=0, sent=0, status='new' WHERE id=%d",
+        intval($_GET['id'])
+    ));
     $email = $this->get_email($_GET['id'], ARRAY_A);
     tnp_prepare_controls($email, $controls);
     $controls->messages = __('Lieferung endgültig abgesagt', 'newsletter');
