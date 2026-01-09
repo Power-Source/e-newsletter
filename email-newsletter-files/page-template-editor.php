@@ -33,16 +33,76 @@ if(!$is_custom) {
     wp_die(__('Nur Custom-Vorlagen können bearbeitet werden. Bitte klone diese Vorlage zuerst.', 'email-newsletter'));
 }
 
+// Ensure media library scripts are available for media pickers
+wp_enqueue_script('jquery');
+if(function_exists('wp_enqueue_media')) {
+    wp_enqueue_media();
+} else {
+    wp_enqueue_script('media-upload');
+    wp_enqueue_script('thickbox');
+    wp_enqueue_style('thickbox');
+}
+
 // Get template directory
 $template_dir = $theme->get_stylesheet_directory();
 $template_html_file = $template_dir . '/template.html';
 $style_css_file = $template_dir . '/style.css';
 $style_header_css_file = $template_dir . '/style_header.css';
+$index_php_file = $template_dir . '/index.php';
 
 // Load file content
 $template_html_content = file_exists($template_html_file) ? file_get_contents($template_html_file) : '';
 $style_css_content = file_exists($style_css_file) ? file_get_contents($style_css_file) : '';
 $style_header_css_content = file_exists($style_header_css_file) ? file_get_contents($style_header_css_file) : '';
+$index_php_content = file_exists($index_php_file) ? file_get_contents($index_php_file) : '';
+
+// Parse index.php settings
+$builder_settings = array(
+    'bg_color' => '#ffffff',
+    'bg_image' => '',
+    'header_image' => '',
+    'link_color' => '#0073aa',
+    'body_color' => '#333333',
+    'alternative_color' => '#666666',
+    'title_color' => '#000000',
+    'email_title' => 'Standard-E-Mail-Titel',
+    'use_default_header_footer' => true,
+    'use_default_styles' => true,
+);
+
+if(!empty($index_php_content)) {
+    // Parse define statements
+    if(preg_match("/define\('BUILDER_DEFAULT_BG_COLOR',\s*'([^']+)'\)/", $index_php_content, $m)) {
+        $builder_settings['bg_color'] = $m[1];
+    }
+    if(preg_match("/define\('BUILDER_DEFAULT_BG_IMAGE',\s*'([^']+)'\)/", $index_php_content, $m)) {
+        $builder_settings['bg_image'] = $m[1];
+    }
+    if(preg_match("/define\('BUILDER_DEFAULT_HEADER_IMAGE',\s*'([^']+)'\)/", $index_php_content, $m)) {
+        $builder_settings['header_image'] = $m[1];
+    }
+    if(preg_match("/define\('BUILDER_DEFAULT_LINK_COLOR',\s*'([^']+)'\)/", $index_php_content, $m)) {
+        $builder_settings['link_color'] = $m[1];
+    }
+    if(preg_match("/define\('BUILDER_DEFAULT_BODY_COLOR',\s*'([^']+)'\)/", $index_php_content, $m)) {
+        $builder_settings['body_color'] = $m[1];
+    }
+    if(preg_match("/define\('BUILDER_DEFAULT_ALTERNATIVE_COLOR',\s*'([^']+)'\)/", $index_php_content, $m)) {
+        $builder_settings['alternative_color'] = $m[1];
+    }
+    if(preg_match("/define\('BUILDER_DEFAULT_TITLE_COLOR',\s*'([^']+)'\)/", $index_php_content, $m)) {
+        $builder_settings['title_color'] = $m[1];
+    }
+    if(preg_match("/define\('BUILDER_DEFAULT_EMAIL_TITLE',\s*'([^']+)'\)/", $index_php_content, $m)) {
+        $builder_settings['email_title'] = $m[1];
+    }
+    if(preg_match("/define\('BUILDER_SETTING_USE_DEFAULT_HEADER_FOOTER',\s*(true|false)\)/", $index_php_content, $m)) {
+        $builder_settings['use_default_header_footer'] = ($m[1] === 'true');
+    }
+    if(preg_match("/define\('BUILDER_SETTING_USE_DEFAULT_STYLES',\s*(true|false)\)/", $index_php_content, $m)) {
+        $builder_settings['use_default_styles'] = ($m[1] === 'true');
+    }
+}
 
 // Default Lorem Ipsum content
 $default_lorem = '<h2>Lorem Ipsum</h2><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>';
@@ -50,6 +110,21 @@ $default_lorem = '<h2>Lorem Ipsum</h2><p>Lorem ipsum dolor sit amet, consectetur
 if(empty($template_html_content)) {
     $template_html_content = '<table><tr><td>{CONTENT}</td></tr></table>';
 }
+
+// Load branding settings from global plugin settings
+$branding_settings = array(
+    'company_name' => isset($email_newsletter->settings['company_name']) ? $email_newsletter->settings['company_name'] : get_bloginfo('name'),
+    'address' => isset($email_newsletter->settings['address']) ? $email_newsletter->settings['address'] : '',
+    'phone' => isset($email_newsletter->settings['phone']) ? $email_newsletter->settings['phone'] : '',
+    'email' => isset($email_newsletter->settings['email']) ? $email_newsletter->settings['email'] : get_bloginfo('admin_email'),
+    'website' => isset($email_newsletter->settings['website']) ? $email_newsletter->settings['website'] : get_bloginfo('url'),
+    'facebook' => isset($email_newsletter->settings['facebook']) ? $email_newsletter->settings['facebook'] : '',
+    'twitter' => isset($email_newsletter->settings['twitter']) ? $email_newsletter->settings['twitter'] : '',
+    'instagram' => isset($email_newsletter->settings['instagram']) ? $email_newsletter->settings['instagram'] : '',
+    'linkedin' => isset($email_newsletter->settings['linkedin']) ? $email_newsletter->settings['linkedin'] : '',
+    'youtube' => isset($email_newsletter->settings['youtube']) ? $email_newsletter->settings['youtube'] : '',
+    'branding_layout' => isset($email_newsletter->settings['branding_layout']) ? $email_newsletter->settings['branding_layout'] : 'footer',
+);
 
 // Parse settings from CSS
 $settings = array(
@@ -68,7 +143,7 @@ $settings = array(
 );
 
 $theme_url_data = $email_newsletter->get_theme_dir_url($theme, $stylesheet);
-$template_url = $theme_url_data['url'];
+$template_url = trailingslashit($theme_url_data['url']);
 ?>
 
 <div class="wrap template-editor-wrap">
@@ -76,34 +151,161 @@ $template_url = $theme_url_data['url'];
     
     <div class="editor-container">
         
-        <!-- Left Sidebar: File Management -->
+        <!-- Left Sidebar: Template Settings -->
         <div class="editor-sidebar left-sidebar">
-            <div class="sidebar-section">
-                <h3><?php _e('Template Files', 'email-newsletter'); ?></h3>
-                <div class="files-list">
-                    <div class="file-item active" data-file="template.html">
-                        <span class="file-icon">📄</span>
-                        <span class="file-name">template.html</span>
+            
+            <!-- Accordion Section: Template Einstellungen -->
+            <div class="sidebar-accordion-section">
+                <h3 class="accordion-header active">
+                    <span class="dashicons dashicons-admin-appearance"></span>
+                    <?php _e('Template Einstellungen', 'email-newsletter'); ?>
+                    <span class="accordion-toggle dashicons dashicons-arrow-up-alt2"></span>
+                </h3>
+                
+                <div class="accordion-content" style="display: block;">
+                    <div class="template-settings-form">
+                    <div class="setting-group">
+                        <label><?php _e('Hintergrundfarbe:', 'email-newsletter'); ?></label>
+                        <input type="color" id="builder-bg-color" class="builder-color-input" value="<?php echo esc_attr($builder_settings['bg_color']); ?>">
                     </div>
-                    <div class="file-item" data-file="style.css">
-                        <span class="file-icon">🎨</span>
-                        <span class="file-name">style.css</span>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Hintergrundbild:', 'email-newsletter'); ?></label>
+                        <button type="button" class="button button-small select-bg-image-btn">
+                            <span class="dashicons dashicons-format-image"></span>
+                            <?php _e('Bild wählen', 'email-newsletter'); ?>
+                        </button>
+                        <input type="text" id="builder-bg-image" class="builder-text-input" value="<?php echo esc_attr($builder_settings['bg_image']); ?>" placeholder="images/bg.jpg">
                     </div>
-                    <div class="file-item" data-file="style_header.css">
-                        <span class="file-icon">🎨</span>
-                        <span class="file-name">style_header.css</span>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Header Bild:', 'email-newsletter'); ?></label>
+                        <button type="button" class="button button-small select-header-image-btn">
+                            <span class="dashicons dashicons-format-image"></span>
+                            <?php _e('Bild wählen', 'email-newsletter'); ?>
+                        </button>
+                        <input type="text" id="builder-header-image" class="builder-text-input" value="<?php echo esc_attr($builder_settings['header_image']); ?>" placeholder="images/header.jpg">
                     </div>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Link Farbe:', 'email-newsletter'); ?></label>
+                        <input type="color" id="builder-link-color" class="builder-color-input" value="<?php echo esc_attr($builder_settings['link_color']); ?>">
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Text Farbe:', 'email-newsletter'); ?></label>
+                        <input type="color" id="builder-body-color" class="builder-color-input" value="<?php echo esc_attr($builder_settings['body_color']); ?>">
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Alternative Farbe:', 'email-newsletter'); ?></label>
+                        <input type="color" id="builder-alternative-color" class="builder-color-input" value="<?php echo esc_attr($builder_settings['alternative_color']); ?>">
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Titel Farbe:', 'email-newsletter'); ?></label>
+                        <input type="color" id="builder-title-color" class="builder-color-input" value="<?php echo esc_attr($builder_settings['title_color']); ?>">
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Standard E-Mail Titel:', 'email-newsletter'); ?></label>
+                        <input type="text" id="builder-email-title" class="builder-text-input" value="<?php echo esc_attr($builder_settings['email_title']); ?>">
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="builder-use-header-footer" class="builder-checkbox" <?php checked($builder_settings['use_default_header_footer']); ?>>
+                            <?php _e('Standard Header/Footer', 'email-newsletter'); ?>
+                        </label>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="builder-use-styles" class="builder-checkbox" <?php checked($builder_settings['use_default_styles']); ?>>
+                            <?php _e('Standard Styles', 'email-newsletter'); ?>
+                        </label>
+                    </div>
+                    
+                    <button type="button" class="button button-primary save-builder-settings-btn" style="width: 100%; margin-top: 10px;">
+                        <span class="dashicons dashicons-yes"></span>
+                        <?php _e('Einstellungen speichern', 'email-newsletter'); ?>
+                    </button>
+                </div>
                 </div>
             </div>
             
-            <hr>
+            <!-- Accordion Section: Branding & Kontakt -->
+            <div class="sidebar-accordion-section">
+                <h3 class="accordion-header">
+                    <span class="dashicons dashicons-id"></span>
+                    <?php _e('Branding & Kontakt', 'email-newsletter'); ?>
+                    <span class="accordion-toggle dashicons dashicons-arrow-down-alt2"></span>
+                </h3>
+                
+                <div class="accordion-content" style="display: none;">
+                <div class="branding-settings-form">
+                    <div class="setting-group">
+                        <label><?php _e('Firmenname:', 'email-newsletter'); ?></label>
+                        <input type="text" id="branding-company-name" class="builder-text-input" value="<?php echo esc_attr($branding_settings['company_name']); ?>" placeholder="<?php echo esc_attr(get_bloginfo('name')); ?>">
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Adresse:', 'email-newsletter'); ?></label>
+                        <textarea id="branding-address" class="builder-textarea" rows="2" placeholder="Musterstraße 123, 12345 Stadt"><?php echo esc_textarea($branding_settings['address']); ?></textarea>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Telefon:', 'email-newsletter'); ?></label>
+                        <input type="text" id="branding-phone" class="builder-text-input" value="<?php echo esc_attr($branding_settings['phone']); ?>" placeholder="+49 123 456789">
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('E-Mail:', 'email-newsletter'); ?></label>
+                        <input type="email" id="branding-email" class="builder-text-input" value="<?php echo esc_attr($branding_settings['email']); ?>" placeholder="<?php echo esc_attr(get_bloginfo('admin_email')); ?>">
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Website:', 'email-newsletter'); ?></label>
+                        <input type="url" id="branding-website" class="builder-text-input" value="<?php echo esc_attr($branding_settings['website']); ?>" placeholder="https://example.com">
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Layout:', 'email-newsletter'); ?></label>
+                        <select id="branding-layout" class="builder-select">
+                            <option value="footer" <?php selected($branding_settings['branding_layout'], 'footer'); ?>><?php _e('Footer (Standard)', 'email-newsletter'); ?></option>
+                            <option value="two-column" <?php selected($branding_settings['branding_layout'], 'two-column'); ?>><?php _e('Zweispaltig', 'email-newsletter'); ?></option>
+                            <option value="centered" <?php selected($branding_settings['branding_layout'], 'centered'); ?>><?php _e('Zentriert', 'email-newsletter'); ?></option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label><?php _e('Soziale Netzwerke:', 'email-newsletter'); ?></label>
+                        <div class="social-inputs">
+                            <input type="url" id="branding-facebook" class="builder-text-input social-input" value="<?php echo esc_attr($branding_settings['facebook']); ?>" placeholder="Facebook URL">
+                            <input type="url" id="branding-twitter" class="builder-text-input social-input" value="<?php echo esc_attr($branding_settings['twitter']); ?>" placeholder="Twitter URL">
+                            <input type="url" id="branding-instagram" class="builder-text-input social-input" value="<?php echo esc_attr($branding_settings['instagram']); ?>" placeholder="Instagram URL">
+                            <input type="url" id="branding-linkedin" class="builder-text-input social-input" value="<?php echo esc_attr($branding_settings['linkedin']); ?>" placeholder="LinkedIn URL">
+                            <input type="url" id="branding-youtube" class="builder-text-input social-input" value="<?php echo esc_attr($branding_settings['youtube']); ?>" placeholder="YouTube URL">
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
             
-            <div class="sidebar-section">
-                <h3><?php _e('Zurück', 'email-newsletter'); ?></h3>
-                <button type="button" class="button button-secondary" onclick="window.history.back();">
+            <!-- Accordion Section: Aktionen -->
+            <div class="sidebar-accordion-section">
+                <h3 class="accordion-header">
+                    <span class="dashicons dashicons-admin-tools"></span>
+                    <?php _e('Aktionen', 'email-newsletter'); ?>
+                    <span class="accordion-toggle dashicons dashicons-arrow-down-alt2"></span>
+                </h3>
+                
+                <div class="accordion-content" style="display: none; padding: 15px;">
+                <a href="<?php echo esc_url(admin_url('admin.php?page=newsletters-template-management')); ?>" class="button button-secondary" style="width: 100%; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
                     <span class="dashicons dashicons-arrow-left"></span>
                     <?php _e('Zur Vorlagenliste', 'email-newsletter'); ?>
-                </button>
+                </a>
+                </div>
             </div>
         </div>
         
@@ -155,8 +357,8 @@ $template_url = $theme_url_data['url'];
                 <textarea id="style-header-css-editor" class="code-editor css-editor" data-file="style_header.css" style="display:none;"><?php echo esc_textarea($style_header_css_content); ?></textarea>
             </div>
             
-            <!-- Settings Panel -->
-            <div class="settings-panel">
+            <!-- Settings Panel (currently not used, hidden) -->
+            <div class="settings-panel" style="display: none;">
                 <div class="editor-header">
                     <h3><?php _e('Design Settings', 'email-newsletter'); ?></h3>
                 </div>
@@ -271,6 +473,15 @@ $template_url = $theme_url_data['url'];
 <style>
 .template-editor-wrap {
     margin-top: -20px;
+    position: relative;
+}
+
+#wpfooter {
+    display: none !important;
+}
+
+#wpcontent {
+    padding-bottom: 0 !important;
 }
 
 .editor-container {
@@ -280,6 +491,8 @@ $template_url = $theme_url_data['url'];
     height: calc(100vh - 180px);
     margin-top: 20px;
     min-height: 600px;
+    position: relative;
+    z-index: 1;
 }
 
 .editor-sidebar {
@@ -606,6 +819,149 @@ $template_url = $theme_url_data['url'];
 .CodeMirror-scroll {
     height: 100%;
 }
+
+.left-sidebar {
+    overflow-y: auto;
+}
+
+.sidebar-accordion-section {
+    border-bottom: 1px solid #ddd;
+}
+
+.accordion-header {
+    margin: 0;
+    padding: 12px 15px;
+    background: #f9f9f9;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #666;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.accordion-header:hover {
+    background: #f0f0f0;
+    color: #0073aa;
+}
+
+.accordion-header.active {
+    background: #0073aa;
+    color: white;
+}
+
+.accordion-header .dashicons:first-child {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.accordion-toggle {
+    font-size: 18px;
+    transition: transform 0.2s;
+}
+
+.accordion-header.active .accordion-toggle {
+    transform: rotate(180deg);
+}
+
+.accordion-content {
+    padding: 15px;
+    background: white;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.template-settings-form {
+    margin-top: 0;
+}
+
+.branding-settings-form {
+    margin-top: 0;
+}
+
+.builder-textarea {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.builder-select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.social-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.social-input {
+    font-size: 12px !important;
+}
+
+.setting-group {
+    margin-bottom: 15px;
+}
+
+.setting-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.builder-color-input {
+    width: 100%;
+    height: 35px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.builder-text-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.builder-text-input.small-text {
+    margin-top: 5px;
+}
+
+.select-bg-image-btn,
+.select-header-image-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.builder-checkbox {
+    margin-right: 8px;
+}
+
+.save-builder-settings-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
 </style>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
@@ -620,8 +976,10 @@ jQuery(document).ready(function($) {
     var ajaxurl = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
     var nonce = '<?php echo wp_create_nonce('enewsletter_template_edit'); ?>';
     var stylesheet = '<?php echo esc_js($stylesheet); ?>';
-    var loremIpsum = '<?php echo esc_js($default_lorem); ?>';
+    var loremIpsum = <?php echo json_encode($default_lorem); ?>;
     var settings = <?php echo json_encode($settings); ?>;
+    var builderSettings = <?php echo wp_json_encode($builder_settings); ?>;
+    var brandingSettings = <?php echo wp_json_encode($branding_settings); ?>;
     
     // Initialize CodeMirror editors
     var htmlEditor = CodeMirror.fromTextArea(document.getElementById('template-html-editor'), {
@@ -659,6 +1017,25 @@ jQuery(document).ready(function($) {
         matchBrackets: true,
         autoCloseBrackets: true,
         styleActiveLine: true
+    });
+    
+    // Accordion functionality
+    $('.accordion-header').on('click', function() {
+        var $header = $(this);
+        var $content = $header.next('.accordion-content');
+        var isActive = $header.hasClass('active');
+        
+        // Close all accordion sections
+        $('.accordion-header').removeClass('active');
+        $('.accordion-content').slideUp(200);
+        $('.accordion-toggle').removeClass('dashicons-arrow-up-alt2').addClass('dashicons-arrow-down-alt2');
+        
+        // Open clicked section if it wasn't active
+        if(!isActive) {
+            $header.addClass('active');
+            $content.slideDown(200);
+            $header.find('.accordion-toggle').removeClass('dashicons-arrow-down-alt2').addClass('dashicons-arrow-up-alt2');
+        }
     });
     
     // File tab switching
@@ -796,7 +1173,7 @@ jQuery(document).ready(function($) {
         updatePreview();
     });
     
-    // Generate CSS from settings
+    // Generate CSS from settings (legacy settings tab)
     function generateCSS() {
         var css = `/* Generated CSS from Settings */
 body {
@@ -827,15 +1204,100 @@ a {
         $('#style-css-editor').val(css);
     }
     
+    // Generate Branding HTML
+    function generateBrandingHTML() {
+        var layout = brandingSettings.branding_layout || 'footer';
+        var companyName = brandingSettings.company_name || '';
+        var address = brandingSettings.address || '';
+        var phone = brandingSettings.phone || '';
+        var email = brandingSettings.email || '';
+        var website = brandingSettings.website || '';
+        
+        // Social Media Icons
+        var socialHtml = '';
+        var socialLinks = [];
+        if(brandingSettings.facebook) socialLinks.push('<a href="' + brandingSettings.facebook + '" style="text-decoration:none; margin:0 5px;">📘 Facebook</a>');
+        if(brandingSettings.twitter) socialLinks.push('<a href="' + brandingSettings.twitter + '" style="text-decoration:none; margin:0 5px;">🐦 Twitter</a>');
+        if(brandingSettings.instagram) socialLinks.push('<a href="' + brandingSettings.instagram + '" style="text-decoration:none; margin:0 5px;">📷 Instagram</a>');
+        if(brandingSettings.linkedin) socialLinks.push('<a href="' + brandingSettings.linkedin + '" style="text-decoration:none; margin:0 5px;">💼 LinkedIn</a>');
+        if(brandingSettings.youtube) socialLinks.push('<a href="' + brandingSettings.youtube + '" style="text-decoration:none; margin:0 5px;">▶️ YouTube</a>');
+        
+        if(socialLinks.length > 0) {
+            socialHtml = '<div style="margin-top:15px; text-align:center;">' + socialLinks.join(' ') + '</div>';
+        }
+        
+        // Layout templates
+        if(layout === 'footer') {
+            return `<div style="text-align:center; padding:20px; background-color:#f5f5f5; color:#666; font-size:12px;">
+                <strong>${companyName}</strong><br>
+                ${address ? address + '<br>' : ''}
+                ${phone ? 'Tel: ' + phone + '<br>' : ''}
+                ${email ? 'E-Mail: <a href="mailto:' + email + '">' + email + '</a><br>' : ''}
+                ${website ? '<a href="' + website + '">Website</a><br>' : ''}
+                ${socialHtml}
+            </div>`;
+        } else if(layout === 'two-column') {
+            return `<table style="width:100%; max-width:600px; margin:20px auto;">
+                <tr>
+                    <td style="width:50%; padding:15px; vertical-align:top;">
+                        <strong>${companyName}</strong><br>
+                        ${address ? address + '<br>' : ''}
+                        ${phone ? 'Tel: ' + phone + '<br>' : ''}
+                    </td>
+                    <td style="width:50%; padding:15px; vertical-align:top;">
+                        ${email ? 'E-Mail: <a href="mailto:' + email + '">' + email + '</a><br>' : ''}
+                        ${website ? '<a href="' + website + '">Website</a><br>' : ''}
+                        ${socialHtml}
+                    </td>
+                </tr>
+            </table>`;
+        } else if(layout === 'centered') {
+            return `<div style="text-align:center; padding:30px;">
+                <h3>${companyName}</h3>
+                ${address ? '<p>' + address + '</p>' : ''}
+                <p>
+                    ${phone ? 'Tel: ' + phone + ' | ' : ''}
+                    ${email ? 'E-Mail: <a href="mailto:' + email + '">' + email + '</a>' : ''}
+                </p>
+                ${website ? '<p><a href="' + website + '">Besuchen Sie unsere Website</a></p>' : ''}
+                ${socialHtml}
+            </div>`;
+        }
+        
+        return '';
+    }
+    
     // Update live preview
     function updatePreview() {
         var htmlContent = htmlEditor.getValue();
         var styleCss = cssEditor.getValue();
+        var builderCss = '';
+        var templateBase = '<?php echo esc_js($template_url); ?>';
+        var headerImagePath = builderSettings.header_image ? builderSettings.header_image : '';
+        var bgImagePath = builderSettings.bg_image ? builderSettings.bg_image : '';
+        var resolvedHeader = '';
+        var resolvedBg = '';
+        if(headerImagePath) {
+            resolvedHeader = /^https?:\/\//i.test(headerImagePath) ? headerImagePath : templateBase + headerImagePath.replace(/^\//, '');
+        }
+        if(bgImagePath) {
+            resolvedBg = /^https?:\/\//i.test(bgImagePath) ? bgImagePath : templateBase + bgImagePath.replace(/^\//, '');
+        }
+        
+        // Apply builder settings to live CSS
+        builderCss += 'body { background-color: ' + (builderSettings.bg_color || '#ffffff') + ';';
+        if(resolvedBg) {
+            builderCss += ' background-image: url("' + resolvedBg + '"); background-size: cover; background-repeat: no-repeat;';
+        }
+        builderCss += ' color: ' + (builderSettings.body_color || '#333333') + '; }';
+        builderCss += ' a { color: ' + (builderSettings.link_color || '#0073aa') + '; }';
+        builderCss += ' h1, h2, h3, h4, h5, h6 { color: ' + (builderSettings.title_color || '#000000') + '; }';
+        builderCss += ' .alt, .alternate, .alt-row { background-color: ' + (builderSettings.alternative_color || '#666666') + '; }';
         
         // Sample data for placeholder replacement
         var sampleData = {
             'CONTENT': loremIpsum,
-            'EMAIL_TITLE': '<?php _e('Beispiel Newsletter-Titel', 'email-newsletter'); ?>',
+            'EMAIL_TITLE': builderSettings.email_title ? builderSettings.email_title : '<?php _e('Beispiel Newsletter-Titel', 'email-newsletter'); ?>',
             'EMAIL_BODY': loremIpsum,
             'UNSUBSCRIBE_LINK': '<a href="#unsubscribe"><?php _e('Abmelden', 'email-newsletter'); ?></a>',
             'UNSUBSCRIBE_URL': '#unsubscribe',
@@ -844,10 +1306,10 @@ a {
             'FROM_NAME': '<?php echo esc_js(get_bloginfo('name')); ?>',
             'FROM_EMAIL': '<?php echo esc_js(get_bloginfo('admin_email')); ?>',
             'FROM_EMAI': '<?php echo esc_js(get_bloginfo('admin_email')); ?>',
-            'BRANDING_HTML': '<p><?php echo esc_js(get_bloginfo('description')); ?></p>',
-            'CONTACT_INFO': '<?php echo esc_js(get_bloginfo('name')); ?><br><?php echo esc_js(get_bloginfo('description')); ?>',
-            'HEADER_IMAGE': '<img src="' + '<?php echo esc_js($template_url); ?>' + 'images/header.jpg" alt="Header" style="max-width:100%; height:auto; display:block;">',
-            'EMAIL_SUBJECT': '<?php _e('Beispiel Betreff', 'email-newsletter'); ?>',
+            'BRANDING_HTML': generateBrandingHTML(),
+            'CONTACT_INFO': generateBrandingHTML(),
+            'HEADER_IMAGE': headerImagePath ? '<img src="' + resolvedHeader + '" alt="Header" style="max-width:100%; height:auto; display:block;">' : '',
+            'EMAIL_SUBJECT': builderSettings.email_title ? builderSettings.email_title : '<?php _e('Beispiel Betreff', 'email-newsletter'); ?>',
             'DATE': new Date().toLocaleDateString()
         };
         
@@ -868,7 +1330,8 @@ a {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
         table { width: 100%; max-width: 600px; margin: 0 auto; background-color: white; }
-        ${styleCss}
+            ${styleCss}
+            ${builderCss}
     </style>
 </head>
 <body>
@@ -882,5 +1345,145 @@ a {
     
     // Initial preview
     updatePreview();
+
+    // Live update for color inputs
+    $('.builder-color-input').on('input change', function() {
+        var id = $(this).attr('id');
+        switch(id) {
+            case 'builder-bg-color':
+                builderSettings.bg_color = $(this).val();
+                break;
+            case 'builder-link-color':
+                builderSettings.link_color = $(this).val();
+                break;
+            case 'builder-body-color':
+                builderSettings.body_color = $(this).val();
+                break;
+            case 'builder-alternative-color':
+                builderSettings.alternative_color = $(this).val();
+                break;
+            case 'builder-title-color':
+                builderSettings.title_color = $(this).val();
+                break;
+        }
+        updatePreview();
+    });
+
+    // Live update for text input
+    $('#builder-email-title').on('input change', function() {
+        builderSettings.email_title = $(this).val();
+        updatePreview();
+    });
+
+    // Live update for checkboxes
+    $('#builder-use-header-footer, #builder-use-styles').on('change', function() {
+        builderSettings.use_default_header_footer = $('#builder-use-header-footer').is(':checked');
+        builderSettings.use_default_styles = $('#builder-use-styles').is(':checked');
+        updatePreview();
+    });
+    
+    // Live update for branding inputs
+    $('#branding-company-name, #branding-address, #branding-phone, #branding-email, #branding-website, #branding-facebook, #branding-twitter, #branding-instagram, #branding-linkedin, #branding-youtube').on('input change', function() {
+        brandingSettings.company_name = $('#branding-company-name').val();
+        brandingSettings.address = $('#branding-address').val();
+        brandingSettings.phone = $('#branding-phone').val();
+        brandingSettings.email = $('#branding-email').val();
+        brandingSettings.website = $('#branding-website').val();
+        brandingSettings.facebook = $('#branding-facebook').val();
+        brandingSettings.twitter = $('#branding-twitter').val();
+        brandingSettings.instagram = $('#branding-instagram').val();
+        brandingSettings.linkedin = $('#branding-linkedin').val();
+        brandingSettings.youtube = $('#branding-youtube').val();
+        updatePreview();
+    });
+    
+    // Live update for branding layout
+    $('#branding-layout').on('change', function() {
+        brandingSettings.branding_layout = $(this).val();
+        updatePreview();
+    });
+    
+    // Builder Settings: Media Picker for Background Image
+    $('.select-bg-image-btn').on('click', function(e) {
+        e.preventDefault();
+        
+        var mediaUploader = wp.media({
+            title: '<?php _e('Hintergrundbild wählen', 'email-newsletter'); ?>',
+            button: {
+                text: '<?php _e('Bild wählen', 'email-newsletter'); ?>'
+            },
+            multiple: false,
+            library: {
+                type: 'image'
+            }
+        });
+        
+        mediaUploader.on('select', function() {
+            var attachment = mediaUploader.state().get('selection').first().toJSON();
+            var url = attachment.url;
+            $('#builder-bg-image').val(url);
+            builderSettings.bg_image = url;
+            updatePreview();
+        });
+        
+        mediaUploader.open();
+    });
+    
+    // Builder Settings: Media Picker for Header Image
+    $('.select-header-image-btn').on('click', function(e) {
+        e.preventDefault();
+        
+        var mediaUploader = wp.media({
+            title: '<?php _e('Header Bild wählen', 'email-newsletter'); ?>',
+            button: {
+                text: '<?php _e('Bild wählen', 'email-newsletter'); ?>'
+            },
+            multiple: false,
+            library: {
+                type: 'image'
+            }
+        });
+        
+        mediaUploader.on('select', function() {
+            var attachment = mediaUploader.state().get('selection').first().toJSON();
+            var url = attachment.url;
+            $('#builder-header-image').val(url);
+            builderSettings.header_image = url;
+            updatePreview();
+        });
+        
+        mediaUploader.open();
+    });
+    
+    // Save Builder Settings
+    $('.save-builder-settings-btn').on('click', function() {
+        var builderSettingsPayload = {
+            bg_color: $('#builder-bg-color').val(),
+            bg_image: $('#builder-bg-image').val(),
+            header_image: $('#builder-header-image').val(),
+            link_color: $('#builder-link-color').val(),
+            body_color: $('#builder-body-color').val(),
+            alternative_color: $('#builder-alternative-color').val(),
+            title_color: $('#builder-title-color').val(),
+            email_title: $('#builder-email-title').val(),
+            use_default_header_footer: $('#builder-use-header-footer').is(':checked'),
+            use_default_styles: $('#builder-use-styles').is(':checked')
+        };
+        
+        $.post(ajaxurl, {
+            action: 'enewsletter_save_builder_settings',
+            stylesheet: stylesheet,
+            settings: builderSettingsPayload,
+            nonce: nonce
+        }, function(response) {
+            if(response.success) {
+                builderSettings = builderSettingsPayload;
+                alert('<?php _e('Einstellungen gespeichert!', 'email-newsletter'); ?>');
+                updatePreview();
+            } else {
+                alert('<?php _e('Fehler beim Speichern', 'email-newsletter'); ?>');
+            }
+        });
+    });
 });
 </script>

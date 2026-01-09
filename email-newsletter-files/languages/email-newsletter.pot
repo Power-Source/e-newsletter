@@ -640,11 +640,11 @@ msgid "From"
 msgstr ""
 
 #: email-newsletter-files/class.functions.php:1222
-msgid "Not interested anymore?"
+msgid "Kein Interesse mehr?"
 msgstr ""
 
 #: email-newsletter-files/class.functions.php:1223
-msgid "Unsubscribe Instantly."
+msgid "Sofort abmelden."
 msgstr ""
 
 #: email-newsletter-files/class.functions.php:1829

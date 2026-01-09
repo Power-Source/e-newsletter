@@ -1219,8 +1219,8 @@ class Email_Newsletter_functions {
         //Translate template default elements
         $default_texts = array(
             'From' => __( 'From', 'email-newsletter' ),
-            'Not interested anymore?' => __( 'Not interested anymore?', 'email-newsletter' ),
-            'Unsubscribe Instantly.' => __( 'Unsubscribe Instantly.', 'email-newsletter' )
+            'Kein Interesse mehr?' => __( 'Kein Interesse mehr?', 'email-newsletter' ),
+            'Sofort abmelden.' => __( 'Sofort abmelden.', 'email-newsletter' )
         );
         foreach ($default_texts as $text => $translation) {
             $contents = str_replace( $text, $translation, $contents );
