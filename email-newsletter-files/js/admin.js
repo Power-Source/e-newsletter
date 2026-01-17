@@ -6,7 +6,7 @@ jQuery( document ).ready( function() {
 
     jQuery( "#add_group" ).on('click', function() {
         if ( "" == jQuery( "#group_name" ).val() ) {
-            alert( 'Please write Group name' );
+            alert( 'Bitte gib einen Gruppennamen an.' );
             return false;
         }
 
@@ -59,7 +59,7 @@ jQuery( document ).ready( function() {
 
     jQuery.fn.saveGroup = function ( ) {
         if ( "" == jQuery( "#edit_group_name" ).val() ) {
-            alert( 'Please write Group name' );
+            alert( 'Bitte gib einen Gruppennamen an.' );
             return false;
         }
 

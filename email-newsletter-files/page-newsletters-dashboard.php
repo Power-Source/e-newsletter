@@ -20,10 +20,10 @@
 ?>
 
     <div class="wrap">
-        <h2><?php _e( 'Newsletters Dashboard', 'email-newsletter' ) ?></h2>
-		<p><?php _e( 'Take a look at newsletter reports.', 'email-newsletter' ) ?></p>
+        <h2><?php _e( 'PS eNewsletter Dashboard', 'email-newsletter' ) ?></h2>
+		<p><?php _e( 'Wirf einen Blick in die Newsletter-Berichte.', 'email-newsletter' ) ?></p>
 
-		<h3><?php _e( 'Statistiken für aktuelle Mitglieder:', 'email-newsletter' ) ?></h3>
+		<h3><?php _e( 'Statistiken für aktuelle Abonnenten:', 'email-newsletter' ) ?></h3>
         <table class="widefat post table_slim table_centered">
             <thead>
                 <tr>
@@ -31,7 +31,7 @@
                         <?php _e( 'Newsletter', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Mitglieder', 'email-newsletter' ) ?>
+                        <?php _e( 'Abonnenten', 'email-newsletter' ) ?>
                     </th>
                     <th>
                         <?php _e( 'Gruppen', 'email-newsletter' ) ?>
@@ -50,7 +50,7 @@
                     </th>
                     <th>
                         <?php _e( 'CRON', 'email-newsletter' ) ?>
-                        (<?php echo wp_next_scheduled( $this->cron_send_name ) ? __( 'enabled', 'email-newsletter') : __( 'disabled', 'email-newsletter'); ?>)
+                        (<?php echo wp_next_scheduled( $this->cron_send_name ) ? __( 'aktiviert', 'email-newsletter') : __( 'deaktiviert', 'email-newsletter'); ?>)
 
                     </th>
                 </tr>
@@ -124,7 +124,7 @@
                 $i++;
         ?>
                 <td style="text-align: left;">
-                    <?php echo get_date_from_gmt(date('Y-m-d H:i:s', $newsletter['create_date'])); ?>
+                    <?php echo get_date_from_gmt(date('d.m.Y H:i:s', $newsletter['create_date'])); ?>
                 </td>        
                 <td style="text-align: left;">
                     <?php echo $newsletter['subject']; ?>
@@ -241,7 +241,7 @@
                         </span>
                     </td>
                     <td style="vertical-align: middle;">
-                        <?php echo get_date_from_gmt(date('Y-m-d H:i:s', $member['join_date'])); ?>
+                        <?php echo get_date_from_gmt(date('d.m.Y H:i:s', $member['join_date'])); ?>
                     </td>
                     <td style="vertical-align: middle;">
                         <?php echo $member['sent']; ?>

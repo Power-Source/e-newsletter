@@ -232,7 +232,7 @@ class Email_Newsletter_functions {
             $member_id = $result['member_id'];
 
         if($member_id == 0) {
-            $time = date("Y-m-d H:i:s", $time);
+            $time = date("d.m.Y H:i:s", $time);
             $result = $wpdb->get_row( $wpdb->prepare( "SELECT ID FROM $wpdb->users WHERE user_registered = %s", $time ), "ARRAY_A" );
             if(isset($result['ID']) && $result['ID'] > 0)
             $wp_only_user_id = $result['ID'];
@@ -671,7 +671,7 @@ class Email_Newsletter_functions {
                     foreach ($membership_levels as $membership_level) {
                         $count = $this->get_members_of_membership($membership_level, 1);
                         if($count) {
-                            $targets['membership_levels']['name'] = __( 'Membership Plugin Levels', 'email-newsletter' );
+                            $targets['membership_levels']['name'] = __( 'PS Membership Plugin Levels', 'email-newsletter' );
                             $targets['membership_levels'][] = '<label><input type="checkbox" name="target[membership_levels][]" value="'.$membership_level['id'].'"> '.$membership_level['level_title'].' ('.$count.')</input></label>';
                         }
                     }
@@ -689,7 +689,7 @@ class Email_Newsletter_functions {
         if($roles) {
             $roles = $this->get_roles();
             foreach ($roles as $role_id => $role) {
-                $targets['roles']['name'] = __( 'ClassicPress User Roles', 'email-newsletter' );
+                $targets['roles']['name'] = __( 'ClassicPress Benutzerrollen', 'email-newsletter' );
                 $targets['roles'][] = '<label><input type="checkbox" name="target[roles][]" value="'.$role_id.'"> '.$role['name'].'</input></label>';
             }
         }
@@ -698,7 +698,7 @@ class Email_Newsletter_functions {
             $ids = $this->get_global_wp_user_ids();
             $count = (is_array($ids) || $ids instanceof Countable) ? count($ids) : 0;
             if($count) {
-                $targets['site_admins'][] = '<label><input type="checkbox" name="target[site_admins]" value="yes"> <strong>'.__( 'Admins of all sites', 'email-newsletter' ).'</strong> ('.$count.')</input></label>';
+                $targets['site_admins'][] = '<label><input type="checkbox" name="target[site_admins]" value="yes"> <strong>'.__( 'Administratoren aller Webseiten', 'email-newsletter' ).'</strong> ('.$count.')</input></label>';
             }
         }
 
@@ -1853,10 +1853,10 @@ class Email_Newsletter_functions {
                 $message = '';
 
                 if ( 0 < $i )
-                    $message .=  __( 'Import is finished successfully,', 'email-newsletter' ) . ' ' . $i . ' ' . __( 'members are added or subscribed to group(s).', 'email-newsletter' );
+                    $message .=  __( 'Import erfolgreich abgeschlossen,', 'email-newsletter' ) . ' ' . $i . ' ' . __( 'Mitglieder wurden hinzugefügt oder zu Gruppe(n) abonniert.', 'email-newsletter' );
 
                 if ( isset( $exist_members ) && is_array( $exist_members ) ) {
-                    $message .= '<br />' . __( 'These emails already exist in member list:', 'email-newsletter' ) . '<br />';
+                    $message .= '<br />' . __( 'Diese E-Mails existieren bereits in der Abonnentenliste:', 'email-newsletter' ) . '<br />';
                     $exist_members_count = count($exist_members);
                     $exist_members = array_slice($exist_members, 0, 40);
                     foreach($exist_members as $exist_member )
@@ -1864,11 +1864,11 @@ class Email_Newsletter_functions {
 
                     if($exist_members_count > 40)  {
                         $exist_members_count_left = $exist_members_count-40;
-                        $message .= __( '...and '.$exist_members_count_left.' more!', 'email-newsletter' ) . '<br />';
+                        $message .= __( '...und '.$exist_members_count_left.' mehr!', 'email-newsletter' ) . '<br />';
                     }
                 }
                 if ( isset( $incorrect_members ) && is_array( $incorrect_members ) ) {
-                    $message .= '<br />' . __( 'These emails are incorrect:', 'email-newsletter' ) . '<br />';
+                    $message .= '<br />' . __( 'Diese E-Mails sind ungültig:', 'email-newsletter' ) . '<br />';
                     $incorrect_members_count = count($incorrect_members);
                     $incorrect_members = array_slice($incorrect_members, 0, 40);
                     foreach($incorrect_members as $incorrect_member )
@@ -1876,23 +1876,23 @@ class Email_Newsletter_functions {
 
                     if($incorrect_members_count > 40)  {
                         $incorrect_members_count_left = $incorrect_members_count-40;
-                        $message .= __( '...and '.$incorrect_members_count_left.' more!', 'email-newsletter' ) . '<br />';
+                        $message .= __( '...und '.$incorrect_members_count_left.' mehr!', 'email-newsletter' ) . '<br />';
                     }
                 }
 
                 if(empty($message)) {
-                    $message .= 'Import ERROR: Nothing to import';
+                    $message .= __( 'Importfehler: Nichts zu importieren', 'email-newsletter' );
                 }
 
                 wp_redirect( add_query_arg( array( 'page' => 'newsletters-members', 'updated' => 'true', 'message' => urlencode( $message ) ), 'admin.php' ) );
                 exit;
 
             } else {
-                wp_redirect( add_query_arg( array( 'page' => 'newsletters-members', 'updated' => 'true', 'message' => urlencode( __( 'Import ERROR: Problem with uploading of the file!', 'email-newsletter' ) ) ), 'admin.php' ) );
+                wp_redirect( add_query_arg( array( 'page' => 'newsletters-members', 'updated' => 'true', 'message' => urlencode( __( 'Importfehler: Problem beim Hochladen der Datei!', 'email-newsletter' ) ) ), 'admin.php' ) );
                 exit;
             }
         } else {
-            wp_redirect( add_query_arg( array( 'page' => 'newsletters-members', 'updated' => 'true', 'message' => urlencode( __( 'Import ERROR: Please change permission for the folder /wp-content/uploads/', 'email-newsletter' ) ) ), 'admin.php' ) );
+            wp_redirect( add_query_arg( array( 'page' => 'newsletters-members', 'updated' => 'true', 'message' => urlencode( __( 'Importfehler: Bitte ändere die Berechtigung für den Ordner /wp-content/uploads/', 'email-newsletter' ) ) ), 'admin.php' ) );
             exit;
         }
     }
@@ -2051,11 +2051,11 @@ class Email_Newsletter_functions {
 
         if ( isset($_REQUEST['mode']) && "install" == $_REQUEST['mode']) {
             // first setup of plugin
-            wp_redirect( add_query_arg( array( 'page' => 'newsletters-dashboard', 'updated' => 'true', 'message' => urlencode( __( 'The Plugin is installed!', 'email-newsletter' ) ) ), 'admin.php' ) );
+            wp_redirect( add_query_arg( array( 'page' => 'newsletters-dashboard', 'updated' => 'true', 'message' => urlencode( __( 'Das Plugin ist installiert!', 'email-newsletter' ) ) ), 'admin.php' ) );
             exit;
         } elseif($redirect == 1) {
             $newsletter_setting_page = (isset($_REQUEST['newsletter_setting_page'])) ? $_REQUEST['newsletter_setting_page'] : '';
-            wp_redirect( add_query_arg( array( 'page' => 'newsletters-settings', 'tab' => $newsletter_setting_page, 'updated' => 'true', 'message' => urlencode( __( 'The Settings are saved!', 'email-newsletter' ) ) ), 'admin.php' ) );
+            wp_redirect( add_query_arg( array( 'page' => 'newsletters-settings', 'tab' => $newsletter_setting_page, 'updated' => 'true', 'message' => urlencode( __( 'Die Einstellungen wurden gespeichert!', 'email-newsletter' ) ) ), 'admin.php' ) );
             exit;
         }
     }
@@ -2682,7 +2682,7 @@ class Email_Newsletter_functions {
         $file = $this->plugin_dir . "email-newsletter-files/debug.log";
 
         $handle = fopen( $file, 'ab' );
-        $data = date( "[Y-m-d H:i:s]" ) . $message . "\r\n";
+        $data = date( "[d.m.Y H:i:s]" ) . $message . "\r\n";
         fwrite($handle, $data);
         fclose($handle);
     }

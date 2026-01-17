@@ -13,9 +13,9 @@
 
 ?>
     <div class="wrap">
-        <h2><?php _e( 'Send Newsletter:', 'email-newsletter' ) ?> "<?php echo htmlspecialchars( $newsletter_data['subject'] );?>" <a href="?page=newsletters&amp;newsletter_builder_action=edit_newsletter&amp;newsletter_id=<?php echo $newsletter_data['newsletter_id'];?>&amp;template=<?php echo $newsletter_data['template'];?>&amp;return=<?php echo urlencode($_SERVER['REQUEST_URI']); ?>" class="add-new-h2"><?php _e( 'Edit', 'email-newsletter' ) ?></a></h2>
+        <h2><?php _e( 'Newsletter senden:', 'email-newsletter' ) ?> "<?php echo htmlspecialchars( $newsletter_data['subject'] );?>" <a href="?page=newsletters&amp;newsletter_builder_action=edit_newsletter&amp;newsletter_id=<?php echo $newsletter_data['newsletter_id'];?>&amp;template=<?php echo $newsletter_data['template'];?>&amp;return=<?php echo urlencode($_SERVER['REQUEST_URI']); ?>" class="add-new-h2"><?php _e( 'Edit', 'email-newsletter' ) ?></a></h2>
 
-        <p><?php _e( 'At this page you can send newsletter to the selected groups.', 'email-newsletter' ) ?></p>
+        <p><?php _e( 'Auf dieser Seite kannst Du den Newsletter an die ausgewählten Gruppen senden.', 'email-newsletter' ) ?></p>
 
         <?php
 
@@ -26,12 +26,12 @@
             $count_send_members = $this->get_count_send_members( $send_id );
         ?>
             <center>
-                <p>The Newsletter was sent to <span id="count_sent">0</span> out of <?php echo $count_send_members; ?> members</p>
+                <p>Der Newsletter wurde an <span id="count_sent">0</span> von <?php echo $count_send_members; ?> Mitgliedern gesendet</p>
                 <div class="enewsletter_progressbar">
                     <div id="progressbar" style="position: relative; width: 100%; max-width: 400px; margin: 20px auto;">
                         <progress id="progressbar_value" value="0" max="100" style="width: 100%; height: 30px; border: 1px solid #ccc; border-radius: 4px;"></progress>
                         <span id="progressbar_text" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #333; pointer-events: none;">
-                            <?php echo _e( "Sending", 'email-newsletter' ) ?>
+                            <?php echo _e( "Senden", 'email-newsletter' ) ?>
                         </span>
                     </div>
                 </div>
@@ -42,8 +42,8 @@
                     <input type="hidden" name="cron" value="add_to_cron" />
 					<p class="submit">
                     <input class="button button-secondary" type="button" id="send_pause" value="<?php echo _e( 'Pause', 'email-newsletter' ) ?>" />
-                    <input class="button button-secondary" type="button" id="send_cron" value="<?php echo _e( 'Pause, and send by WP-CRON', 'email-newsletter' ) ?>" />
-                    <input class="button button-secondary" type="button" id="send_cancel" value="<?php echo _e( 'Go Back', 'email-newsletter' ) ?>" />
+                    <input class="button button-secondary" type="button" id="send_cron" value="<?php echo _e( 'Pause, und sende per WP-CRON', 'email-newsletter' ) ?>" />
+                    <input class="button button-secondary" type="button" id="send_cancel" value="<?php echo _e( 'Zurück', 'email-newsletter' ) ?>" />
 					</p>
                 </form>
             </center>
@@ -70,13 +70,13 @@
                     jQuery( '#send_pause' ).on('click', function () {
                         if ( 1 == pause ) {
                             pause = 0;
-                            jQuery( "#progressbar_text" ).html( '<?php echo _e( 'Sending', 'email-newsletter' ) ?>' );
+                            jQuery( "#progressbar_text" ).html( '<?php echo _e( 'Senden', 'email-newsletter' ) ?>' );
                             jQuery( this ).val( '<?php echo _e( "Pause", 'email-newsletter' ) ?>' );
                             jQuery( this ).send_email();
                         } else {
                             pause = 1;
                             jQuery( "#progressbar_text" ).html( '<?php echo _e( 'Pause', 'email-newsletter' ) ?>' );
-                            jQuery( this ).val( '<?php echo _e( "Continue", 'email-newsletter' ) ?>' );
+                            jQuery( this ).val( '<?php echo _e( "Fortsetzen", 'email-newsletter' ) ?>' );
                         }
 
                     });
@@ -109,7 +109,7 @@
                                 } else if ( 'end' == html.trim()) {
                                      jQuery( "#send_pause" ).hide();
                                      jQuery( "#send_cron" ).hide();
-                                     jQuery( "#progressbar_text" ).html( '<?php echo _e( 'Done', 'email-newsletter' ) ?>' );
+                                     jQuery( "#progressbar_text" ).html( '<?php echo _e( 'Fertig', 'email-newsletter' ) ?>' );
 									 jQuery( "#send_cancel" ).val('finish');
                                      jQuery( "#progressbar_value" ).fadeOut();
                                 } else {
@@ -139,7 +139,7 @@
 				<thead>
 					<tr>
 						<th>
-							<?php _e( 'Select which groups you would like to send to:', 'email-newsletter' ) ?>
+							<?php _e( 'Wähle die Gruppen aus, an die Du die Nachricht senden möchtest:', 'email-newsletter' ) ?>
 						</th>
 					</tr>
 				</thead>
@@ -147,7 +147,7 @@
 					<tr>
 						<td>
     						<p>
-    							<label><input type="checkbox" name="all_members" value="1" /> <strong><?php _e( 'All Active Members', 'email-newsletter' ) ?></strong> (<?php echo $this->get_count_members();?>)</label>
+    							<label><input type="checkbox" name="all_members" value="1" /> <strong><?php _e( 'Alle aktiven Mitglieder', 'email-newsletter' ) ?></strong> (<?php echo $this->get_count_members();?>)</label>
     						</p>
                             <p>
     							<?php
@@ -155,17 +155,17 @@
                                 ?>
                             </p>
                             <p class="description">
-                                <?php _e( 'Please keep in mind emails are not being sent to unsubscribed users.', 'email-newsletter' ) ?>
+                                <?php _e( 'Bitte beachte, dass E-Mails nicht an abgemeldete Benutzer gesendet werden.', 'email-newsletter' ) ?>
                             </p>
                             <p>
                                 <label>
                                     <input type="checkbox" name="dont_send_duplicate" value="1" checked="checked" />
-                                    <?php _e( "Don't resend to people that had this newsletter sent to.", 'email-newsletter' ); ?>
+                                    <?php _e( "Sende nicht erneut an Personen, die diesen Newsletter bereits erhalten haben.", 'email-newsletter' ); ?>
                                 </label>
 
                                 <label>
                                     <input type="checkbox" name="send_to_bounced" value="1" />
-                                    <?php _e( "Send to bounced members.", 'email-newsletter' ); ?>
+                                    <?php _e( "Sende an zurückgeprallte Mitglieder.", 'email-newsletter' ); ?>
                                 </label>
                             </p>
 						</td>
@@ -173,12 +173,12 @@
 					<tr>
 						<td>
                             <p>
-                                <input class="button button-primary" type="submit" name="send" value="<?php echo _e( 'Send newsletter now', 'email-newsletter' ) ?>" />
-                                <input class="button button-secondary" type="button" name="send" id="add_cron" value="<?php echo _e( 'Send in background (by CRON)', 'email-newsletter' ) ?>" />
+                                <input class="button button-primary" type="submit" name="send" value="<?php echo _e( 'Newsletter jetzt senden', 'email-newsletter' ) ?>" />
+                                <input class="button button-secondary" type="button" name="send" id="add_cron" value="<?php echo _e( 'Im Hintergrund senden (per CRON)', 'email-newsletter' ) ?>" />
                                 <span id="timestamp">
-                                    <?php _e( "Send:", 'email-newsletter' ); ?> <b><?php _e( "As fast as possible.", 'email-newsletter' ); ?></b>
+                                    <?php _e( "Senden:", 'email-newsletter' ); ?> <b><?php _e( "So schnell wie möglich.", 'email-newsletter' ); ?></b>
                                 </span>
-                                <a href="#edit_timestamp" class="edit-timestamp" style="display: inline;">Edit</a>
+                                <a href="#edit_timestamp" class="edit-timestamp" style="display: inline;">Bearbeiten</a>
                             </p>
                                 <div id="timestampdiv">
                                     <div class="timestamp-wrap">
@@ -211,8 +211,8 @@
                                         <input type="text" id="mn" name="mn" value="<?php echo $cur_mn; ?>" size="2" maxlength="2" autocomplete="off">
                                     </div>
                                     <p>
-                                        <a href="#edit_timestamp" class="save-timestamp button"><?php _e( "Set", 'email-newsletter' ); ?></a>
-                                        <a href="#edit_timestamp" class="cancel-timestamp"><?php _e( "Cancel/Unset", 'email-newsletter' ); ?></a>
+                                        <a href="#edit_timestamp" class="save-timestamp button"><?php _e( "Setzen", 'email-newsletter' ); ?></a>
+                                        <a href="#edit_timestamp" class="cancel-timestamp"><?php _e( "Abbrechen/Zurücksetzen", 'email-newsletter' ); ?></a>
                                     </p>
                                 </div>
                         </td>
@@ -227,31 +227,31 @@
             $total = array ( 'send' => 0, 'cron' => 0, 'sent' => 0, 'bounced' => 0, 'opened' => 0 );
         ?>
 
-        <h3><?php _e( 'Previous sending:', 'email-newsletter' ) ?></h3>
+        <h3><?php _e( 'Vorheriges Senden:', 'email-newsletter' ) ?></h3>
 
         <table width="700px" class="widefat post" id="send_list" style="width:95%;">
             <thead>
                 <tr>
                     <th>
-                        <?php _e( 'Start Date', 'email-newsletter' ) ?>
+                        <?php _e( 'Startdatum', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Waiting send (manually)', 'email-newsletter' ) ?>
+                        <?php _e( 'Warten auf Versand (manuell)', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Waiting send (cron)', 'email-newsletter' ) ?>
+                        <?php _e( 'Warten auf Versand (cron)', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Sent To', 'email-newsletter' ) ?>
+                        <?php _e( 'Gesendet an', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Opened', 'email-newsletter' ) ?>
+                        <?php _e( 'Geöffnet', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Bounced', 'email-newsletter' ) ?>
+                        <?php _e( 'Unzustellbar', 'email-newsletter' ) ?>
                     </th>
                     <th>
-                        <?php _e( 'Actions', 'email-newsletter' ) ?>
+                        <?php _e( 'Aktionen', 'email-newsletter' ) ?>
                     </th>
                 </tr>
             </thead>
@@ -270,7 +270,7 @@
                 $i++;
         ?>
                 <td style="vertical-align: middle;">
-                   <?php echo get_date_from_gmt(date('Y-m-d H:i:s', $send['start_time'])); ?>
+                   <?php echo get_date_from_gmt(date('d.m.Y H:i:s', $send['start_time'])); ?>
                 </td>
                 <td style="vertical-align: middle;">
                     <?php
@@ -282,7 +282,7 @@
                     <?php
                         echo $send['count_send_cron'];
                         if(is_numeric($send['status']))
-                            echo ' <small>('.get_date_from_gmt(date('Y-m-d H:i:s', $send['status'])).')</small>';
+                            echo ' <small>('.get_date_from_gmt(date('d.m.Y H:i:s', $send['status'])).')</small>';
                         $total['cron'] += $send['count_send_cron'];
                     ?>
                 </td>
@@ -309,7 +309,7 @@
                     if ( 0 < $send['count_send_cron'] ) :
                 ?>
                         <a href="?page=<?php echo $_REQUEST['page']; ?>&newsletter_action=send_newsletter&cron=remove_from_cron&newsletter_id=<?php echo $newsletter_data["newsletter_id"];?>&send_id=<?php echo $send['send_id'];?>">
-                            <input class="button button-secondary" type="button" value="<?php echo _e( "Remove from CRON list", 'email-newsletter' ) ?>" />
+                            <input class="button button-secondary" type="button" value="<?php echo _e( "Aus der CRON-Liste entfernen", 'email-newsletter' ) ?>" />
                         </a>
                 <?php
                     endif;
@@ -317,10 +317,10 @@
                     if ( 0 < $send['count_send_members'] ) :
                 ?>
                         <a href="?page=<?php echo $_REQUEST['page']; ?>&newsletter_action=send_newsletter&cron=add_to_cron&newsletter_id=<?php echo $newsletter_data["newsletter_id"];?>&send_id=<?php echo $send['send_id'];?>">
-                            <input class="button button-secondary" type="button" value="<?php echo _e( "Add to CRON list", 'email-newsletter' ) ?>" />
+                            <input class="button button-secondary" type="button" value="<?php echo _e( "Zur CRON-Liste hinzufügen", 'email-newsletter' ) ?>" />
                         </a>
                         <a href="?page=<?php echo $_REQUEST['page']; ?>&newsletter_action=send_newsletter&newsletter_id=<?php echo $newsletter_data["newsletter_id"];?>&send_id=<?php echo $send['send_id'];?>&check_key=<?php echo $check_key; ?>">
-                            <input class="button button-primary" type="button" value="<?php _e( 'Continue Send', 'email-newsletter' ) ?>" />
+                            <input class="button button-primary" type="button" value="<?php _e( 'Weiter mit dem Versand', 'email-newsletter' ) ?>" />
                         </a>
                 <?php
                     endif;
@@ -337,7 +337,7 @@
             <thead>
                 <tr>
                     <th>
-                        <?php _e( 'Total:', 'email-newsletter' ) ?>
+                        <?php _e( 'Gesamt:', 'email-newsletter' ) ?>
                     </th>
                     <th>
                         <?php echo $total['send']; ?>

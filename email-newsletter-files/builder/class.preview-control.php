@@ -45,7 +45,7 @@ class Builder_Preview_Control extends WP_Customize_Control {
 						var is_saved = true;
 
 					if(is_saved) {
-						if(confirm("<?php _e('Do you want to save newsletter before sending? It is needed to see latest changes.','email-newsletter'); ?>")) {
+						if(confirm("<?php _e('Möchtest du den Newsletter vor dem Versand speichern? Dies ist erforderlich, um die neuesten Änderungen zu sehen.','email-newsletter'); ?>")) {
 							jQuery("#save").trigger('click');
 							var fix = setInterval(function() {
 										if($("#save").is(":disabled")) {

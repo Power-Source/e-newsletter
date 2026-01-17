@@ -2687,7 +2687,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
                     ),
                     array(
                         'name' => __( 'Join Date', 'appointments' ),
-                        'value' => get_date_from_gmt(date('Y-m-d H:i:s', $member['join_date'])),
+                        'value' => get_date_from_gmt(date('d.m.Y H:i:s', $member['join_date'])),
                     ),
                     array(
                         'name' => __( 'Groups', 'appointments' ),

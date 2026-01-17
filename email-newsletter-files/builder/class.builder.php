@@ -28,7 +28,7 @@ class Email_Newsletter_Builder  {
 				set_transient('builder_email_id_'.$current_user->ID, $builder_id);
 			}
 			else
-				die(__('Something is wrong, we can not determine what your trying to do.','email-newsletter'));
+				die(__('Etwas stimmt nicht, wir können nicht feststellen, was Du versuchst.','email-newsletter'));
 		}
 
 		if(!$builder_id) {
@@ -86,7 +86,7 @@ class Email_Newsletter_Builder  {
 			switch( $_REQUEST[ 'newsletter_builder_action' ] ) {
 				case "create_newsletter":
 					if(!(current_user_can('create_newsletter') || current_user_can($mu_cap)))
-						wp_die('You do not have permission to do that');
+						wp_die(__('Dazu hast Du keine Berechtigung', 'email-newsletter'));
 
 					$builder_id = false;
 					$builder_id = $this->create_newsletter(array('template' => $this->get_builder_theme()));
@@ -97,7 +97,7 @@ class Email_Newsletter_Builder  {
 				break;
 				case "edit_newsletter":
 					if(!(current_user_can('save_newsletter') || current_user_can($mu_cap)) && isset($_REQUEST['newsletter_id']))
-						wp_die('You do not have permission to do that');
+						wp_die(__('Dazu hast Du keine Berechtigung', 'email-newsletter'));
 
 					$template = (isset($_REQUEST['template'])) ? $_REQUEST['template'] : false;
 					$return = (isset($_REQUEST['return'])) ? $_GET['return'] : false;
@@ -276,13 +276,16 @@ class Email_Newsletter_Builder  {
 				unset($themes[$key]);
 		}
 
+		// Enqueue builder customizer styles
+		wp_enqueue_style( 'email-newsletter-builder-customizer', $email_newsletter->plugin_url . 'email-newsletter-files/css/builder-customizer.css', array(), $email_newsletter->version );
+
 		?>
 		<script type="text/javascript">
-			_wpCustomizeControlsL10n.save = _wpCustomizeControlsL10n.publish = _wpCustomizeControlsL10n.published = "<?php _e('Save Newsletter','email-newsletter'); ?>";
+			_wpCustomizeControlsL10n.save = _wpCustomizeControlsL10n.publish = _wpCustomizeControlsL10n.published = "<?php _e('Newsletter speichern','email-newsletter'); ?>";
 
 			window.onbeforeunload = function() {
 				if(!jQuery("#save").is(":disabled"))
-					return "<?php _e('You have unsaved data in this newsletter.','email-newsletter'); ?>";
+					return "<?php _e('Du hast ungespeicherte Daten in diesem Newsletter.','email-newsletter'); ?>";
 			};
 
 			wp.customize.bind('saved', function() {
@@ -293,182 +296,6 @@ class Email_Newsletter_Builder  {
 				}
 			});
 		</script>
-
-		<style type="text/css">
-			body {
-				background: #fff;
-			}
-			#customize-notifications-area, #publish-settings {
-				display: none !important;
-			}
-			#customize-save-button-wrapper .save.has-next-sibling {
-				border-radius: 3px !important;
-			}
-			#content_tinymce_ifr {
-				min-height: 200px;
-			}
-			#customize-control-email_content {
-				width:auto;
-			}
-			.wp-full-overlay-sidebar {
-				min-width:550px;
-			}
-			.wp-full-overlay.collapsed .wp-full-overlay-sidebar {
-				margin-left: -550px;
-			}
-			.wp-full-overlay.expanded {
-				margin-left: 550px;
-			}
-			/* Grid Template Styles - contained within accordion */
-			#accordion-section-builder_templates .accordion-section-content {
-				padding: 0 !important;
-				min-height: auto !important;
-				max-height: 420px;
-				overflow-y: auto;
-			}
-			.template-grid-actions {
-				padding: 15px 15px 10px;
-				border-bottom: 1px solid #ddd;
-				background: #f9f9f9;
-			}
-			.template-grid-actions .button {
-				display: inline-flex;
-				align-items: center;
-				gap: 5px;
-			}
-			.template-grid-actions .dashicons {
-				font-size: 16px;
-				width: 16px;
-				height: 16px;
-			}
-			.email-templates-grid {
-				display: grid;
-				grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-				gap: 10px;
-				padding: 15px;
-				width: 100%;
-				box-sizing: border-box;
-			}
-			.email-template-item {
-				background: #f9f9f9;
-				border: 2px solid #ddd;
-				border-radius: 5px;
-				padding: 8px;
-				cursor: pointer;
-				transition: all 0.3s ease;
-				position: relative;
-				display: flex;
-				flex-direction: column;
-				text-align: center;
-			}
-			.email-template-item:hover {
-				border-color: #0073aa;
-				background: #f5f5f5;
-				box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-				transform: translateY(-2px);
-			}
-			.email-template-item.current-template {
-				border: 2px solid #0073aa;
-				background: #e8f4f8;
-				box-shadow: 0 0 0 3px rgba(0,115,170,0.2);
-			}
-			.email-template-item.current-template::before {
-				content: "✓ AKTIV";
-				position: absolute;
-				top: 5px;
-				right: 5px;
-				background: #0073aa;
-				color: white;
-				padding: 2px 6px;
-				font-size: 10px;
-				border-radius: 3px;
-				font-weight: bold;
-				z-index: 10;
-			}
-			.custom-badge {
-				position: absolute;
-				top: 5px;
-				left: 5px;
-				background: #46b450;
-				color: white;
-				padding: 2px 6px;
-				font-size: 10px;
-				border-radius: 3px;
-				font-weight: bold;
-				z-index: 10;
-			}
-			.template-thumbnail {
-				width: 100%;
-				height: 80px;
-				object-fit: cover;
-				border-radius: 3px;
-				margin-bottom: 8px;
-				display: block;
-			}
-			.template-name {
-				margin: 0 0 8px 0;
-				font-size: 12px;
-				font-weight: 600;
-				color: #333;
-				white-space: nowrap;
-				overflow: hidden;
-				text-overflow: ellipsis;
-				min-height: 16px;
-				flex-grow: 1;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-			}
-			.template-actions {
-				display: flex;
-				flex-direction: column;
-				gap: 4px;
-				margin-top: auto;
-			}
-			.template-actions .button {
-				width: 100%;
-				padding: 4px 4px !important;
-				font-size: 11px !important;
-				height: auto !important;
-				line-height: 1.3 !important;
-				display: flex !important;
-				align-items: center;
-				justify-content: center;
-				gap: 3px;
-			}
-			.template-actions .dashicons {
-				font-size: 14px;
-				width: 14px;
-				height: 14px;
-			}
-			.email-template-item.current-template .activate-template-btn {
-				background-color: #6c757d !important;
-				border-color: #5a6268 !important;
-				color: white !important;
-				cursor: default !important;
-			}
-			.wp-full-overlay {
-				z-index: 15000;
-			}
-			#TB_overlay, #TB_window {
-				z-index: 16000!important;
-			}
-			#accordion-panel-nav_menus, .customize-panel-description {
-				display: none !important;
-			}
-			.accordion-section-title {
-				cursor: pointer !important;
-			}
-			#customize-controls .customize-info .accordion-section-title:after {
-				display: block;
-			}
-			.customize-help-toggle {
-				display: none;
-			}
-			#customize-footer-actions {
-				min-width: 550px;
-			}
-		</style>
 		<?php
 	}
 
@@ -574,15 +401,15 @@ class Email_Newsletter_Builder  {
 
 		if( in_array('BG_IMAGE', $this->settings) || in_array('HEADER_IMAGE', $this->settings)) {
 			$instance->add_section( 'images', array(
-				'title'          => __('Images','email-newsletter'),
+				'title'          => __('Bilder','email-newsletter'),
 				'priority'       => 37,
 			) );
 
 			$images = array();
 			if(in_array('BG_IMAGE', $this->settings))
-				$images['bg_image'] = 'Background Image';
+				$images['bg_image'] = 'Hintergrundbild';
 			if(in_array('HEADER_IMAGE', $this->settings))
-				$images['header_image'] = 'Header Image';
+				$images['header_image'] = 'Kopfzeilenbild';
 
 			foreach ($images as $value => $label) {
 				// Get template default image
@@ -626,7 +453,7 @@ class Email_Newsletter_Builder  {
 		if( in_array('BG_COLOR', $this->settings) || in_array('LINK_COLOR', $this->settings) || in_array('BODY_COLOR', $this->settings) || in_array('ALTERNATIVE_COLOR' , $this->settings)|| in_array('TITLE_COLOR' , $this->settings) ) {
 
 			$instance->add_section( 'builder_colors', array(
-				'title' => __('Colors','email-newsletter'),
+				'title' => __('Farben','email-newsletter'),
 				'priority' => 39
 			) );
 
@@ -636,7 +463,7 @@ class Email_Newsletter_Builder  {
 					'type' => 'newsletter_save'
 				) );
 				$instance->add_control( new WP_Customize_Color_Control( $instance, 'bg_color', array(
-					'label'        => __('Background Color', 'email-newsletter' ),
+					'label'        => __('Hintergrundfarbe', 'email-newsletter' ),
 					'section'    => 'builder_colors',
 					'settings'   => 'bg_color',
 				) ) );
@@ -648,7 +475,7 @@ class Email_Newsletter_Builder  {
 				'type' => 'newsletter_save'
 			) );
 			$instance->add_control( new WP_Customize_Color_Control( $instance, 'content_bg_color', array(
-				'label'        => __( 'Content Background Color', 'email-newsletter' ),
+				'label'        => __( 'Inhalt Hintergrundfarbe', 'email-newsletter' ),
 				'section'    => 'builder_colors',
 				'settings'   => 'content_bg_color',
 			) ) );
@@ -659,7 +486,7 @@ class Email_Newsletter_Builder  {
 					'type' => 'newsletter_save'
 				) );
 				$instance->add_control( new WP_Customize_Color_Control( $instance, 'body_color', array(
-					'label'        => __( 'Body Text Color', 'email-newsletter' ),
+					'label'        => __( 'Body Text Farbe', 'email-newsletter' ),
 					'section'    => 'builder_colors',
 					'settings'   => 'body_color',
 				) ) );
@@ -671,7 +498,7 @@ class Email_Newsletter_Builder  {
 					'type' => 'newsletter_save'
 				) );
 				$instance->add_control( new WP_Customize_Color_Control( $instance, 'alternative_color', array(
-					'label'        => __( 'Alternative Text Color', 'email-newsletter' ),
+					'label'        => __( 'Alternative Text Farbe', 'email-newsletter' ),
 					'section'    => 'builder_colors',
 					'settings'   => 'alternative_color',
 				) ) );
@@ -684,7 +511,7 @@ class Email_Newsletter_Builder  {
 					'type' => 'newsletter_save'
 				) );
 				$instance->add_control( new WP_Customize_Color_Control( $instance, 'title_color', array(
-					'label'        => __( 'Title Text Color', 'email-newsletter' ),
+					'label'        => __( 'Titel Text Farbe', 'email-newsletter' ),
 					'section'    => 'builder_colors',
 					'settings'   => 'title_color',
 				) ) );
@@ -696,7 +523,7 @@ class Email_Newsletter_Builder  {
 					'type' => 'newsletter_save'
 				) );
 				$instance->add_control( new WP_Customize_Color_Control( $instance, 'link_color', array(
-					'label'        => __( 'Link Color', 'email-newsletter' ),
+					'label'        => __( 'Link Farbe', 'email-newsletter' ),
 					'section'    => 'builder_colors',
 					'settings'   => 'link_color',
 				) ) );
@@ -722,15 +549,15 @@ class Email_Newsletter_Builder  {
 			'priority'       => 30,
 		) );
 		$instance->add_section( 'builder_email_settings', array(
-			'title'          => __('Settings','email-newsletter'),
+			'title'          => __('Einstellungen','email-newsletter'),
 			'priority'       => 35,
 		) );
 		$instance->add_section( 'builder_email_content', array(
-			'title'          => __('Content','email-newsletter'),
+			'title'          => __('Inhalt','email-newsletter'),
 			'priority'       => 36,
 		) );
 		$instance->add_section( 'builder_preview', array(
-			'title'          => __('Send Preview','email-newsletter'),
+			'title'          => __('Vorschau senden','email-newsletter'),
 			'priority'       => 40,
 		) );
 
@@ -786,28 +613,28 @@ class Email_Newsletter_Builder  {
 		// Add template grid control to templates section
 		require_once($email_newsletter->plugin_dir . 'email-newsletter-files/builder/class.template-grid-control.php');
 		$instance->add_control( new Builder_Template_Grid_Control( $instance, 'template_grid', array(
-			'label'   => __('Select Template','email-newsletter'),
+			'label'   => __('Wähle Template','email-newsletter'),
 			'section' => 'builder_templates',
 			'themes'  => $themes,
 			'current_theme' => $this->get_customizer_theme(),
 		) ) );
 		$instance->add_control( 'subject', array(
-			'label'   => __('Email Subject','email-newsletter'),
+			'label'   => __('E-Mail Betreff','email-newsletter'),
 			'section' => 'builder_email_settings',
 			'type'    => 'text',
 		) );
 		$instance->add_control( 'from_name', array(
-			'label'   => __('From Name','email-newsletter'),
+			'label'   => __('Absendername','email-newsletter'),
 			'section' => 'builder_email_settings',
 			'type'    => 'text',
 		) );
 		$instance->add_control( 'from_email', array(
-			'label'   => __('From Email','email-newsletter'),
+			'label'   => __('Absender-E-Mail','email-newsletter'),
 			'section' => 'builder_email_settings',
 			'type'    => 'text',
 		) );
 		$instance->add_control( 'bounce_email', array(
-			'label'   => __('Bounce Email','email-newsletter'),
+			'label'   => __('Bounce-Mail','email-newsletter'),
 			'section' => 'builder_email_settings',
 			'type'    => 'text',
 		) );
@@ -817,7 +644,7 @@ class Email_Newsletter_Builder  {
 			'settings'   => 'email_content',
 		) ) );
 		$instance->add_control( new Builder_TextArea_Control( $instance, 'branding_html', array(
-			'label'   => __('Branding HTML/text','email-newsletter'),
+			'label'   => __('Branding HTML/Text','email-newsletter'),
 			'section' => 'builder_email_content',
 			'settings'   => 'branding_html',
 		) ) );
@@ -827,7 +654,7 @@ class Email_Newsletter_Builder  {
 			'settings'   => 'contact_info',
 		) ) );
 		$instance->add_control( new Builder_Preview_Control($instance, 'email_preview', array(
-			'label'   => __('Send Preview To Email (Save First)','email-newsletter'),
+			'label'   => __('Vorschau senden an E-Mail (Zuerst speichern)','email-newsletter'),
 			'section' => 'builder_preview',
 		) ) );
 
@@ -866,7 +693,7 @@ class Email_Newsletter_Builder  {
 		$data = array();
 		$default = array(
 			'subject' => '',
-			'content_ecoded' => '',
+			'content_encoded' => '',
 			'contact_info' => base64_encode(isset($email_newsletter->settings['contact_info']) ? $email_newsletter->settings['contact_info'] : ''),
 			'from_name' => isset($email_newsletter->settings['from_name']) ? $email_newsletter->settings['from_name'] : '',
 			'from_email' => isset($email_newsletter->settings['from_email']) ? $email_newsletter->settings['from_email'] : '',

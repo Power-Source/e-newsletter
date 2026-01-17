@@ -96,7 +96,7 @@ class PSOURCE_HelpTooltips {
 (function($){
 	function initialize_help_item($me){
 		var $prev = $me.prev();
-		var help = '&nbsp;<a class="psource-help-trigger" href="#help"><span><?php _e('Help'); ?></span></a>';
+		var help = '&nbsp;<a class="psource-help-trigger" href="#help"><span><?php _e('Hilfe', 'e-newsletter'); ?></span></a>';
 		$prev.length ? $prev.after(help) : $me.before(help);
 		$me.hide();
 	}

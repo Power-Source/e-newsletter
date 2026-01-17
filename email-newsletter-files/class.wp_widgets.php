@@ -4,7 +4,7 @@ class e_newsletter_subscribe extends WP_Widget {
     //constructor
     function __construct() {
         $widget_ops = array( 'description' => __( 'Ermögliche es Nutzern, Deine Newsletter-Datenbank zu abonnieren.') );
-        parent::__construct( false, __( 'eNewsletter: Abonnieren' ), $widget_ops );
+        parent::__construct( false, __( 'PS eNewsletter: Abonnieren' ), $widget_ops );
     }
 
     /** @see WP_Widget::widget */
