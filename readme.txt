@@ -3,7 +3,7 @@ Contributors: PSOURCE
 Tags: newsletter
 Requires at least: 4.9
 Tested up to: WordPress 6.4, ClassicPress: 2.6.0
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 Requires PHP: 8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -33,7 +33,13 @@ zu verbessern.
 
 == ChangeLog ==
 
-= 1.0.2 = DerN3rd =
+= 1.0.3 =
+
+* Etliche Bugfixes
+* Verbesserte PhP 8.4.10 Kompatibilität
+* Textoptimierungen
+
+= 1.0.2 =
 
 * Templatebuilder eingebaut
 
