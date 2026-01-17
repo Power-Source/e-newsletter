@@ -42,7 +42,7 @@ Bette Abonnementformulare mithilfe eines Widgets oder eines Shortcodes ein. Samm
 Um einen Newsletter zu versenden, wähle einfach die entsprechenden Empfänger aus, klicke auf „Senden“ und verfolge den Fortschritt anhand der Fortschrittsleiste. Verfolge Newsletter-Ergebnisse, verbessere Inhalte und verwende die Schaltfläche „Klonen“, um das Newsletter-Layout für zukünftige E-Mails zu beschleunigen. 
 
 
-### **Installieren:**
+### Installieren:
 
 Melde Dich bei Deinem Admin-Panel für ClassicPress oder Multisite an und aktiviere das Plugin. Nach der Installation und Aktivierung siehst Du einen neuen Menüpunkt in Deinem Admin-Bereich: eNewsletter.
 

@@ -277,7 +277,8 @@ class Email_Newsletter_Builder  {
 		}
 
 		// Enqueue builder customizer styles
-		wp_enqueue_style( 'email-newsletter-builder-customizer', $email_newsletter->plugin_url . 'email-newsletter-files/css/builder-customizer.css', array(), $email_newsletter->version );
+		wp_register_style( 'email-newsletter-builder-customizer', $email_newsletter->plugin_url . 'email-newsletter-files/css/builder-customizer.css' );
+		wp_enqueue_style( 'email-newsletter-builder-customizer' );
 
 		?>
 		<script type="text/javascript">

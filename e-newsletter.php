@@ -36,13 +36,13 @@ add_action( 'admin_notices', function() {
                     'activate-plugin_' . $plugin_file
                 );
                 echo sprintf(
-                    __( 'Aktiviere den <a href="%s">PS Update Manager</a> für automatische Updates von GitHub.', 'psource-chat' ),
+                    __( 'Aktiviere den <a href="%s">PSOURCE Manager</a> für automatische Updates von GitHub.', 'psource-chat' ),
                     esc_url( $activate_url )
                 );
             } else {
                 // Nicht installiert - Download-Link
                 echo sprintf(
-                    __( 'Installiere den <a href="%s" target="_blank">PS Update Manager</a> für automatische Updates aller PSource Plugins & Themes.', 'psource-chat' ),
+                    __( 'Installiere den <a href="%s" target="_blank">PSOURCE Manager</a> für automatische Updates aller PSource Plugins & Themes.', 'psource-chat' ),
                     'https://github.com/Power-Source/ps-update-manager/releases/latest'
                 );
             }
