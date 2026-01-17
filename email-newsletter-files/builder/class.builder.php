@@ -553,11 +553,17 @@ class Email_Newsletter_Builder  {
 				unset($themes[$key]);
 		}
 
-		//pharse theme settings
+		// Template-Settings aus Konstanten ermitteln (falls vorhanden)
 		$possible_settings = array('BG_COLOR', 'BG_IMAGE', 'HEADER_IMAGE', 'LINK_COLOR', 'BODY_COLOR', 'ALTERNATIVE_COLOR', 'TITLE_COLOR', 'EMAIL_TITLE' );
 		foreach ($possible_settings as $possible_setting)
 			if(defined('BUILDER_DEFAULT_'.$possible_setting))
 				$this->settings[] = $possible_setting;
+
+		// Fallback: Wenn das Template keine BUILDER_* Konstanten setzt,
+		// aktiviere die Standard-Sektionen trotzdem, damit der Builder benutzbar bleibt.
+		if (empty($this->settings)) {
+			$this->settings = array('BG_COLOR','LINK_COLOR','BODY_COLOR','ALTERNATIVE_COLOR','TITLE_COLOR','EMAIL_TITLE','BG_IMAGE','HEADER_IMAGE');
+		}
 
 
 		// Load our extra control classes
@@ -635,6 +641,17 @@ class Email_Newsletter_Builder  {
 					'settings'   => 'bg_color',
 				) ) );
 			}
+
+			// Content Background Color (immer verfügbar)
+			$instance->add_setting( 'content_bg_color', array(
+				'default' => '#ffffff',
+				'type' => 'newsletter_save'
+			) );
+			$instance->add_control( new WP_Customize_Color_Control( $instance, 'content_bg_color', array(
+				'label'        => __( 'Content Background Color', 'email-newsletter' ),
+				'section'    => 'builder_colors',
+				'settings'   => 'content_bg_color',
+			) ) );
 
 			if( in_array('BODY_COLOR', $this->settings) ) {
 				$instance->add_setting( 'body_color', array(
@@ -814,11 +831,15 @@ class Email_Newsletter_Builder  {
 			'section' => 'builder_preview',
 		) ) );
 
-		$customize_values = array('template', 'subject', 'from_name', 'from_email', 'bounce_email', 'email_title', 'branding_html', 'contact_info', 'email_content', 'bg_color', 'link_color', 'body_color', 'alternative_color', 'title_color', 'bg_image', 'header_image');
+		$customize_values = array('template', 'subject', 'from_name', 'from_email', 'bounce_email', 'email_title', 'branding_html', 'contact_info', 'email_content', 'bg_color', 'content_bg_color', 'link_color', 'body_color', 'alternative_color', 'title_color', 'bg_image', 'header_image');
 		$instance_settings = array_merge($customize_values, array('email_preview'));
 
-		foreach ($instance_settings as $setting)
-			$instance->get_setting($setting)->transport='postMessage';
+		foreach ($instance_settings as $setting) {
+			$setting_obj = $instance->get_setting($setting);
+			if ($setting_obj) {
+				$setting_obj->transport = 'postMessage';
+			}
+		}
 
 		// Add all the filters we need for all the settings to be retreived
 		foreach ($customize_values as $value)
@@ -1014,6 +1035,15 @@ class Email_Newsletter_Builder  {
 		else
 			return $default;
 	}
+	function get_builder_content_bg_color($default) {
+		global $builder_id, $email_newsletter;
+
+		$content_bg_color = $email_newsletter->get_newsletter_meta($builder_id,'content_bg_color');
+		if(!empty($content_bg_color))
+			return $content_bg_color;
+		else
+			return $default;
+	}
 	function get_builder_link_color($default) {
 		global $builder_id, $email_newsletter;
 
@@ -1143,6 +1173,10 @@ class Email_Newsletter_Builder  {
 	}
 
 	function email_builder_customize_preview() {
+		// Ensure settings list is available in preview frame as well
+		if (empty($this->settings)) {
+			$this->settings = array('BG_COLOR','LINK_COLOR','BODY_COLOR','ALTERNATIVE_COLOR','TITLE_COLOR','EMAIL_TITLE','BG_IMAGE','HEADER_IMAGE');
+		}
 		$admin_url = admin_url('admin-ajax.php');
 		?><script type="text/javascript">
 			( function( $ ){
@@ -1187,13 +1221,21 @@ class Email_Newsletter_Builder  {
 						$('[data-builder="contact_info"]').html( to ? to : '' );
 					});
 				});
-				<?php if( in_array('BG_COLOR',$this->settings)) : ?>
-					wp.customize('bg_color',function( value ) {
-						value.bind(function(to) {
-							$('[data-builder="bg"]').css( 'background-color', to ? to : '' );
-						});
+
+				// Email Background (äußerer Hintergrund)
+				wp.customize('bg_color',function( value ) {
+					value.bind(function(to) {
+						$('[data-builder="bg"]').css( 'background-color', to ? to : '' );
 					});
-				<?php endif; ?>
+				});
+
+				// Content Background (innerer Content-Bereich)
+				wp.customize('content_bg_color',function( value ) {
+					value.bind(function(to) {
+						$('.email_content').css( 'background-color', to ? to : '' );
+					});
+				});
+
 				<?php if( in_array('LINK_COLOR',$this->settings)) : ?>
 					wp.customize('link_color',function( value ) {
 						value.bind(function(to) {
@@ -1224,22 +1266,25 @@ class Email_Newsletter_Builder  {
 				<?php endif; ?>
 				<?php if( in_array('BG_IMAGE',$this->settings)) : ?>
 					wp.customize('bg_image',function( value ) {
-
-						value.bind(function(to) {
+					value.bind(function(to) {
+						if (to) {
 							$('[data-builder="bg"]').css( 'background-image', 'url(' + to + ')');
-						});
+						} else {
+							$('[data-builder="bg"]').css( 'background-image', 'none');
+						}
 					});
-				<?php endif; ?>
-				<?php if( in_array('HEADER_IMAGE',$this->settings)) : ?>
-					wp.customize('header_image',function( value ) {
+				});
+			<?php endif; ?>
 
-						value.bind(function(to) {
-							$('[data-builder="header_image"]').html( '<img src="' + to + '" />');
-						});
-					});
-				<?php endif; ?>
-			} )( jQuery )
-		</script>
+			<?php if( in_array('HEADER_IMAGE',$this->settings)) : ?>
+				wp.customize('header_image',function( value ) {
+					value.bind(function(to) {
+					$('[data-builder="header_image"]').html( '<img src="' + to + '" />');
+				});
+			});
+		<?php endif; ?>
+	} )( jQuery )
+	</script>
 	<?php
 	}
 
@@ -1247,9 +1292,6 @@ class Email_Newsletter_Builder  {
 		global $email_newsletter, $builder_id;
 
 		$content = stripcslashes($_POST['content']);
-
-		$themedata = $this->find_builder_theme();
-
 		$content = apply_filters('email_newsletter_make_email_content', $content);
 		$content = $email_newsletter->do_inline_styles('<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /></head><body><div id="email_content_customizer">'.$content.'</div></body></html>', $themedata['Style']);
 		$content = str_replace( '<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /></head><body>', '', $content);

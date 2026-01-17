@@ -70,7 +70,7 @@ Als Erstes solltest Du Deine Einstellungen konfigurieren. Klicke auf den Unterme
 
 * Gmail: [https://support.google.com/mail/answer/13287?hl=en](https://support.google.com/mail/answer/13287?hl=en)
 * Zusätzliche Informationen, wenn Du [Google Apps for Business](https://support.google.com/a/answer/176600?hl=en) verwendest oder deren [SMTP-Relay-Dienst](https://support.google.com/a/answer/2956491?hl=de) verwenden musst.
-* _GoDaddy-Benutzer beachten:_ Wenn Sie bei GoDaddy hosten und Google Apps for Business für Ihre E-Mails verwenden, funktionieren die oben genannten Einstellungen für Gmail möglicherweise nicht richtig. Einzelheiten und empfohlene Einstellungen finden Sie in [diesem Forumsbeitrag](https://premium.wpmudev.org/forums/topic/e-newsletter-not-sending-test-email#post-898374).
+* _GoDaddy-Benutzer beachten:_ Wenn Sie bei GoDaddy hosten und Google Apps for Business für Ihre E-Mails verwenden, funktionieren die oben genannten Einstellungen für Gmail möglicherweise nicht richtig. Einzelheiten und empfohlene Einstellungen finden Sie in [diesem Forumsbeitrag](https://premium.psource.org/forums/topic/e-newsletter-not-sending-test-email#post-898374).
 * Yahoo: [http://help.yahoo.com/kb/index?page=content&y=PROD_MAIL_ML&locale=en_GB&id=SLN4724](http://help.yahoo.com/kb/index?page=content&y=PROD_MAIL_ML&locale=en_GB&id =SLN4724)
 * Hotmail (live.com): [http://windows.microsoft.com/en-CA/windows/outlook/send-receive-from-app](http://windows.microsoft.com/en-CA/ Windows/Outlook/Send-Receive-from-App)
 

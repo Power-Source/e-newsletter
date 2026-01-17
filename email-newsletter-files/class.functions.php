@@ -43,31 +43,31 @@ class Email_Newsletter_functions {
 	function get_default_builder_var($type='') {
 		switch($type) {
 			case 'bg_color':
-				$return = (defined('BUILDER_DEFAULT_BG_COLOR') ? BUILDER_DEFAULT_BG_COLOR : '' );
+                $return = (defined('BUILDER_DEFAULT_BG_COLOR') ? BUILDER_DEFAULT_BG_COLOR : '#ffffff' );
 				break;
 			case 'bg_image':
-				$return = (defined('BUILDER_DEFAULT_BG_IMAGE') ? BUILDER_DEFAULT_BG_IMAGE : '' );
+                $return = (defined('BUILDER_DEFAULT_BG_IMAGE') ? BUILDER_DEFAULT_BG_IMAGE : '' );
 				break;
 			case 'link_color':
-				$return = (defined('BUILDER_DEFAULT_LINK_COLOR') ? BUILDER_DEFAULT_LINK_COLOR : '' );
+                $return = (defined('BUILDER_DEFAULT_LINK_COLOR') ? BUILDER_DEFAULT_LINK_COLOR : '#0073aa' );
 				break;
 			case 'email_title':
-				$return = (defined('BUILDER_DEFAULT_EMAIL_TITLE') ? BUILDER_DEFAULT_EMAIL_TITLE : '' );
+                $return = (defined('BUILDER_DEFAULT_EMAIL_TITLE') ? BUILDER_DEFAULT_EMAIL_TITLE : 'Standard-E-Mail-Titel' );
 				break;
 			case 'header_image':
-				$return = (defined('BUILDER_DEFAULT_HEADER_IMAGE') ? BUILDER_DEFAULT_HEADER_IMAGE : '' );
+                $return = (defined('BUILDER_DEFAULT_HEADER_IMAGE') ? BUILDER_DEFAULT_HEADER_IMAGE : '' );
 				break;
 			case 'body_color':
-				$return = (defined('BUILDER_DEFAULT_BODY_COLOR') ? BUILDER_DEFAULT_BODY_COLOR : '' );
+                $return = (defined('BUILDER_DEFAULT_BODY_COLOR') ? BUILDER_DEFAULT_BODY_COLOR : '#333333' );
 				break;
             case 'title_color':
-                $return = (defined('BUILDER_DEFAULT_TITLE_COLOR') ? BUILDER_DEFAULT_TITLE_COLOR : '' );
+                $return = (defined('BUILDER_DEFAULT_TITLE_COLOR') ? BUILDER_DEFAULT_TITLE_COLOR : '#000000' );
                 break;
             case 'alternative_color':
-                $return = (defined('BUILDER_DEFAULT_ALTERNATIVE_COLOR') ? BUILDER_DEFAULT_ALTERNATIVE_COLOR : '' );
+                $return = (defined('BUILDER_DEFAULT_ALTERNATIVE_COLOR') ? BUILDER_DEFAULT_ALTERNATIVE_COLOR : '#666666' );
                 break;
 			default:
-				$return = '';
+                $return = '';
 				break;
 		}
 		return apply_filters('email_newsletter_get_default_builder_var',$return,$type);
@@ -420,9 +420,9 @@ class Email_Newsletter_functions {
         $results = $wpdb->get_results($query, "ARRAY_A");
 
         if($count == 1)
-            return count($results);
+            return (is_array($results) || $results instanceof Countable) ? count($results) : 0;
         else
-            return $results;
+            return is_array($results) ? $results : array();
     }
 
     /**
@@ -628,15 +628,19 @@ class Email_Newsletter_functions {
     function the_targets($single_list_echo = 1, $groups = 1, $roles = 1, $membership = 1) {
         global $wpdb;
         $targets = array();
+        $targets_echo = array();
 
         if($groups) {
             $groups = $this->get_groups();
 
-            foreach ($groups as $group) {
-                $count = count( $this->get_members_of_group( $group['group_id'], '', 1 ) );
-                if($count) {
-                    $targets['groups']['name'] = __( 'eNewsletter Groups', 'email-newsletter' );
-                    $targets['groups'][] = '<label><input type="checkbox" name="target[groups][]" value="'.$group['group_id'].'"> '.$group['group_name'].' ('.$count.')</input></label>';
+            if (is_array($groups)) {
+                foreach ($groups as $group) {
+                    $members = $this->get_members_of_group( $group['group_id'], '', 1 );
+                    $count = is_array($members) || $members instanceof Countable ? count($members) : 0;
+                    if($count) {
+                        $targets['groups']['name'] = __( 'eNewsletter Groups', 'email-newsletter' );
+                        $targets['groups'][] = '<label><input type="checkbox" name="target[groups][]" value="'.$group['group_id'].'"> '.$group['group_name'].' ('.$count.')</input></label>';
+                    }
                 }
             }
         }
@@ -646,7 +650,7 @@ class Email_Newsletter_functions {
                 // Support for the Membership 2 plugin.
                 $api = MS_Plugin::$api;
                 $memberships = $api->list_memberships();
-                if (count($memberships)) {
+                if (is_array($memberships) && count($memberships)) {
                     $targets['m2'] = array();
                     $targets['m2']['name'] = __( 'Membership 2 Subscribers', 'email-newsletter' );
                     foreach ($memberships as $membership) {
@@ -663,11 +667,13 @@ class Email_Newsletter_functions {
                 // Support for old Membership1 plugin (deprecated).
                 $prefix = membership_db_prefix($wpdb, 'membership_levels');
                 $membership_levels = $wpdb->get_results("SELECT * FROM {$prefix} WHERE level_active = 1", "ARRAY_A");
-                foreach ($membership_levels as $membership_level) {
-                    $count = $this->get_members_of_membership($membership_level, 1);
-                    if($count) {
-                        $targets['membership_levels']['name'] = __( 'Membership Plugin Levels', 'email-newsletter' );
-                        $targets['membership_levels'][] = '<label><input type="checkbox" name="target[membership_levels][]" value="'.$membership_level['id'].'"> '.$membership_level['level_title'].' ('.$count.')</input></label>';
+                if (is_array($membership_levels)) {
+                    foreach ($membership_levels as $membership_level) {
+                        $count = $this->get_members_of_membership($membership_level, 1);
+                        if($count) {
+                            $targets['membership_levels']['name'] = __( 'Membership Plugin Levels', 'email-newsletter' );
+                            $targets['membership_levels'][] = '<label><input type="checkbox" name="target[membership_levels][]" value="'.$membership_level['id'].'"> '.$membership_level['level_title'].' ('.$count.')</input></label>';
+                        }
                     }
                 }
             }
@@ -689,8 +695,8 @@ class Email_Newsletter_functions {
         }
 
         if(1 == $wpdb->blogid && function_exists('is_multisite') && is_multisite()) {
-            $count = $this->get_global_wp_user_ids();
-            $count = count($count);
+            $ids = $this->get_global_wp_user_ids();
+            $count = (is_array($ids) || $ids instanceof Countable) ? count($ids) : 0;
             if($count) {
                 $targets['site_admins'][] = '<label><input type="checkbox" name="target[site_admins]" value="yes"> <strong>'.__( 'Admins of all sites', 'email-newsletter' ).'</strong> ('.$count.')</input></label>';
             }
@@ -728,15 +734,15 @@ class Email_Newsletter_functions {
     /**
      * Get all data of all groups
      **/
-     function get_groups($only_public = 0) {
+      function get_groups($only_public = 0) {
         global $wpdb;
 
         $public = ($only_public) ? ' WHERE public = 1' : '';
 
-        $groups = $wpdb->get_results( "SELECT * FROM {$this->tb_prefix}enewsletter_groups".$public, "ARRAY_A");
-        $groups = apply_filters( 'email_newsletter_get_groups', $groups );
+          $groups = $wpdb->get_results( "SELECT * FROM {$this->tb_prefix}enewsletter_groups".$public, "ARRAY_A");
+          $groups = apply_filters( 'email_newsletter_get_groups', $groups );
 
-        return $groups;
+          return is_array($groups) ? $groups : array();
     }
 
     /**
@@ -754,10 +760,14 @@ class Email_Newsletter_functions {
      **/
      function get_memeber_groups( $member_id ) {
         global $wpdb;
-        $groups = NULL;
+        $groups = array();
         $results = $wpdb->get_results( $wpdb->prepare( "SELECT group_id FROM {$this->tb_prefix}enewsletter_member_group WHERE member_id = %d", $member_id ), "ARRAY_A");
-        foreach( $results as $group ){
-            $groups[] = $group['group_id'];
+        if (is_array($results)) {
+            foreach( $results as $group ){
+                if (isset($group['group_id'])) {
+                    $groups[] = $group['group_id'];
+                }
+            }
         }
 
         return $groups;
@@ -930,9 +940,9 @@ class Email_Newsletter_functions {
             $results = $this->migrate_newsletters_stats( $results );
 
         if($count == 1)
-            return count($results);
+            return (is_array($results) || $results instanceof Countable) ? count($results) : 0;
         else
-            return $results;
+            return is_array($results) ? $results : array();
     }
 
     function migrate_newsletters_stats( $results ) {
@@ -1008,7 +1018,7 @@ class Email_Newsletter_functions {
 
         if(!is_array($members_id) && is_numeric($members_id))
             $members_id = array($members_id);
-        if ( 0 < count( $members_id ) )
+        if ( is_array($members_id) && count( $members_id ) > 0 )
             foreach ( $members_id as $member_id ) {
                 if ( !( "1" == $dont_send_duplicate && $this->check_duplicate_send($newsletter_id, $member_id) ) || ( "1" == $send_to_bounced && $this->check_bounced_send($newsletter_id, $member_id) ) ) {
                     $result = $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send_members SET send_id = %d, member_id = %d, status = %s ", $send_id, $member_id, $status ) );
@@ -1018,7 +1028,7 @@ class Email_Newsletter_functions {
             }
         if($wp_only_users_id && !is_array($wp_only_users_id) && is_numeric($wp_only_users_id))
             $wp_only_users_id = array($wp_only_users_id);
-        if ( $wp_only_users_id && 0 < count( $wp_only_users_id ) )
+        if ( is_array($wp_only_users_id) && count( $wp_only_users_id ) > 0 )
             foreach ( $wp_only_users_id as $wp_only_user_id ) {
                 if ( !( "1" == $dont_send_duplicate && $this->check_duplicate_send($newsletter_id, '', $wp_only_user_id) ) || ( "1" == $send_to_bounced && $this->check_bounced_send($newsletter_id, '', $wp_only_user_id) ) ) {
                     $result = $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send_members SET send_id = %d, member_id = 0, wp_only_user_id = %d, status = %s ", $send_id, $wp_only_user_id, $status ) );
@@ -1908,7 +1918,7 @@ class Email_Newsletter_functions {
         header( 'Content-Type: text/plain; charset=' . get_option( 'blog_charset' ), true );
 
         $arg = array();
-        if(count($groups) > 0) {
+        if(is_array($groups) && count($groups) > 0) {
             foreach ($groups as $key => $group)
                 if(!is_numeric($group))
                     unset($groups[$key]);
@@ -2461,6 +2471,7 @@ class Email_Newsletter_functions {
             if(!$upgraded_cron_migrate_stats && $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_members'" ) == $tb_prefix.'enewsletter_members' && $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_send_members'" ) == $tb_prefix.'enewsletter_send_members') {
                 $arg['where'] = 'sent IS NULL';
                 $members = $this->get_members( $arg, 0, 1, $tb_prefix );
+                $members = is_array($members) ? $members : array();
 
                 $total = $total + count($members);
                 $count = 0;

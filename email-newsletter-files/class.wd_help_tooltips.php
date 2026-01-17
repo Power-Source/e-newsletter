@@ -2,7 +2,7 @@
 /**
  * Very simple tooltip implementation for admin pages.
  */
-class WpmuDev_HelpTooltips {
+class PSOURCE_HelpTooltips {
 
 	private $_inline_tips = array();
 	private $_bound_tips = array();
@@ -39,7 +39,7 @@ class WpmuDev_HelpTooltips {
 	}
 
 	public function bind_tip($tip, $bind_to_selector) {
-		$tip_id = 'wpmudev-help-tip-for-' . md5($bind_to_selector);
+		$tip_id = 'psource-help-tip-for-' . md5($bind_to_selector);
 		$this->_bound_tips[$tip_id] = $tip;
 		$this->_bound_selectors[$tip_id] = $bind_to_selector;
 	}
@@ -68,46 +68,46 @@ class WpmuDev_HelpTooltips {
 	}
 
 	private function _get_tip_markup($tip, $arg = '') {
-		return "<span class='wpmudev-help' {$arg}>{$tip}</span>";
+		return "<span class='psource-help' {$arg}>{$tip}</span>";
 	}
 
 	private function _print_styles() {
-		if (defined('WPMUDEV_TOOLTIPS_CSS_ADDED')) return false;
-		define('WPMUDEV_TOOLTIPS_CSS_ADDED', true);
+		if (defined('PSOURCE_TOOLTIPS_CSS_ADDED')) return false;
+		define('PSOURCE_TOOLTIPS_CSS_ADDED', true);
 		?>
 <style type="text/css">
-.wpmudev-help { display: none; }
-.wpmudev-help-trigger { cursor: help; padding-left: 4px; position: relative; }
-.wpmudev-help-trigger span { position: absolute; left: -9999px; }
+.psource-help { display: none; }
+.psource-help-trigger { cursor: help; padding-left: 4px; position: relative; }
+.psource-help-trigger span { position: absolute; left: -9999px; }
 <?php if ($this->_icon_url) : ?>
-.wpmudev-help-trigger { background: url(<?php echo $this->_icon_url; ?>) no-repeat center center; width: 16px; height: 16px; display: inline-block; }
+.psource-help-trigger { background: url(<?php echo $this->_icon_url; ?>) no-repeat center center; width: 16px; height: 16px; display: inline-block; }
 <?php endif; ?>
-.wpmudev-tooltip{position:absolute;z-index:9999;max-width:320px;background:#fff;border:1px solid rgba(0,0,0,.15);box-shadow:0 4px 12px rgba(0,0,0,.12);padding:8px 10px;border-radius:4px;font-size:13px;line-height:1.4;color:#111;}
+.psource-tooltip{position:absolute;z-index:9999;max-width:320px;background:#fff;border:1px solid rgba(0,0,0,.15);box-shadow:0 4px 12px rgba(0,0,0,.12);padding:8px 10px;border-radius:4px;font-size:13px;line-height:1.4;color:#111;}
 </style>
 		<?php
 	}
 
 	private function _print_scripts() {
-		if (defined('WPMUDEV_TOOLTIPS_JS_ADDED')) return false;
-		define('WPMUDEV_TOOLTIPS_JS_ADDED', true);
+		if (defined('PSOURCE_TOOLTIPS_JS_ADDED')) return false;
+		define('PSOURCE_TOOLTIPS_JS_ADDED', true);
 		$selectors = json_encode($this->_bound_selectors);
 		?>
 <script type="text/javascript">
 (function($){
 	function initialize_help_item($me){
 		var $prev = $me.prev();
-		var help = '&nbsp;<a class="wpmudev-help-trigger" href="#help"><span><?php _e('Help'); ?></span></a>';
+		var help = '&nbsp;<a class="psource-help-trigger" href="#help"><span><?php _e('Help'); ?></span></a>';
 		$prev.length ? $prev.after(help) : $me.before(help);
 		$me.hide();
 	}
 
 	function get_help_block($me){
-		return $me.parent().find('.wpmudev-help');
+		return $me.parent().find('.psource-help');
 	}
 
 	function show_simple_tooltip(trigger, html){
 		remove_tooltip();
-		var $tip = $('<div class="wpmudev-tooltip" role="tooltip"></div>').html(html);
+		var $tip = $('<div class="psource-tooltip" role="tooltip"></div>').html(html);
 		$('body').append($tip);
 		var offset = $(trigger).offset();
 		var top = offset.top - ($tip.outerHeight()/2) + ($(trigger).outerHeight()/2);
@@ -120,7 +120,7 @@ class WpmuDev_HelpTooltips {
 	}
 
 	function remove_tooltip(){
-		$('.wpmudev-tooltip').remove();
+		$('.psource-tooltip').remove();
 	}
 
 	$(function(){
@@ -133,13 +133,13 @@ class WpmuDev_HelpTooltips {
 			$selector.append($tip);
 		});
 
-		$('.wpmudev-help').each(function(){ initialize_help_item($(this)); });
+		$('.psource-help').each(function(){ initialize_help_item($(this)); });
 
-		$(document).on('mouseenter focus', '.wpmudev-help-trigger', function(){
+		$(document).on('mouseenter focus', '.psource-help-trigger', function(){
 			var $help = get_help_block($(this));
 			if(!$help.length) return;
 			show_simple_tooltip(this, $help.html());
-		}).on('mouseleave blur click', '.wpmudev-help-trigger', function(){
+		}).on('mouseleave blur click', '.psource-help-trigger', function(){
 			remove_tooltip();
 		});
 	});

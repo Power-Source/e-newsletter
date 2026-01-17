@@ -440,8 +440,8 @@ msgid "Please write your Email!"
 msgstr ""
 
 #: e-newsletter.php:2385
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:247
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:288
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:247
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:288
 msgid "Saving..."
 msgstr ""
 
@@ -736,90 +736,90 @@ msgstr ""
 msgid "For further information or enquiries, please contact our team."
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:223
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:223
 msgid "install"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:230
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:230
 #, php-format
 msgid "Important updates are available for <strong>%s</strong>. Install the free WPMU DEV Dashboard plugin now for updates and support!"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:232
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:232
 #, php-format
 msgid "<strong>%s</strong> is almost ready - install the free WPMU DEV Dashboard plugin for updates and support!"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:236
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:236
 msgid "Important updates are available for your WPMU DEV plugins/themes. Install the free WPMU DEV Dashboard plugin now for updates and support!"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:238
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:238
 msgid "Almost ready - install the free WPMU DEV Dashboard plugin for updates and support!"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:244
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:244
 msgid "Install Plugin"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:248
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:289
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:248
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:289
 msgid "Dismiss"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:264
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:264
 msgid "activate"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:271
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:271
 #, php-format
 msgid "Important updates are available for <strong>%s</strong>. Activate the WPMU DEV Dashboard to update now!"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:273
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:273
 #, php-format
 msgid "Just one more step to enable updates and support for <strong>%s</strong>!"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:277
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:277
 msgid "Important updates are available for your WPMU DEV plugins/themes. Activate the WPMU DEV Dashboard to update now!"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:279
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:279
 msgid "Just one more step - activate the WPMU DEV Dashboard plugin and you're all done!"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:285
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:285
 msgid "Activate WPMU DEV Dashboard"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:952
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:952
 msgid "We did not find any data for this plugin or theme..."
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:1131
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:1131
 #, php-format
 msgid "%s changelog"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:1161
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:1161
 msgid "Current"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:1167
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:1167
 msgid "New"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:1184
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:1184
 #, php-format
 msgid "Version %s"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:1202
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:1202
 msgid "Show all changes"
 msgstr ""
 
-#: email-newsletter-files/external/dash-notice/wpmudev-dash-notification.php:1203
+#: email-newsletter-files/external/dash-notice/psource-dash-notification.php:1203
 msgid "Hide details"
 msgstr ""
 
@@ -1573,7 +1573,7 @@ msgid "Limitations:"
 msgstr ""
 
 #: email-newsletter-files/page-settings.php:325
-msgid "(0 or blank for unlimited)"
+msgid "(0 oder leer für unbegrenzt)"
 msgstr ""
 
 #: email-newsletter-files/page-settings.php:326

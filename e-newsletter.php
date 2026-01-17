@@ -240,17 +240,6 @@ class Email_Newsletter extends Email_Newsletter_functions {
         add_action( 'wp_ajax_confirm_subscibe', array( &$this, 'confirm_subscibe_ajax' ) );
         add_action( 'wp_ajax_nopriv_newsletter_unsubscribe', array( &$this, 'unsubscribe_ajax' ) );
         add_action( 'wp_ajax_newsletter_unsubscribe', array( &$this, 'unsubscribe_ajax' ) );
-        
-        // Template Management AJAX handlers (delegated to PSBuilder)
-        add_action( 'wp_ajax_enewsletter_clone_template', array( &$GLOBALS['ps_builder'], 'ajax_clone_template' ) );
-        add_action( 'wp_ajax_enewsletter_upload_template', array( &$GLOBALS['ps_builder'], 'ajax_upload_template' ) );
-        add_action( 'wp_ajax_enewsletter_export_template', array( &$GLOBALS['ps_builder'], 'ajax_export_template' ) );
-        add_action( 'wp_ajax_enewsletter_preview_template', array( &$GLOBALS['ps_builder'], 'ajax_preview_template' ) );
-        add_action( 'wp_ajax_enewsletter_delete_template', array( &$GLOBALS['ps_builder'], 'ajax_delete_template' ) );
-        add_action( 'wp_ajax_enewsletter_save_template_file', array( &$GLOBALS['ps_builder'], 'ajax_save_template_file' ) );
-        add_action( 'wp_ajax_enewsletter_save_template_css', array( &$GLOBALS['ps_builder'], 'ajax_save_template_css' ) );
-        add_action( 'wp_ajax_enewsletter_save_builder_settings', array( &$GLOBALS['ps_builder'], 'ajax_save_builder_settings' ) );
-        add_action( 'wp_ajax_enewsletter_save_content_typography', array( &$GLOBALS['ps_builder'], 'ajax_save_content_typography' ) );
     }
 
     /**
@@ -2312,17 +2301,9 @@ class Email_Newsletter extends Email_Newsletter_functions {
             add_submenu_page( $slug, __( 'Gruppen', 'email-newsletter' ), __( 'Gruppen', 'email-newsletter' ), 'edit_newsletter_group', 'newsletters-groups', array( &$this, 'member_groups_page' ) );
             add_submenu_page( $slug, __( 'Abonnenten', 'email-newsletter' ), __( 'Abonnenten', 'email-newsletter' ), 'view_newsletter_members', 'newsletters-members',  array( &$this, 'members_page' ) );
             add_submenu_page( $slug, __( 'Einstellungen', 'email-newsletter' ), __( 'Einstellungen', 'email-newsletter' ), 'save_newsletter_settings', 'newsletters-settings', array( &$this, 'settings_page' ) );
-            
-            // Template Management (PSBuilder)
-            if(isset($GLOBALS['ps_builder'])) {
-                add_submenu_page( $slug, __( 'Templates', 'email-newsletter' ), __( 'Templates', 'email-newsletter' ), 'manage_options', 'newsletters-template-management', array( &$GLOBALS['ps_builder'], 'display_template_management' ) );
-            }
 
             //menu for lowest level users
             add_submenu_page( $slug, __( 'Meine Abonnements', 'email-newsletter' ), __( 'Meine Abonnements', 'email-newsletter' ), 'read', 'newsletters-subscribes', array( &$this, 'newsletters_subscribe_page' ) );
-            
-            // Hidden Template Editor page (only accessible via direct link)
-            add_submenu_page( '', __( 'Template Editor', 'email-newsletter' ), __( 'Template Editor', 'email-newsletter' ), 'manage_options', 'newsletters-template-editor', array( &$this, 'template_editor_page' ) );
         } else {
             //first start of plugin
             add_menu_page( __( 'PS-eNewsletter', 'email-newsletter' ), __( 'PS-eNewsletter', 'email-newsletter' ), $mu_cap, 'newsletters-settings' );
@@ -2763,15 +2744,11 @@ class Email_Newsletter extends Email_Newsletter_functions {
     }
 }
 
-global $email_newsletter, $email_builder, $ps_builder;
+global $email_newsletter, $email_builder;
 $email_newsletter = new Email_Newsletter();
 
 // Load original Email_Newsletter_Builder for existing functionality
 $email_builder = new Email_Newsletter_Builder();
-
-// Load PSBuilder for template management
-require_once(dirname(__FILE__) . '/email-newsletter-files/psbuilder/class.psbuilder.php');
-$ps_builder = new PS_Builder($email_newsletter);
 
 
 
