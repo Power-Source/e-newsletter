@@ -2750,6 +2750,9 @@ $email_newsletter = new Email_Newsletter();
 // Load original Email_Newsletter_Builder for existing functionality
 $email_builder = new Email_Newsletter_Builder();
 
+// Load CRM Integration API
+require_once( plugin_dir_path( __FILE__ ) . 'email-newsletter-files/crm-integration-api.php' );
+
 
 
 
