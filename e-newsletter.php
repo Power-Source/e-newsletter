@@ -17,7 +17,7 @@ the Free Software Foundation.
 */
 
 require_once( 'email-newsletter-files/class.functions.php' );
-require_once( 'email-newsletter-files/builder/class.builder.php' );
+require_once( 'email-newsletter-files/class.builder-v2.php' );
 include_once( 'email-newsletter-files/class.wp_widgets.php' );
 /**
 * Plugin main class
@@ -38,6 +38,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
     var $plugin_templates = array();
     var $capabilities = array();
     var $loaded_theme_options = '';
+    var $builder_v2;
 
     var $debug;
 
@@ -76,6 +77,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
         //get all setting of plugin
         $this->settings = $this->get_settings();
+        $this->builder_v2 = new Email_Newsletter_Builder_V2( $this );
 
         // Setup all plugin capabilities
         $this->capabilities['create_newsletter'] = __('Newsletter erstellen','email-newsletter');
@@ -167,6 +169,8 @@ class Email_Newsletter extends Email_Newsletter_functions {
         //ajax action for sent preview (test) email
         //add_action( 'wp_ajax_nopriv_send_preview', array( &$this, 'send_preview_ajax' ) );
         add_action( 'wp_ajax_send_email_preview', array( &$this, 'send_preview_ajax' ) );
+        add_action( 'wp_ajax_enews_builder_v2_preview', array( &$this, 'builder_v2_preview_ajax' ) );
+        add_action( 'wp_ajax_enews_builder_v2_search_items', array( &$this, 'builder_v2_search_items_ajax' ) );
 
         //ajax action for change member's group on members page
         add_action( 'wp_ajax_nopriv_change_groups', array( &$this, 'change_groups_ajax' ) );
@@ -216,8 +220,6 @@ class Email_Newsletter extends Email_Newsletter_functions {
      *
      */
     function do_activation() {
-        global $email_builder;
-
         //Update rewrite_rules
         flush_rewrite_rules( false );
 
@@ -337,6 +339,190 @@ class Email_Newsletter extends Email_Newsletter_functions {
             wp_register_script( 'enewsletter-script', $this->plugin_url . 'email-newsletter-files/js/admin.js' );
             wp_enqueue_script( 'enewsletter-script' );
 
+            if ( isset( $_REQUEST['page'] ) && 'newsletters-builder-v2' === $_REQUEST['page'] ) {
+                $newsletter_id = isset( $_REQUEST['newsletter_id'] ) ? intval( $_REQUEST['newsletter_id'] ) : 0;
+                $builder_state = $newsletter_id ? $this->builder_v2->get_state( $newsletter_id ) : $this->builder_v2->get_default_state();
+				$fonts_css_endpoint = 'https://eimen.net/fonts/css.php';
+				wp_enqueue_media();
+
+                wp_register_style( 'enewsletter-builder-v2', $this->plugin_url . 'email-newsletter-files/css/builder-v2.css', array(), $this->plugin_ver );
+                wp_enqueue_style( 'enewsletter-builder-v2' );
+
+                wp_register_script( 'enewsletter-builder-v2', $this->plugin_url . 'email-newsletter-files/js/builder-v2.js', array(), $this->plugin_ver, true );
+                wp_enqueue_script( 'enewsletter-builder-v2' );
+                wp_localize_script( 'enewsletter-builder-v2', 'enewsBuilderV2', array(
+					'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                    'fontsCssEndpoint' => $fonts_css_endpoint,
+                    'googleFontCatalog' => array(
+                        'ABeeZee', 'Abel', 'Abril Fatface', 'Alegreya', 'Alegreya Sans', 'Alfa Slab One',
+                        'Alice', 'Anton', 'Archivo', 'Arimo', 'Asap', 'Bangers', 'Barlow', 'Bebas Neue',
+                        'Bitter', 'Cabin', 'Cairo', 'Cardo', 'Catamaran', 'Cinzel', 'Comfortaa', 'Cormorant Garamond',
+                        'Crimson Text', 'DM Sans', 'Dancing Script', 'Domine', 'EB Garamond', 'Exo 2',
+                        'Figtree', 'Fira Sans', 'Francois One', 'Great Vibes', 'Heebo', 'Hind',
+                        'Inconsolata', 'Inter', 'Josefin Sans', 'Kanit', 'Karla', 'Lato',
+                        'Libre Baskerville', 'Libre Franklin', 'Lobster', 'Lora', 'Manrope', 'Maven Pro',
+                        'Merriweather', 'Merriweather Sans', 'Montserrat', 'Mulish', 'Nanum Gothic', 'Noto Sans',
+                        'Noto Serif', 'Nunito', 'Nunito Sans', 'Open Sans', 'Oswald', 'Outfit',
+                        'PT Sans', 'PT Serif', 'Pacifico', 'Playfair Display', 'Plus Jakarta Sans', 'Poppins',
+                        'Prompt', 'Public Sans', 'Quattrocento Sans', 'Quicksand', 'Raleway', 'Roboto',
+                        'Roboto Condensed', 'Roboto Slab', 'Rubik', 'Sarabun', 'Satisfy', 'Source Sans 3',
+                        'Space Grotesk', 'Teko', 'Titillium Web', 'Ubuntu', 'Urbanist', 'Varela Round',
+                        'Work Sans', 'Yanone Kaffeesatz', 'Zilla Slab'
+                    ),
+					'previewNonce' => wp_create_nonce( 'enews_builder_v2_preview' ),
+                    'sendPreviewNonce' => wp_create_nonce( 'enews_send_preview' ),
+                    'searchNonce' => wp_create_nonce( 'enews_builder_v2_search_items' ),
+					'newsletterId' => $newsletter_id,
+                    'previewEmail' => isset( $this->settings['preview_email'] ) && ! empty( $this->settings['preview_email'] ) ? $this->settings['preview_email'] : $this->settings['from_email'],
+                    'state' => $builder_state,
+                    'modules' => $this->builder_v2->get_available_modules(),
+                    'presets' => $this->builder_v2->get_template_presets(),
+                    'l10n' => array(
+                        'emptyCanvas' => __( 'Noch keine Module vorhanden. Ziehe ein Modul hierher oder fuege es links per Klick hinzu.', 'email-newsletter' ),
+                        'emptyPreview' => __( 'Die Vorschau erscheint, sobald Module vorhanden sind.', 'email-newsletter' ),
+                        'previewLoading' => __( 'Vorschau wird aktualisiert ...', 'email-newsletter' ),
+                        'previewError' => __( 'Die Server-Vorschau konnte nicht geladen werden.', 'email-newsletter' ),
+                        'globalSettings' => __( 'Mail-Rahmen & Branding', 'email-newsletter' ),
+                        'moduleSettings' => __( 'Modul-Einstellungen', 'email-newsletter' ),
+                        'showGlobalSettings' => __( 'Mail-Rahmen & Branding', 'email-newsletter' ),
+                        'duplicate' => __( 'Duplizieren', 'email-newsletter' ),
+                        'moveUp' => __( 'Hoch', 'email-newsletter' ),
+                        'moveDown' => __( 'Runter', 'email-newsletter' ),
+                        'remove' => __( 'Loeschen', 'email-newsletter' ),
+                        'presetsTitle' => __( 'Template-Presets', 'email-newsletter' ),
+                        'presetsDescription' => __( 'Starte mit einer typischen Newsletter-Struktur.', 'email-newsletter' ),
+                        'selectPreset' => __( 'Preset auswaehlen', 'email-newsletter' ),
+                        'applyPreset' => __( 'Preset anwenden', 'email-newsletter' ),
+                        'applyPresetConfirm' => __( 'Aktuelles Layout durch Preset ersetzen?', 'email-newsletter' ),
+                        'presetApplied' => __( 'Preset angewendet.', 'email-newsletter' ),
+                        'searchPlaceholderProducts' => __( 'Produkte nach Titel suchen ...', 'email-newsletter' ),
+                        'searchPlaceholderPosts' => __( 'Beitraege nach Titel suchen ...', 'email-newsletter' ),
+                        'searchButton' => __( 'Suchen', 'email-newsletter' ),
+                        'searchResults' => __( 'Ergebnisse', 'email-newsletter' ),
+                        'selectedItems' => __( 'Ausgewaehlte IDs', 'email-newsletter' ),
+                        'addItem' => __( 'Hinzufuegen', 'email-newsletter' ),
+                        'removeItem' => __( 'Entfernen', 'email-newsletter' ),
+                        'noSearchResults' => __( 'Keine Treffer gefunden.', 'email-newsletter' ),
+                        'searchMinChars' => __( 'Mindestens 2 Zeichen eingeben.', 'email-newsletter' ),
+                        'searchError' => __( 'Suche konnte nicht geladen werden.', 'email-newsletter' ),
+                        'contentWidth' => __( 'Inhaltsbreite', 'email-newsletter' ),
+                        'emailTitle' => __( 'E-Mail-Titel', 'email-newsletter' ),
+                        'fullWidth' => __( 'Fullwidth-Inhalt', 'email-newsletter' ),
+                        'backgroundColor' => __( 'Hintergrundfarbe aussen', 'email-newsletter' ),
+                        'contentBackground' => __( 'Hintergrundfarbe innen', 'email-newsletter' ),
+                        'textColor' => __( 'Standard-Textfarbe', 'email-newsletter' ),
+                        'fontFamily' => __( 'Schriftfamilie', 'email-newsletter' ),
+                        'fontSearchTitle' => __( 'Google-Schrift auf dem Server suchen', 'email-newsletter' ),
+                        'fontSearchPlaceholder' => __( 'Schrift suchen ...', 'email-newsletter' ),
+                        'fontServerReady' => __( '', 'email-newsletter' ),
+                        'fontServerMissing' => __( 'Schriften konnten gerade nicht geladen werden.', 'email-newsletter' ),
+                        'fontSearchNeedQuery' => __( 'Bitte einen Schriftnamen eingeben.', 'email-newsletter' ),
+                        'fontsLoading' => __( 'Schriften werden geladen ...', 'email-newsletter' ),
+                        'fontSelectedOne' => __( 'Ausgewaehlt: %s', 'email-newsletter' ),
+                        'fontLoadedOne' => __( 'Schrift geladen: %s', 'email-newsletter' ),
+                        'fontNotFound' => __( 'Nicht gefunden. Tipp: nur einen Teil eingeben, dann aus der Liste waehlen.', 'email-newsletter' ),
+                        'fontPreviewText' => __( 'Vorschau: Der schnelle braune Fuchs springt ueber den faulen Hund. 1234567890', 'email-newsletter' ),
+                        'headingFontSize' => __( 'Ueberschriften: Groesse', 'email-newsletter' ),
+                        'headingColor' => __( 'Ueberschriften: Farbe', 'email-newsletter' ),
+                        'headingDecoration' => __( 'Ueberschriften: Text-Dekoration', 'email-newsletter' ),
+                        'paragraphFontSize' => __( 'Absaetze: Groesse', 'email-newsletter' ),
+                        'paragraphColor' => __( 'Absaetze: Farbe', 'email-newsletter' ),
+                        'paragraphDecoration' => __( 'Absaetze: Text-Dekoration', 'email-newsletter' ),
+                        'quoteFontSize' => __( 'Zitate: Groesse', 'email-newsletter' ),
+                        'quoteColor' => __( 'Zitate: Farbe', 'email-newsletter' ),
+                        'quoteDecoration' => __( 'Zitate: Text-Dekoration', 'email-newsletter' ),
+                        'decorationNone' => __( 'Keine', 'email-newsletter' ),
+                        'decorationUnderline' => __( 'Unterstrichen', 'email-newsletter' ),
+                        'decorationLineThrough' => __( 'Durchgestrichen', 'email-newsletter' ),
+                        'decorationOverline' => __( 'Ueberstrichen', 'email-newsletter' ),
+                        'sectionGap' => __( 'Abstand zwischen Modulen', 'email-newsletter' ),
+                        'brandingHtml' => __( 'Branding-HTML', 'email-newsletter' ),
+                        'contactInfo' => __( 'Kontaktinfo', 'email-newsletter' ),
+                        'viewBrowserHtml' => __( 'Browser-Link HTML', 'email-newsletter' ),
+                        'testMailNeedEmail' => __( 'Bitte gib eine gueltige Test-E-Mail-Adresse ein.', 'email-newsletter' ),
+                        'testMailSending' => __( 'Test-Mail wird gesendet ...', 'email-newsletter' ),
+                        'testMailError' => __( 'Test-Mail konnte nicht gesendet werden.', 'email-newsletter' ),
+                        'text' => __( 'Text', 'email-newsletter' ),
+                        'level' => __( 'Ebene', 'email-newsletter' ),
+                        'align' => __( 'Ausrichtung', 'email-newsletter' ),
+                        'left' => __( 'Links', 'email-newsletter' ),
+                        'center' => __( 'Zentriert', 'email-newsletter' ),
+                        'right' => __( 'Rechts', 'email-newsletter' ),
+                        'color' => __( 'Farbe', 'email-newsletter' ),
+                        'fontSize' => __( 'Schriftgroesse', 'email-newsletter' ),
+                        'label' => __( 'Label', 'email-newsletter' ),
+                        'title' => __( 'Titel', 'email-newsletter' ),
+                        'url' => __( 'URL', 'email-newsletter' ),
+                        'radius' => __( 'Radius', 'email-newsletter' ),
+                        'image' => __( 'Bild', 'email-newsletter' ),
+                        'imageUrl' => __( 'Bild-URL', 'email-newsletter' ),
+                        'altText' => __( 'Alt-Text', 'email-newsletter' ),
+                        'linkUrl' => __( 'Link-URL', 'email-newsletter' ),
+                        'mediaLibrary' => __( 'Mediathek', 'email-newsletter' ),
+                        'selectImage' => __( 'Bild waehlen', 'email-newsletter' ),
+                        'changeImage' => __( 'Bild aendern', 'email-newsletter' ),
+                        'clearImage' => __( 'Bild entfernen', 'email-newsletter' ),
+                        'width' => __( 'Breite', 'email-newsletter' ),
+                        'moduleWidthColumns' => __( 'Modulbreite (Spalten)', 'email-newsletter' ),
+                        'moduleMinHeight' => __( 'Mindesthoehe im Canvas (px)', 'email-newsletter' ),
+                        'lockFullWidth' => __( 'Breite sperren (immer volle Breite)', 'email-newsletter' ),
+                        'quickLayouts' => __( 'Quick-Layouts', 'email-newsletter' ),
+                        'quickLayoutNeedsNext' => __( 'Fuer 3/9, 4/8 oder 6/6 brauchst Du ein direkt folgendes Modul.', 'email-newsletter' ),
+                        'quickLayoutLocked' => __( 'Quick-Layout nicht moeglich, solange eines der beteiligten Module auf volle Breite gesperrt ist.', 'email-newsletter' ),
+                        'lockedSuffix' => __( 'gesperrt', 'email-newsletter' ),
+                        'collapseSettings' => __( 'Einstellungen einklappen', 'email-newsletter' ),
+                        'expandSettings' => __( 'Einstellungen ausklappen', 'email-newsletter' ),
+                        'shortcodeDetected' => __( 'Legacy-Shortcode erkannt.', 'email-newsletter' ),
+                        'convertShortcode' => __( 'In Modul umwandeln', 'email-newsletter' ),
+                        'thickness' => __( 'Staerke', 'email-newsletter' ),
+                        'height' => __( 'Hoehe', 'email-newsletter' ),
+                        'html' => __( 'HTML / Shortcode', 'email-newsletter' ),
+                        'ids' => __( 'IDs', 'email-newsletter' ),
+                        'layout' => __( 'Layout', 'email-newsletter' ),
+                        'eyebrow' => __( 'Eyebrow / Kicker', 'email-newsletter' ),
+                        'buttonBackground' => __( 'Button-Hintergrund', 'email-newsletter' ),
+                        'buttonColor' => __( 'Button-Farbe', 'email-newsletter' ),
+                        'leftColumn' => __( 'Linke Spalte', 'email-newsletter' ),
+                        'rightColumn' => __( 'Rechte Spalte', 'email-newsletter' ),
+                        'leftBackground' => __( 'Hintergrund links', 'email-newsletter' ),
+                        'rightBackground' => __( 'Hintergrund rechts', 'email-newsletter' ),
+                        'columnGap' => __( 'Spalten-Abstand', 'email-newsletter' ),
+                        'list' => __( 'Liste', 'email-newsletter' ),
+                        'grid' => __( 'Grid', 'email-newsletter' ),
+                        'single' => __( 'Single', 'email-newsletter' ),
+                        'links' => __( 'Links', 'email-newsletter' ),
+                        'slider' => __( 'Slider', 'email-newsletter' ),
+                        'showImage' => __( 'Bild anzeigen', 'email-newsletter' ),
+                        'showPrice' => __( 'Preis anzeigen', 'email-newsletter' ),
+                        'showOldPrice' => __( 'Altpreis anzeigen', 'email-newsletter' ),
+                        'showButton' => __( 'Button anzeigen', 'email-newsletter' ),
+                        'showBadge' => __( 'Badge anzeigen', 'email-newsletter' ),
+                        'showExcerpt' => __( 'Excerpt anzeigen', 'email-newsletter' ),
+                        'excerptWords' => __( 'Excerpt-Woerter', 'email-newsletter' ),
+                        'track' => __( 'Tracking aktiv', 'email-newsletter' ),
+                        'badgeText' => __( 'Badge-Text', 'email-newsletter' ),
+                        'buttonText' => __( 'Button-Text', 'email-newsletter' ),
+                        'company' => __( 'Firma', 'email-newsletter' ),
+                        'address' => __( 'Adresse', 'email-newsletter' ),
+                        'legalText' => __( 'Hinweistext', 'email-newsletter' ),
+                        'manageUrl' => __( 'Profil-URL', 'email-newsletter' ),
+                        'viewUrl' => __( 'Browser-Ansicht URL', 'email-newsletter' ),
+                        'unsubscribeUrl' => __( 'Abmelde-URL', 'email-newsletter' ),
+                        'linkColor' => __( 'Linkfarbe', 'email-newsletter' ),
+                        'facebook' => __( 'Facebook URL', 'email-newsletter' ),
+                        'instagram' => __( 'Instagram URL', 'email-newsletter' ),
+                        'linkedin' => __( 'LinkedIn URL', 'email-newsletter' ),
+                        'youtube' => __( 'YouTube URL', 'email-newsletter' ),
+                        'xLabel' => __( 'X / Twitter URL', 'email-newsletter' ),
+                        'yes' => __( 'Ja', 'email-newsletter' ),
+                        'no' => __( 'Nein', 'email-newsletter' ),
+                        'noIds' => __( 'Keine IDs', 'email-newsletter' ),
+                        'imageEmpty' => __( 'Keine Bild-URL gesetzt', 'email-newsletter' ),
+                        'dividerSummary' => __( 'Horizontaler Trenner', 'email-newsletter' ),
+                    ),
+                ) );
+            }
+
             $admin_js_options = array(
                 'edit' => __( 'Bearbeiten', 'email-newsletter' ),
                 'close' => __( 'Schließen', 'email-newsletter' ),
@@ -353,7 +539,10 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 'change_groups' => __( 'Gruppen ändern', 'email-newsletter' ),
                 'select_members' => __( 'Wähle Abonnenten aus.', 'email-newsletter' ),
                 'settings_tab' => (isset($_GET['tab'])) ? $_GET['tab'] : (!$this->settings ? 'tabs-2' : 'tabs-1'),
-                'smtp_warning' => __( 'Bitte schreibe SMTP Outgoing Server oder wähle eine andere Sendemethode!', 'email-newsletter' )
+                'smtp_warning' => __( 'Bitte schreibe SMTP Outgoing Server oder wähle eine andere Sendemethode!', 'email-newsletter' ),
+                'smtp_test_nonce' => wp_create_nonce( 'enews_test_smtp' ),
+                'bounce_test_nonce' => wp_create_nonce( 'enews_test_bounces' ),
+                'send_preview_nonce' => wp_create_nonce( 'enews_send_preview' )
             );
             wp_localize_script( 'enewsletter-script', 'enewsletter', $admin_js_options );
         }
@@ -448,6 +637,64 @@ class Email_Newsletter extends Email_Newsletter_functions {
      **/
     function admin_init() {
         $mu_cap = (function_exists('is_multisite' && is_multisite()) ? 'manage_network_options' : 'manage_options');
+
+        if ( isset( $_REQUEST['newsletter_builder_action'] ) && ! defined( 'DOING_AJAX' ) ) {
+            $action = sanitize_key( wp_unslash( $_REQUEST['newsletter_builder_action'] ) );
+            $default_return = admin_url( 'admin.php?page=newsletters' );
+            $return = isset( $_REQUEST['return'] ) ? wp_validate_redirect( wp_unslash( $_REQUEST['return'] ), $default_return ) : '';
+
+            if ( 'create_newsletter' === $action ) {
+                if ( ! ( current_user_can( 'create_newsletter' ) || current_user_can( $mu_cap ) ) ) {
+                    wp_die( __( 'Dazu hast Du keine Berechtigung', 'email-newsletter' ) );
+                }
+
+                $newsletter_id = $this->create_newsletter_for_builder();
+                if ( ! $newsletter_id ) {
+                    wp_die( __( 'Der Newsletter konnte nicht erstellt werden.', 'email-newsletter' ) );
+                }
+
+                $target = add_query_arg(
+                    array(
+                        'page' => 'newsletters-builder-v2',
+                        'newsletter_id' => intval( $newsletter_id ),
+                    ),
+                    admin_url( 'admin.php' )
+                );
+
+                if ( ! empty( $return ) ) {
+                    $target = add_query_arg( 'return', $return, $target );
+                }
+
+                wp_redirect( $target );
+                exit();
+            }
+
+            if ( 'edit_newsletter' === $action ) {
+                if ( ! ( current_user_can( 'save_newsletter' ) || current_user_can( $mu_cap ) ) ) {
+                    wp_die( __( 'Dazu hast Du keine Berechtigung', 'email-newsletter' ) );
+                }
+
+                $newsletter_id = isset( $_REQUEST['newsletter_id'] ) ? intval( $_REQUEST['newsletter_id'] ) : 0;
+                if ( ! $newsletter_id ) {
+                    wp_die( __( 'Newsletter-ID fehlt.', 'email-newsletter' ) );
+                }
+
+                $target = add_query_arg(
+                    array(
+                        'page' => 'newsletters-builder-v2',
+                        'newsletter_id' => $newsletter_id,
+                    ),
+                    admin_url( 'admin.php' )
+                );
+
+                if ( ! empty( $return ) ) {
+                    $target = add_query_arg( 'return', $return, $target );
+                }
+
+                wp_redirect( $target );
+                exit();
+            }
+        }
 
         //Force caps for admin
         $admin_role = get_role('administrator');
@@ -1439,7 +1686,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
      * Clone Newsletter
      **/
     function clone_newsletter( $page_redirect, $newsletter_id = NULL  ) {
-        global $wpdb, $email_builder;
+        global $wpdb;
 
         do_action( 'enewsletter_clone_newsletter', $newsletter_id );
 
@@ -2013,12 +2260,34 @@ class Email_Newsletter extends Email_Newsletter_functions {
      **/
     function send_preview_ajax() {
         $newsletter_id = (isset($_REQUEST['newsletter_id']) ? $_REQUEST['newsletter_id'] : false);
+        $nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
 
         if(!$newsletter_id)
             die( __( 'Keine gültige Newsletter-ID angegeben.', 'email-newsletter' ) );
 
+        if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, 'enews_send_preview' ) ) {
+            die( __( 'Sicherheitspruefung fehlgeschlagen.', 'email-newsletter' ) );
+        }
+
+        $preview_email = isset( $_REQUEST['preview_email'] ) ? sanitize_email( wp_unslash( $_REQUEST['preview_email'] ) ) : '';
+        if ( ! is_email( $preview_email ) ) {
+            die( __( 'Bitte gib eine gueltige E-Mail-Adresse ein.', 'email-newsletter' ) );
+        }
+
         $newsletter_data = $this->get_newsletter_data( $newsletter_id );
-        $content = $this->make_email_body($newsletter_id);
+        $content = '';
+        $raw_builder_state = isset( $_REQUEST['builder_state_json'] ) ? wp_unslash( $_REQUEST['builder_state_json'] ) : '';
+
+        if ( '' !== $raw_builder_state && isset( $this->builder_v2 ) && $this->builder_v2 ) {
+            $decoded_builder_state = json_decode( $raw_builder_state, true );
+            if ( ! is_array( $decoded_builder_state ) ) {
+                die( __( 'Ungueltiger Builder-Status.', 'email-newsletter' ) );
+            }
+            $live_state = $this->builder_v2->sanitize_state( $decoded_builder_state, intval( $newsletter_id ) );
+            $content = $this->builder_v2->render_state_to_preview( $live_state );
+        } else {
+            $content = $this->make_email_body($newsletter_id);
+        }
         $links = array(
             '{VIEW_LINK}',
             '%7BVIEW_LINK%7D',
@@ -2036,7 +2305,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
             else
                 $options = array();
 
-            $sent_status = $this->send_email( $newsletter_data['from_name'], $newsletter_data['from_email'], $_REQUEST['preview_email'], $subject, $content, $options );
+            $sent_status = $this->send_email( $newsletter_data['from_name'], $newsletter_data['from_email'], $preview_email, $subject, $content, $options );
             if( $sent_status === true )
                 die( __( 'Test-E-Mail wurde gesendet.', 'email-newsletter' ) );
             else
@@ -2050,6 +2319,15 @@ class Email_Newsletter extends Email_Newsletter_functions {
      * Test smtp settings
      **/
     function test_smtp_ajax(){
+        if ( ! current_user_can( 'save_newsletter_settings' ) ) {
+            die( __( 'Keine Berechtigung.', 'email-newsletter' ) );
+        }
+
+        $nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+        if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, 'enews_test_smtp' ) ) {
+            die( __( 'Sicherheitspruefung fehlgeschlagen.', 'email-newsletter' ) );
+        }
+
         @set_time_limit( 0 );
 
         //Send test email on bounces address
@@ -2110,6 +2388,15 @@ class Email_Newsletter extends Email_Newsletter_functions {
      * Test bounces settings
      **/
     function test_bounces_ajax(){
+        if ( ! current_user_can( 'save_newsletter_settings' ) ) {
+            die( __( 'Keine Berechtigung.', 'email-newsletter' ) );
+        }
+
+        $nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+        if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, 'enews_test_bounces' ) ) {
+            die( __( 'Sicherheitspruefung fehlgeschlagen.', 'email-newsletter' ) );
+        }
+
         if(!function_exists('imap_open'))
             die( __( 'PHP Imap wird nicht unterstützt', 'email-newsletter' ) );
 
@@ -2246,7 +2533,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
         $mu_cap = ( $this->is_plugin_active_for_network(plugin_basename($this->plugin_main_file)) ) ? 'manage_network_options' : 'view_newsletter_dashboard';
 
         if ( $this->settings ) {
-            global $email_builder, $submenu;
+            global $submenu;
             $possible_menu_parent = array(
                 'view_newsletter_dashboard' => 'newsletters-dashboard',
                 'save_newsletter' => 'newsletters',
@@ -2266,7 +2553,9 @@ class Email_Newsletter extends Email_Newsletter_functions {
             add_menu_page( __( 'PS-eNewsletter', 'email-newsletter' ), __( 'PS-eNewsletter', 'email-newsletter' ), $capability, $slug, '', $this->plugin_url . 'email-newsletter-files/images/icon.png');
             add_submenu_page( $slug, __( 'Berichte', 'email-newsletter' ), __( 'Berichte', 'email-newsletter' ), 'view_newsletter_dashboard', 'newsletters-dashboard', array( &$this, 'newsletters_dashboard_page' ) );
             add_submenu_page( $slug, __( 'Newsletters', 'email-newsletter' ), __( 'Newsletters', 'email-newsletter' ), 'save_newsletter', 'newsletters', array( &$this, 'newsletters_page' ) );
-            add_submenu_page( $slug, __( 'Neuer Newsletter', 'email-newsletter' ), __( 'Neuer Newsletter', 'email-newsletter' ), 'create_newsletter', 'admin.php?newsletter_builder_action=create_newsletter' );
+            add_submenu_page( $slug, __( 'Neuer Newsletter', 'email-newsletter' ), __( 'Neuer Newsletter', 'email-newsletter' ), 'create_newsletter', 'admin.php?page=newsletters-builder-v2&create=1' );
+            // Hidden page: keep direct links (Edit/Create flow) without cluttering the sidebar menu.
+            add_submenu_page( null, __( 'Newsletter Builder', 'email-newsletter' ), __( 'Newsletter Builder', 'email-newsletter' ), 'save_newsletter', 'newsletters-builder-v2', array( &$this, 'newsletters_builder_v2_page' ) );
             add_submenu_page( $slug, __( 'Gruppen', 'email-newsletter' ), __( 'Gruppen', 'email-newsletter' ), 'edit_newsletter_group', 'newsletters-groups', array( &$this, 'member_groups_page' ) );
             add_submenu_page( $slug, __( 'Abonnenten', 'email-newsletter' ), __( 'Abonnenten', 'email-newsletter' ), 'view_newsletter_members', 'newsletters-members',  array( &$this, 'members_page' ) );
             add_submenu_page( $slug, __( 'Einstellungen', 'email-newsletter' ), __( 'Einstellungen', 'email-newsletter' ), 'save_newsletter_settings', 'newsletters-settings', array( &$this, 'settings_page' ) );
@@ -2303,6 +2592,103 @@ class Email_Newsletter extends Email_Newsletter_functions {
         }
 
         require_once( $this->plugin_dir . "email-newsletter-files/page-newsletters.php" );
+    }
+
+    /**
+     * Template of the native builder page
+     **/
+    function newsletters_builder_v2_page() {
+        if ( isset( $_REQUEST['create'] ) && intval( $_REQUEST['create'] ) ) {
+            if ( ! current_user_can( 'create_newsletter' ) ) {
+                wp_die( __( 'Dazu hast Du keine Berechtigung.', 'email-newsletter' ) );
+            }
+
+            $newsletter_id = $this->create_newsletter_for_builder();
+            if ( ! $newsletter_id ) {
+                wp_die( __( 'Der Newsletter konnte nicht erstellt werden.', 'email-newsletter' ) );
+            }
+
+            $target = add_query_arg(
+                array(
+                    'page' => 'newsletters-builder-v2',
+                    'newsletter_id' => intval( $newsletter_id ),
+                ),
+                admin_url( 'admin.php' )
+            );
+
+            if ( isset( $_REQUEST['return'] ) ) {
+                $default_return = admin_url( 'admin.php?page=newsletters' );
+                $return = wp_validate_redirect( wp_unslash( $_REQUEST['return'] ), $default_return );
+                if ( ! empty( $return ) ) {
+                    $target = add_query_arg( 'return', $return, $target );
+                }
+            }
+
+            wp_redirect( $target );
+            exit();
+        }
+
+        require_once( $this->plugin_dir . "email-newsletter-files/page-newsletters-builder-v2.php" );
+    }
+
+    function builder_v2_preview_ajax() {
+        $this->builder_v2->ajax_preview();
+    }
+
+    function builder_v2_search_items_ajax() {
+        $this->builder_v2->ajax_search_items();
+    }
+
+    function get_default_builder_template_slug() {
+        $arg = array(
+            'limit' => 'LIMIT 1',
+            'orderby' => 'create_date',
+            'order' => 'desc',
+        );
+
+        $latest_newsletter = $this->get_newsletters( $arg, 0, 0 );
+        if ( isset( $latest_newsletter[0]['template'] ) && ! empty( $latest_newsletter[0]['template'] ) ) {
+            return $latest_newsletter[0]['template'];
+        }
+
+        return 'iletter';
+    }
+
+    function create_newsletter_for_builder() {
+        global $wpdb;
+
+        $template = $this->get_default_builder_template_slug();
+        $inserted = $wpdb->insert(
+            "{$this->tb_prefix}enewsletter_newsletters",
+            array(
+                'create_date' => time(),
+                'template' => $template,
+                'subject' => '',
+                'from_name' => isset( $this->settings['from_name'] ) ? $this->settings['from_name'] : '',
+                'from_email' => isset( $this->settings['from_email'] ) ? $this->settings['from_email'] : '',
+                'content' => '',
+                'contact_info' => isset( $this->settings['contact_info'] ) ? $this->settings['contact_info'] : '',
+                'bounce_email' => isset( $this->settings['bounce_email'] ) ? $this->settings['bounce_email'] : '',
+                'sent' => 0,
+                'opened' => 0,
+                'bounced' => 0,
+            ),
+            array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d' )
+        );
+
+        if ( false === $inserted ) {
+            return 0;
+        }
+
+        $newsletter_id = intval( $wpdb->insert_id );
+
+        if ( ! empty( $this->settings['branding_html'] ) ) {
+            $this->update_newsletter_meta( $newsletter_id, 'branding_html', $this->settings['branding_html'] );
+        }
+
+        do_action( 'enewsletter_newsletter_saved', $newsletter_id, array( 'template' => $template ), array() );
+
+        return $newsletter_id;
     }
 
     /**
@@ -2701,6 +3087,8 @@ class Email_Newsletter extends Email_Newsletter_functions {
         $show_button = $this->newsletter_bool( isset( $atts['show_button'] ) ? $atts['show_button'] : 1 );
         $show_badge = $this->newsletter_bool( isset( $atts['show_badge'] ) ? $atts['show_badge'] : 0, false );
         $show_old_price = $this->newsletter_bool( isset( $atts['show_old_price'] ) ? $atts['show_old_price'] : 1 );
+        $layout = isset( $atts['layout'] ) ? strtolower( trim( (string) $atts['layout'] ) ) : 'list';
+        $is_grid_layout = ( 'grid' === $layout );
 
         $badge_html = '';
         if ( $show_badge && class_exists( 'MP_Product' ) ) {
@@ -2715,7 +3103,10 @@ class Email_Newsletter extends Email_Newsletter_functions {
         if ( $show_image ) {
             $image_url = get_the_post_thumbnail_url( $product_id, 'medium' );
             if ( $image_url ) {
-                $image_html = '<p style="margin:0 0 10px 0;"><a href="' . esc_url( $url ) . '"><img src="' . esc_url( $image_url ) . '" alt="' . esc_attr( $title ) . '" style="display:block;max-width:260px;width:100%;height:auto;border:0;" /></a></p>';
+                $image_style = $is_grid_layout
+                    ? 'display:block;max-width:260px;width:100%;height:auto;border:0;'
+                    : 'display:block;width:100%;height:auto;border:0;';
+                $image_html = '<p style="margin:0 0 10px 0;"><a href="' . esc_url( $url ) . '"><img src="' . esc_url( $image_url ) . '" alt="' . esc_attr( $title ) . '" style="' . esc_attr( $image_style ) . '" /></a></p>';
             }
         }
 
@@ -3174,11 +3565,8 @@ class Email_Newsletter extends Email_Newsletter_functions {
     }
 }
 
-global $email_newsletter, $email_builder;
+global $email_newsletter;
 $email_newsletter = new Email_Newsletter();
-
-// Load original Email_Newsletter_Builder for existing functionality
-$email_builder = new Email_Newsletter_Builder();
 
 // Load CRM Integration API
 require_once( plugin_dir_path( __FILE__ ) . 'email-newsletter-files/crm-integration-api.php' );

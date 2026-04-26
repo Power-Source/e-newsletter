@@ -15,6 +15,7 @@ class Email_Newsletter_functions {
             case 'newsletters-members':
             case 'newsletters-subscribes':
             case 'newsletters-settings':
+            case 'newsletters-builder-v2':
                 return 1;
                 break;
             case 'unsubscribe_page':
@@ -1207,12 +1208,17 @@ class Email_Newsletter_functions {
      * Make email body
      **/
     function make_email_body( $newsletter_id, $customizer = 0 ) {
-        global $email_builder;
         $settings = $this->get_settings();
         $newsletter_data = $this->get_newsletter_data( $newsletter_id );
 
         if(!$newsletter_data || empty($newsletter_data))
             return false;
+
+        if ( isset( $this->builder_v2 ) && is_object( $this->builder_v2 ) && method_exists( $this->builder_v2, 'has_saved_state' ) && $this->builder_v2->has_saved_state( $newsletter_id ) ) {
+            $mode = $customizer ? 'preview' : 'send';
+            $contents = $this->builder_v2->render_newsletter_email( $newsletter_id, $mode );
+            return apply_filters( 'email_newsletter_make_email_body', $contents, $newsletter_id );
+        }
 
         //open template file
         $theme = $this->get_selected_theme($newsletter_data['template']);

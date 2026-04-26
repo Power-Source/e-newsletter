@@ -432,7 +432,7 @@ jQuery( document ).ready( function() {
         jQuery.ajax({
             type: "POST",
             url: ajaxurl,
-            data: "action=test_bounces&bounce_email=" + bounce_email + "&bounce_host=" + bounce_host + "&bounce_port=" + bounce_port + "&bounce_username=" + bounce_username + "&bounce_password=" + bounce_password + "&bounce_security=" + bounce_security,
+            data: "action=test_bounces&nonce=" + encodeURIComponent(enewsletter.bounce_test_nonce || '') + "&bounce_email=" + bounce_email + "&bounce_host=" + bounce_host + "&bounce_port=" + bounce_port + "&bounce_username=" + bounce_username + "&bounce_password=" + bounce_password + "&bounce_security=" + bounce_security,
             success: function( html ){
                 jQuery( "#test_bounce_conn" ).prop( 'disabled', false );
                 jQuery( "#test_bounce_loading" ).hide();
@@ -456,7 +456,7 @@ jQuery( document ).ready( function() {
         jQuery.ajax({
             type: "POST",
             url: ajaxurl,
-            data: "action=test_smtp&smtp_from=" + smtp_from + "&smtp_host=" + smtp_host + "&smtp_port=" + smtp_port + "&smtp_username=" + smtp_username + "&smtp_password=" + smtp_password + "&smtp_security=" + smtp_security,
+            data: "action=test_smtp&nonce=" + encodeURIComponent(enewsletter.smtp_test_nonce || '') + "&smtp_from=" + smtp_from + "&smtp_host=" + smtp_host + "&smtp_port=" + smtp_port + "&smtp_username=" + smtp_username + "&smtp_password=" + smtp_password + "&smtp_security=" + smtp_security,
             success: function( html ){
                 jQuery( "#test_smtp_conn" ).prop( 'disabled', false );
                 jQuery( "#test_smtp_loading" ).hide();

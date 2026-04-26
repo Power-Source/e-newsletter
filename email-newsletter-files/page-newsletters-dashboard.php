@@ -1,5 +1,4 @@
 <?php
-	global $email_builder;
 
     $arg['limit'] = 'LIMIT 0,5';
     $arg['orderby'] = 'newsletter_id';
@@ -143,7 +142,7 @@
                     <a href="?page=newsletters-dashboard&amp;newsletter_action=delete_newsletter&amp;newsletter_id=<?php echo $newsletter['newsletter_id'];?>">
                         <input class="button button-secondary" type="button" value="<?php _e( 'Löschen', 'email-newsletter' ) ?>" />
                     </a>
-                    <a href="<?php echo $email_builder->generate_builder_link($newsletter['newsletter_id']); ?>">
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=newsletters-builder-v2&newsletter_id=' . intval( $newsletter['newsletter_id'] ) ) ); ?>">
                         <input class="button button-secondary" type="button" value="<?php _e( 'Bearbeiten', 'email-newsletter' ) ?>" />
                     </a>
                     <a href="?page=newsletters-dashboard&amp;newsletter_action=send_newsletter&amp;newsletter_id=<?php echo $newsletter['newsletter_id'];?>">
@@ -161,7 +160,7 @@
 
         if(current_user_can('create_newsletter')) { ?>
 		<p class="submit">
-            <a class="button button-primary" href="<?php echo admin_url( 'admin.php?newsletter_builder_action=create_newsletter' ); ?>"><?php _e( 'Neuen Newsletter erstellen', 'email-newsletter' ) ?></a>
+            <a class="button button-primary" href="<?php echo admin_url( 'admin.php?page=newsletters-builder-v2&create=1' ); ?>"><?php _e( 'Neuen Newsletter erstellen', 'email-newsletter' ) ?></a>
         </p>
         <?php } ?>
 

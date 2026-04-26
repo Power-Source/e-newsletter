@@ -33,6 +33,11 @@ zu verbessern.
 
 == ChangeLog ==
 
+
+= 1.0.4 =
+* Colorpicker ersetzt
+* Customizer-Builder durch Drag and Drop Editor ersetzt
+
 = 1.0.3 =
 
 * Etliche Bugfixes

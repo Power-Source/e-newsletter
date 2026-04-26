@@ -1,5 +1,4 @@
 <?php
-	global $email_builder;
     $arg['orderby'] = 'create_date';
     $arg['order'] = 'desc';
 
@@ -34,14 +33,13 @@
         <h2>
         	<?php _e( 'Newsletter', 'email-newsletter' ) ?>
             <?php if(current_user_can('create_newsletter')) { ?>
-        	<a href="<?php echo admin_url( 'admin.php?newsletter_builder_action=create_newsletter' ); ?>" class="add-new-h2"><?php _e('Erstelle Newsletter','email-newsletter'); ?></a>
+	        <a href="<?php echo admin_url( 'admin.php?page=newsletters-builder-v2&create=1' ); ?>" class="add-new-h2"><?php _e('Erstelle Newsletter','email-newsletter'); ?></a>
             <?php } ?>
         </h2>
         <p><?php _e( 'Diese Seite enthält die Liste aller Newsletter.', 'email-newsletter' ) ?></p>
         <p class="description"><?php _e( 'Hinweis: Bitte speichere Deine benutzerdefinierten Designs im Ordner enewsletter-custom-themes, der sich unter wp-content/uploads befindet (plus/siteID/, falls die Aktivierung auf einem einzelnen Blog einer Multisite-Installation erfolgt).', 'email-newsletter' ) ?></p>
 
         <?php
-        global $email_builder;
         $i = 0;
         $template_query = array();
         ?>
@@ -151,7 +149,7 @@
                         </a>
                         <?php } ?>
                         <?php if(current_user_can('save_newsletter')) { ?>
-                        <a class="button button-secondary" href="?page=newsletters&amp;newsletter_builder_action=edit_newsletter&amp;newsletter_id=<?php echo $newsletter['newsletter_id'];?>&amp;template=<?php echo esc_attr($newsletter['template']);?>">
+                        <a class="button button-secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=newsletters-builder-v2&newsletter_id=' . intval( $newsletter['newsletter_id'] ) ) ); ?>">
                             <?php _e( 'Bearbeiten', 'email-newsletter' ) ?>
                         </a>
                         <?php } ?>
