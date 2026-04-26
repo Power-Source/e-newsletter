@@ -21,6 +21,7 @@
 	var itemCache = {};
 	var itemSearchTimers = {};
 	var moduleRowSpanCache = {};
+	var moduleIdCounter = 0;
 	var paletteEl = document.getElementById('enews-builder-v2-palette');
 	var canvasEl = document.getElementById('enews-builder-v2-canvas');
 	var previewEl = document.getElementById('enews-builder-v2-preview');
@@ -53,7 +54,27 @@
 		var next = Object.assign({}, defaults, rawState || {});
 		next.global = Object.assign({}, defaults.global, (rawState && rawState.global) || {});
 		next.modules = Array.isArray(rawState && rawState.modules) ? rawState.modules.map(normalizeModule) : [];
+		next.modules = ensureUniqueModuleIds(next.modules);
 		return next;
+	}
+
+	function generateModuleId() {
+		moduleIdCounter += 1;
+		return 'mod_' + Date.now() + '_' + moduleIdCounter + '_' + Math.random().toString(16).slice(2, 8);
+	}
+
+	function ensureUniqueModuleIds(list) {
+		var seen = {};
+		return (Array.isArray(list) ? list : []).map(function (module) {
+			var nextModule = module || {};
+			var id = String(nextModule.id || '');
+			if (!id || seen[id]) {
+				id = generateModuleId();
+			}
+			seen[id] = true;
+			nextModule.id = id;
+			return nextModule;
+		});
 	}
 
 	function normalizeModule(module) {
@@ -88,7 +109,7 @@
 			return null;
 		}
 		return normalizeModule({
-			id: 'mod_' + Date.now() + '_' + Math.random().toString(16).slice(2, 8),
+			id: generateModuleId(),
 			type: type,
 			settings: deepClone(source.defaults || {})
 		});
@@ -141,6 +162,7 @@
 			}
 
 			state = normalizeState(deepClone(presets[selected].state));
+			moduleRowSpanCache = {};
 			selectedModuleId = null;
 			renderAll();
 		});
@@ -314,8 +336,35 @@
 		});
 
 		syncVisualRowSpans();
+		if (ensureGridPositions()) {
+			renderCanvas();
+			return;
+		}
+		markGridConflicts();
 
 		renderDragHint();
+	}
+
+	function markGridConflicts() {
+		var items = Array.prototype.slice.call(canvasEl.querySelectorAll('.enews-builder-v2-canvas-item'));
+		items.forEach(function (item) {
+			item.classList.remove('is-grid-conflict');
+		});
+		for (var i = 0; i < items.length; i += 1) {
+			var a = items[i].getBoundingClientRect();
+			for (var j = i + 1; j < items.length; j += 1) {
+				var b = items[j].getBoundingClientRect();
+				if (
+					a.left < b.right &&
+					a.right > b.left &&
+					a.top < b.bottom &&
+					a.bottom > b.top
+				) {
+					items[i].classList.add('is-grid-conflict');
+					items[j].classList.add('is-grid-conflict');
+				}
+			}
+		}
 	}
 
 	function syncVisualRowSpans() {
@@ -334,6 +383,7 @@
 			var measuredRows = Math.max(1, Math.ceil(measuredHeight / rowStep));
 			var nextRows = Math.max(baseRows, measuredRows);
 			moduleRowSpanCache[module.id] = nextRows;
+			module.settings.grid_rows = nextRows;
 			item.style.gridRow = getModuleRow(module) + ' / span ' + nextRows;
 		});
 	}
@@ -436,6 +486,7 @@
 
 	function ensureGridPositions() {
 		var occupied = {};
+		var changed = false;
 
 		function key(col, row) {
 			return row + ':' + col;
@@ -471,6 +522,11 @@
 			var savedRow = parseInt(module.settings.grid_row, 10) || 0;
 
 			if (isSlotFree(savedCol, savedRow, span, rowSpan)) {
+				if (module.settings.grid_col !== savedCol || module.settings.grid_row !== savedRow) {
+					changed = true;
+				}
+				module.settings.grid_col = savedCol;
+				module.settings.grid_row = savedRow;
 				markSlot(savedCol, savedRow, span, rowSpan);
 				return;
 			}
@@ -481,6 +537,9 @@
 					if (!isSlotFree(col, row, span, rowSpan)) {
 						continue;
 					}
+					if (module.settings.grid_col !== col || module.settings.grid_row !== row) {
+						changed = true;
+					}
 					module.settings.grid_col = col;
 					module.settings.grid_row = row;
 					markSlot(col, row, span, rowSpan);
@@ -489,6 +548,8 @@
 				}
 			}
 		});
+
+		return changed;
 	}
 
 	function getModuleCol(module) {

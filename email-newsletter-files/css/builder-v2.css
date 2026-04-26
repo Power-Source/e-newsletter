@@ -320,6 +320,12 @@ body.enews-builder-v2-resizing * {
 	box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.12);
 }
 
+.enews-builder-v2-canvas-item.is-grid-conflict {
+	border-color: #dc2626;
+	box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.18);
+	background: #fff7f7;
+}
+
 .enews-builder-v2-canvas-item.is-drag-over {
 	border-color: #0f766e;
 }

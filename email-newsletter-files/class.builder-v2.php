@@ -248,8 +248,12 @@ class Email_Newsletter_Builder_V2 {
 			return array();
 		}
 
+		$module_id = function_exists( 'wp_generate_uuid4' )
+			? 'preset_' . wp_generate_uuid4()
+			: uniqid( 'preset_', true );
+
 		return array(
-			'id' => uniqid( 'preset_', false ),
+			'id' => $module_id,
 			'type' => $type,
 			'settings' => array_merge( $available[ $type ]['defaults'], $overrides ),
 		);

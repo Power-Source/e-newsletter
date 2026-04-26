@@ -40,7 +40,7 @@ $newsletter = $newsletter_id ? $this->get_newsletter_data( $newsletter_id ) : fa
 			<?php printf( __( 'Du bearbeitest Newsletter #%1$d mit dem Betreff "%2$s". Dieser Builder speichert JSON im Meta und schreibt den gerenderten Inhalt in das bestehende Content-Feld.', 'email-newsletter' ), intval( $newsletter['newsletter_id'] ), esc_html( $newsletter['subject'] ) ); ?>
 		</p>
 
-		<form method="post" action="<?php echo esc_url( add_query_arg( array( 'page' => 'newsletters-builder-v2', 'newsletter_id' => intval( $newsletter_id ), 'return' => $back_url ), admin_url( 'admin.php' ) ) ); ?>" id="enews-builder-v2-form">
+		<form method="post" action="<?php echo esc_url( add_query_arg( array( 'page' => 'newsletters-builder-v2', 'newsletter_id' => intval( $newsletter_id ), 'return' => $back_url ), admin_url( 'admin.php' ) ) ); ?>" id="enews-builder-v2-form" novalidate>
 			<?php wp_nonce_field( 'enews_builder_v2_save_' . $newsletter_id ); ?>
 			<input type="hidden" name="enews_builder_v2_action" value="save" />
 			<input type="hidden" name="builder_state_json" id="builder_state_json" value="" />

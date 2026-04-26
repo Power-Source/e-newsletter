@@ -2,7 +2,8 @@
 Contributors: PSOURCE
 Tags: newsletter
 Requires at least: 4.9
-Tested up to: WordPress 6.4, ClassicPress: 2.6.0
+Tested up to: WordPress 6.4 
+ClassicPress: 2.7.0
 Stable tag: 1.0.3
 Requires PHP: 8.0
 License: GPLv2 or later
@@ -33,6 +34,8 @@ zu verbessern.
 
 == ChangeLog ==
 
+= 1.0.5 =
+* Canvas sortiert korrekt bei Preset-Auswahl
 
 = 1.0.4 =
 * Colorpicker ersetzt
