@@ -130,14 +130,6 @@ class Email_Newsletter_Builder  {
 	function cleanup_customizer() {
 		global $wp_customize;
 
-		remove_all_actions('customize_controls_enqueue_scripts');
-		add_action( 'customize_controls_enqueue_scripts', array( $wp_customize, 'enqueue_control_scripts' ) );
-		add_action( 'customize_controls_enqueue_scripts', array( &$this, 'enqueue_editor_assets' ), 1 );
-
-		remove_all_actions('customize_register');
-		add_action('customize_register', array( $wp_customize, 'register_controls' ) );
-		add_action('customize_register', array( $wp_customize, 'register_dynamic_settings' ), 11 );
-
 		add_action( 'customize_register', array( &$this, 'init_newsletter_builder'),9999 );	
 
 		//Lets get rid of all media buttons
@@ -202,21 +194,15 @@ class Email_Newsletter_Builder  {
 		if ( function_exists( 'wp_enqueue_media' ) ) {
 			wp_enqueue_media();
 		}
-		
-		// Remove deprecated jQuery UI scripts from Customizer context
-		// These are enqueued by ClassicPress/ClassicPress core but not used in the email newsletter builder
-		// They are deprecated in CP-2.2.0 and will be removed in CP-3.0.0
-		$deprecated_scripts = array(
-			'jquery-ui-core',
-			'jquery-ui-autocomplete',
-			'jquery-ui-sortable',
-			'jquery-ui-menu',
-			'jquery-ui-tabs',
-			'jquery-ui-accordion',
+
+		// Defensive fallback: avoid fatal Customizer errors when external controls
+		// call wpColorPicker but the method is unavailable.
+		wp_register_script( 'enewsletter-colorpicker-shim', false, array( 'jquery' ), null, true );
+		wp_enqueue_script( 'enewsletter-colorpicker-shim' );
+		wp_add_inline_script(
+			'enewsletter-colorpicker-shim',
+			"jQuery(function($){if(typeof $.fn.wpColorPicker!=='function'){ $.fn.wpColorPicker=function(){return this;}; }});"
 		);
-		foreach ( $deprecated_scripts as $script ) {
-			wp_dequeue_script( $script );
-		}
 	}
 	function filter_email_footer($current_content, $newsletter_id) {
 		global $wp_customize;
@@ -256,9 +242,8 @@ class Email_Newsletter_Builder  {
 		$enewsletter_tinymce = ob_get_clean();
 	}
 	function customize_controls_print_scripts() {
-		do_action('admin_enqueue_scripts');
-		do_action('admin_print_scripts');
-		do_action('admin_head');
+		// Avoid manually re-firing global admin hooks in the Customizer.
+		// This can enqueue unrelated plugin scripts without their expected localized data.
 		do_action('email_newsletter_template_builder_print_scripts');
 	}
 	function customize_controls_print_footer_scripts() {
@@ -399,6 +384,7 @@ class Email_Newsletter_Builder  {
 		require_once($email_newsletter->plugin_dir . 'email-newsletter-files/builder/class.textarea-control.php');
 		require_once($email_newsletter->plugin_dir . 'email-newsletter-files/builder/class.hidden-control.php');
 		require_once($email_newsletter->plugin_dir . 'email-newsletter-files/builder/class.preview-control.php');
+		require_once($email_newsletter->plugin_dir . 'email-newsletter-files/builder/class.native-color-control.php');
 
 		if( in_array('BG_IMAGE', $this->settings) || in_array('HEADER_IMAGE', $this->settings)) {
 			$instance->add_section( 'images', array(
@@ -463,7 +449,7 @@ class Email_Newsletter_Builder  {
 					'default' => $email_newsletter->get_default_builder_var('bg_color'),
 					'type' => 'newsletter_save'
 				) );
-				$instance->add_control( new WP_Customize_Color_Control( $instance, 'bg_color', array(
+				$instance->add_control( new Builder_Native_Color_Control( $instance, 'bg_color', array(
 					'label'        => __('Hintergrundfarbe', 'email-newsletter' ),
 					'section'    => 'builder_colors',
 					'settings'   => 'bg_color',
@@ -475,7 +461,7 @@ class Email_Newsletter_Builder  {
 				'default' => '#ffffff',
 				'type' => 'newsletter_save'
 			) );
-			$instance->add_control( new WP_Customize_Color_Control( $instance, 'content_bg_color', array(
+			$instance->add_control( new Builder_Native_Color_Control( $instance, 'content_bg_color', array(
 				'label'        => __( 'Inhalt Hintergrundfarbe', 'email-newsletter' ),
 				'section'    => 'builder_colors',
 				'settings'   => 'content_bg_color',
@@ -486,7 +472,7 @@ class Email_Newsletter_Builder  {
 					'default' => $email_newsletter->get_default_builder_var('body_color'),
 					'type' => 'newsletter_save'
 				) );
-				$instance->add_control( new WP_Customize_Color_Control( $instance, 'body_color', array(
+				$instance->add_control( new Builder_Native_Color_Control( $instance, 'body_color', array(
 					'label'        => __( 'Body Text Farbe', 'email-newsletter' ),
 					'section'    => 'builder_colors',
 					'settings'   => 'body_color',
@@ -498,7 +484,7 @@ class Email_Newsletter_Builder  {
 					'default' => $email_newsletter->get_default_builder_var('alternative_color'),
 					'type' => 'newsletter_save'
 				) );
-				$instance->add_control( new WP_Customize_Color_Control( $instance, 'alternative_color', array(
+				$instance->add_control( new Builder_Native_Color_Control( $instance, 'alternative_color', array(
 					'label'        => __( 'Alternative Text Farbe', 'email-newsletter' ),
 					'section'    => 'builder_colors',
 					'settings'   => 'alternative_color',
@@ -511,7 +497,7 @@ class Email_Newsletter_Builder  {
 					'default' => $email_newsletter->get_default_builder_var('title_color'),
 					'type' => 'newsletter_save'
 				) );
-				$instance->add_control( new WP_Customize_Color_Control( $instance, 'title_color', array(
+				$instance->add_control( new Builder_Native_Color_Control( $instance, 'title_color', array(
 					'label'        => __( 'Titel Text Farbe', 'email-newsletter' ),
 					'section'    => 'builder_colors',
 					'settings'   => 'title_color',
@@ -523,7 +509,7 @@ class Email_Newsletter_Builder  {
 					'default' => $email_newsletter->get_default_builder_var('link_color'),
 					'type' => 'newsletter_save'
 				) );
-				$instance->add_control( new WP_Customize_Color_Control( $instance, 'link_color', array(
+				$instance->add_control( new Builder_Native_Color_Control( $instance, 'link_color', array(
 					'label'        => __( 'Link Farbe', 'email-newsletter' ),
 					'section'    => 'builder_colors',
 					'settings'   => 'link_color',
