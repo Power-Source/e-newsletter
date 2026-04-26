@@ -13,6 +13,88 @@ body {
 #customize-control-email_content {
     width:auto;
 }
+.enews-insert-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+.enews-toolbar-button {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+}
+.enews-toolbar-button .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+.enews-insert-dialog {
+    padding: 12px;
+    border: 1px solid #ccd0d4;
+    background: #fff;
+    margin: 0 0 12px 0;
+}
+.enews-search-input {
+    width: 100%;
+    max-width: 100%;
+}
+.enews-suggestions {
+    display: none;
+    margin-top: 6px;
+    border: 1px solid #dcdcde;
+    border-radius: 3px;
+    background: #fff;
+    max-height: 180px;
+    overflow: auto;
+}
+.enews-suggestion-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.enews-suggestion-item {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid #f0f0f1;
+    background: #fff;
+    text-align: left;
+    padding: 8px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.enews-suggestion-item:hover,
+.enews-suggestion-item:focus {
+    background: #f6f7f7;
+    outline: none;
+}
+.enews-suggestion-title {
+    color: #1d2327;
+    font-size: 13px;
+    line-height: 1.35;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.enews-suggestion-id {
+    color: #646970;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+.enews-suggestion-empty {
+    padding: 8px 10px;
+    color: #646970;
+    font-size: 12px;
+}
 .wp-full-overlay-sidebar {
     min-width:550px;
 }

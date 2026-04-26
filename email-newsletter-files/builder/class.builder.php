@@ -13,6 +13,7 @@ class Email_Newsletter_Builder  {
 			add_action( 'plugins_loaded', array( &$this, 'plugins_loaded_early'), 10 );
 			add_action( 'plugins_loaded', array( &$this, 'plugins_loaded'), 999 );
 			add_action( 'wp_ajax_builder_do_shortcodes', array( &$this, 'ajax_do_shortcodes' ) );
+			add_action( 'wp_ajax_enews_builder_search_items', array( &$this, 'ajax_search_items' ) );
 		}
 	}
 	function register_stuff() {
@@ -234,7 +235,7 @@ class Email_Newsletter_Builder  {
 				'add_unload_trigger' => false,
 				'resize' => 'both'
 			),
-			'editor_css' => '<style type="text/css">body { background: #000; }</style>',
+			'editor_css' => '<style type="text/css">body { background:#ffffff; color:#111111; } a { color:#2271b1; }</style>',
 		);
 		$email_content = $this->get_builder_email_content('');
 		wp_editor($email_content, 'content_tinymce', $tinymce_options);
@@ -1128,6 +1129,64 @@ class Email_Newsletter_Builder  {
 
 	    echo $content;
 		die();
+	}
+
+	public function ajax_search_items() {
+		if ( ! current_user_can( 'edit_theme_options' ) && ! current_user_can( 'save_newsletter' ) ) {
+			wp_send_json_error( array( 'message' => 'forbidden' ), 403 );
+		}
+
+		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, 'enews_builder_search_items' ) ) {
+			wp_send_json_error( array( 'message' => 'bad_nonce' ), 403 );
+		}
+
+		$type = isset( $_POST['item_type'] ) ? sanitize_key( wp_unslash( $_POST['item_type'] ) ) : '';
+		$term = isset( $_POST['term'] ) ? sanitize_text_field( wp_unslash( $_POST['term'] ) ) : '';
+		$limit = isset( $_POST['limit'] ) ? absint( $_POST['limit'] ) : 10;
+		if ( $limit < 1 || $limit > 30 ) {
+			$limit = 10;
+		}
+
+		$post_type = '';
+		if ( $type === 'product' ) {
+			if ( ! class_exists( 'MP_Product' ) || ! method_exists( 'MP_Product', 'get_post_type' ) ) {
+				wp_send_json_success( array() );
+			}
+			$post_type = MP_Product::get_post_type();
+		} elseif ( $type === 'post' ) {
+			$post_type = 'post';
+		} else {
+			wp_send_json_error( array( 'message' => 'bad_type' ), 400 );
+		}
+
+		$query_args = array(
+			'post_type' => $post_type,
+			'post_status' => 'publish',
+			'posts_per_page' => $limit,
+			'orderby' => 'date',
+			'order' => 'DESC',
+			'fields' => 'ids',
+			's' => $term,
+		);
+
+		if ( $term !== '' && preg_match( '/^\d+$/', $term ) ) {
+			$query_args['post__in'] = array( (int) $term );
+			$query_args['orderby'] = 'post__in';
+			unset( $query_args['s'] );
+		}
+
+		$ids = get_posts( $query_args );
+		$items = array();
+		foreach ( $ids as $id ) {
+			$id = (int) $id;
+			$items[] = array(
+				'id' => $id,
+				'title' => html_entity_decode( get_the_title( $id ), ENT_QUOTES, get_bloginfo( 'charset' ) ),
+			);
+		}
+
+		wp_send_json_success( $items );
 	}
 
 	public function enable_customizer() {

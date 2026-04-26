@@ -151,6 +151,11 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
         //subscribe widget stuff
         add_shortcode( 'enewsletter_subscribe', array( &$this, 'subscribe_shortcode' ) );
+		add_shortcode( 'enews_product', array( &$this, 'enews_product_shortcode' ) );
+		add_shortcode( 'enews_products', array( &$this, 'enews_products_shortcode' ) );
+        add_shortcode( 'enews_post', array( &$this, 'enews_post_shortcode' ) );
+        add_shortcode( 'enews_posts', array( &$this, 'enews_posts_shortcode' ) );
+        add_shortcode( 'enews_post_links', array( &$this, 'enews_post_links_shortcode' ) );
         add_action( 'wp_enqueue_scripts', array( &$this, 'email_newsletter_widgets_scripts' ) );
 
         //unsubscribe message
@@ -2596,6 +2601,467 @@ class Email_Newsletter extends Email_Newsletter_functions {
         $subscribe = $this->subscribe_widget($show_name, $show_groups, $subscribe_to_groups);
 
         return $subscribe;
+    }
+
+    function newsletter_bool( $value, $default = true ) {
+        if ( is_bool( $value ) ) {
+            return $value;
+        }
+
+        if ( is_numeric( $value ) ) {
+            return (int) $value === 1;
+        }
+
+        $value = strtolower( trim( (string) $value ) );
+        if ( $value === '' ) {
+            return (bool) $default;
+        }
+
+        return in_array( $value, array( '1', 'yes', 'true', 'on' ), true );
+    }
+
+    function parse_newsletter_ids( $ids_string ) {
+        $ids = array();
+        foreach ( explode( ',', (string) $ids_string ) as $raw_id ) {
+            $id = absint( trim( $raw_id ) );
+            if ( $id > 0 ) {
+                $ids[] = $id;
+            }
+        }
+
+        return array_values( array_unique( $ids ) );
+    }
+
+    function get_marketpress_product_post_type() {
+        if ( class_exists( 'MP_Product' ) && method_exists( 'MP_Product', 'get_post_type' ) ) {
+            return MP_Product::get_post_type();
+        }
+
+        return 'product';
+    }
+
+    function newsletter_track_link( $url, $atts, $type, $id ) {
+        if ( ! $this->newsletter_bool( isset( $atts['track'] ) ? $atts['track'] : 1, true ) ) {
+            return $url;
+        }
+
+        $params = array(
+            'utm_source' => isset( $atts['utm_source'] ) ? $atts['utm_source'] : 'newsletter',
+            'utm_medium' => isset( $atts['utm_medium'] ) ? $atts['utm_medium'] : 'email',
+            'utm_campaign' => isset( $atts['utm_campaign'] ) ? $atts['utm_campaign'] : 'ps-enewsletter',
+            'utm_content' => isset( $atts['utm_content'] ) && ! empty( $atts['utm_content'] ) ? $atts['utm_content'] : $type . '-' . absint( $id ),
+        );
+
+        return add_query_arg( $params, $url );
+    }
+
+    function get_newsletter_product_price_html( $product_id, $show_old_price = true ) {
+        if ( ! class_exists( 'MP_Product' ) ) {
+            return '';
+        }
+
+        $product = new MP_Product( $product_id );
+        if ( ! $product->exists() ) {
+            return '';
+        }
+
+        $price = $product->get_price();
+        $currency = function_exists( 'mp_get_setting' ) ? mp_get_setting( 'currency' ) : '';
+
+        if ( $product->on_sale() && isset( $price['sale']['amount'] ) ) {
+            $sale = function_exists( 'mp_format_currency' ) ? mp_format_currency( $currency, $price['sale']['amount'] ) : $price['sale']['amount'];
+            $html = '<span style="font-weight:700;color:#111111;">' . esc_html( $sale ) . '</span>';
+
+            if ( $show_old_price && isset( $price['regular'] ) ) {
+                $regular = function_exists( 'mp_format_currency' ) ? mp_format_currency( $currency, $price['regular'] ) : $price['regular'];
+                $html .= ' <span style="color:#777777;text-decoration:line-through;">' . esc_html( $regular ) . '</span>';
+            }
+
+            return $html;
+        }
+
+        if ( function_exists( 'mp_product_price' ) ) {
+            return wp_kses_post( mp_product_price( false, $product_id, '' ) );
+        }
+
+        return '';
+    }
+
+    function render_newsletter_product_card( $product_id, $atts = array() ) {
+        $title = get_the_title( $product_id );
+        $url = get_permalink( $product_id );
+        if ( empty( $title ) || empty( $url ) ) {
+            return '';
+        }
+
+        $url = $this->newsletter_track_link( $url, $atts, 'product', $product_id );
+
+        $show_image = $this->newsletter_bool( isset( $atts['show_image'] ) ? $atts['show_image'] : 1 );
+        $show_price = $this->newsletter_bool( isset( $atts['show_price'] ) ? $atts['show_price'] : 1 );
+        $show_button = $this->newsletter_bool( isset( $atts['show_button'] ) ? $atts['show_button'] : 1 );
+        $show_badge = $this->newsletter_bool( isset( $atts['show_badge'] ) ? $atts['show_badge'] : 0, false );
+        $show_old_price = $this->newsletter_bool( isset( $atts['show_old_price'] ) ? $atts['show_old_price'] : 1 );
+
+        $badge_html = '';
+        if ( $show_badge && class_exists( 'MP_Product' ) ) {
+            $mp_product = new MP_Product( $product_id );
+            if ( $mp_product->exists() && $mp_product->on_sale() ) {
+                $badge_text = ! empty( $atts['badge_text'] ) ? $atts['badge_text'] : __( 'Sale', 'email-newsletter' );
+                $badge_html = '<p style="margin:0 0 8px 0;"><span style="display:inline-block;padding:2px 8px;background:#d63638;color:#ffffff;border-radius:2px;font-size:11px;line-height:1.3;font-weight:700;">' . esc_html( $badge_text ) . '</span></p>';
+            }
+        }
+
+        $image_html = '';
+        if ( $show_image ) {
+            $image_url = get_the_post_thumbnail_url( $product_id, 'medium' );
+            if ( $image_url ) {
+                $image_html = '<p style="margin:0 0 10px 0;"><a href="' . esc_url( $url ) . '"><img src="' . esc_url( $image_url ) . '" alt="' . esc_attr( $title ) . '" style="display:block;max-width:260px;width:100%;height:auto;border:0;" /></a></p>';
+            }
+        }
+
+        $price_html = '';
+        if ( $show_price ) {
+            $raw = $this->get_newsletter_product_price_html( $product_id, $show_old_price );
+            if ( ! empty( $raw ) ) {
+                $price_html = '<p style="margin:0 0 10px 0;font-size:14px;line-height:1.4;">' . $raw . '</p>';
+            }
+        }
+
+        $button_html = '';
+        if ( $show_button ) {
+            $button_label = ! empty( $atts['button_text'] ) ? $atts['button_text'] : __( 'Zum Produkt', 'email-newsletter' );
+            $button_html = '<p style="margin:0;"><a href="' . esc_url( $url ) . '" style="display:inline-block;padding:8px 14px;background:#2271b1;color:#ffffff;text-decoration:none;border-radius:3px;font-size:13px;line-height:1.2;">' . esc_html( $button_label ) . '</a></p>';
+        }
+
+        return '<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;"><tr><td style="padding:12px;border:1px solid #e5e5e5;">'
+            . $badge_html
+            . $image_html
+            . '<h3 style="margin:0 0 8px 0;font-size:18px;line-height:1.3;"><a href="' . esc_url( $url ) . '" style="color:#111111;text-decoration:none;">' . esc_html( $title ) . '</a></h3>'
+            . $price_html
+            . $button_html
+            . '</td></tr></table>';
+    }
+
+    function render_newsletter_cards_grid( $cards, $columns = 1 ) {
+        $columns = absint( $columns );
+        if ( $columns !== 2 ) {
+            $columns = 1;
+        }
+
+        if ( empty( $cards ) ) {
+            return '';
+        }
+
+        if ( $columns === 1 ) {
+            return implode( '<div style="height:12px;line-height:12px;">&nbsp;</div>', $cards );
+        }
+
+        $out = '<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;">';
+        $chunks = array_chunk( $cards, 2 );
+        foreach ( $chunks as $row ) {
+            $left = isset( $row[0] ) ? $row[0] : '';
+            $right = isset( $row[1] ) ? $row[1] : '';
+            $out .= '<tr>'
+                . '<td width="50%" valign="top" style="padding:0 8px 12px 0;">' . $left . '</td>'
+                . '<td width="50%" valign="top" style="padding:0 0 12px 8px;">' . $right . '</td>'
+                . '</tr>';
+        }
+        $out .= '</table>';
+
+        return $out;
+    }
+
+    function enews_product_shortcode( $atts ) {
+        $atts = shortcode_atts(
+            array(
+                'id' => 0,
+                'show_image' => 1,
+                'show_price' => 1,
+                'show_old_price' => 1,
+                'show_button' => 1,
+                'button_text' => __( 'Zum Produkt', 'email-newsletter' ),
+                'show_badge' => 0,
+                'badge_text' => __( 'Sale', 'email-newsletter' ),
+                'track' => 1,
+                'utm_source' => 'newsletter',
+                'utm_medium' => 'email',
+                'utm_campaign' => 'ps-enewsletter',
+                'utm_content' => '',
+            ),
+            $atts,
+            'enews_product'
+        );
+
+        $product_id = absint( $atts['id'] );
+        if ( ! $product_id || get_post_type( $product_id ) !== $this->get_marketpress_product_post_type() ) {
+            return '';
+        }
+
+        return $this->render_newsletter_product_card( $product_id, $atts );
+    }
+
+    function enews_products_shortcode( $atts ) {
+        $atts = shortcode_atts(
+            array(
+                'ids' => '',
+                'show_image' => 1,
+                'show_price' => 1,
+                'show_old_price' => 1,
+                'show_button' => 1,
+                'button_text' => __( 'Zum Produkt', 'email-newsletter' ),
+                'show_badge' => 0,
+                'badge_text' => __( 'Sale', 'email-newsletter' ),
+                'columns' => 1,
+                'layout' => 'list',
+                'track' => 1,
+                'utm_source' => 'newsletter',
+                'utm_medium' => 'email',
+                'utm_campaign' => 'ps-enewsletter',
+                'utm_content' => '',
+            ),
+            $atts,
+            'enews_products'
+        );
+
+        $ids = $this->parse_newsletter_ids( $atts['ids'] );
+        if ( empty( $ids ) ) {
+            return '';
+        }
+
+        $post_type = $this->get_marketpress_product_post_type();
+        $cards = array();
+        foreach ( $ids as $product_id ) {
+            if ( get_post_type( $product_id ) !== $post_type ) {
+                continue;
+            }
+            $card = $this->render_newsletter_product_card( $product_id, $atts );
+            if ( ! empty( $card ) ) {
+                $cards[] = $card;
+            }
+        }
+
+        $columns = ( isset( $atts['layout'] ) && $atts['layout'] === 'grid' ) ? 2 : absint( $atts['columns'] );
+        return $this->render_newsletter_cards_grid( $cards, $columns );
+    }
+
+    function render_newsletter_post_card( $post_id, $atts = array() ) {
+        if ( get_post_type( $post_id ) !== 'post' ) {
+            return '';
+        }
+
+        $title = get_the_title( $post_id );
+        $url = get_permalink( $post_id );
+        if ( empty( $title ) || empty( $url ) ) {
+            return '';
+        }
+
+        $url = $this->newsletter_track_link( $url, $atts, 'post', $post_id );
+        $show_image = $this->newsletter_bool( isset( $atts['show_image'] ) ? $atts['show_image'] : 1 );
+        $show_excerpt = $this->newsletter_bool( isset( $atts['show_excerpt'] ) ? $atts['show_excerpt'] : 1 );
+        $show_button = $this->newsletter_bool( isset( $atts['show_button'] ) ? $atts['show_button'] : 1 );
+        $excerpt_words = isset( $atts['excerpt_words'] ) ? max( 8, absint( $atts['excerpt_words'] ) ) : 24;
+
+        $image_html = '';
+        if ( $show_image ) {
+            $image_url = get_the_post_thumbnail_url( $post_id, 'medium' );
+            if ( $image_url ) {
+                $image_html = '<p style="margin:0 0 10px 0;"><a href="' . esc_url( $url ) . '"><img src="' . esc_url( $image_url ) . '" alt="' . esc_attr( $title ) . '" style="display:block;max-width:260px;width:100%;height:auto;border:0;" /></a></p>';
+            }
+        }
+
+        $excerpt_html = '';
+        if ( $show_excerpt ) {
+            $raw_excerpt = get_the_excerpt( $post_id );
+            if ( empty( $raw_excerpt ) ) {
+                $raw_excerpt = wp_strip_all_tags( get_post_field( 'post_content', $post_id ) );
+            }
+            $excerpt = wp_trim_words( $raw_excerpt, $excerpt_words, ' ...' );
+            if ( ! empty( $excerpt ) ) {
+                $excerpt_html = '<p style="margin:0 0 10px 0;font-size:14px;line-height:1.45;color:#333333;">' . esc_html( $excerpt ) . '</p>';
+            }
+        }
+
+        $button_html = '';
+        if ( $show_button ) {
+            $button_text = ! empty( $atts['button_text'] ) ? $atts['button_text'] : __( 'Weiterlesen', 'email-newsletter' );
+            $button_html = '<p style="margin:0;"><a href="' . esc_url( $url ) . '" style="display:inline-block;padding:8px 14px;background:#2271b1;color:#ffffff;text-decoration:none;border-radius:3px;font-size:13px;line-height:1.2;">' . esc_html( $button_text ) . '</a></p>';
+        }
+
+        return '<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;"><tr><td style="padding:12px;border:1px solid #e5e5e5;">'
+            . $image_html
+            . '<h3 style="margin:0 0 8px 0;font-size:18px;line-height:1.3;"><a href="' . esc_url( $url ) . '" style="color:#111111;text-decoration:none;">' . esc_html( $title ) . '</a></h3>'
+            . $excerpt_html
+            . $button_html
+            . '</td></tr></table>';
+    }
+
+    function enews_post_shortcode( $atts ) {
+        $atts = shortcode_atts(
+            array(
+                'id' => 0,
+                'show_image' => 1,
+                'show_excerpt' => 1,
+                'excerpt_words' => 24,
+                'show_button' => 1,
+                'button_text' => __( 'Weiterlesen', 'email-newsletter' ),
+                'track' => 1,
+                'utm_source' => 'newsletter',
+                'utm_medium' => 'email',
+                'utm_campaign' => 'ps-enewsletter',
+                'utm_content' => '',
+            ),
+            $atts,
+            'enews_post'
+        );
+
+        $post_id = absint( $atts['id'] );
+        if ( ! $post_id ) {
+            return '';
+        }
+
+        return $this->render_newsletter_post_card( $post_id, $atts );
+    }
+
+    function enews_posts_shortcode( $atts ) {
+        $atts = shortcode_atts(
+            array(
+                'ids' => '',
+                'count' => 4,
+                'layout' => 'grid',
+                'columns' => 2,
+                'show_image' => 1,
+                'show_excerpt' => 1,
+                'excerpt_words' => 24,
+                'show_button' => 1,
+                'button_text' => __( 'Weiterlesen', 'email-newsletter' ),
+                'track' => 1,
+                'utm_source' => 'newsletter',
+                'utm_medium' => 'email',
+                'utm_campaign' => 'ps-enewsletter',
+                'utm_content' => '',
+            ),
+            $atts,
+            'enews_posts'
+        );
+
+        $ids = $this->parse_newsletter_ids( $atts['ids'] );
+        if ( empty( $ids ) ) {
+            $count = max( 1, min( 12, absint( $atts['count'] ) ) );
+            $ids = get_posts(
+                array(
+                    'post_type' => 'post',
+                    'post_status' => 'publish',
+                    'posts_per_page' => $count,
+                    'orderby' => 'date',
+                    'order' => 'DESC',
+                    'fields' => 'ids',
+                )
+            );
+        }
+
+        $cards = array();
+        foreach ( $ids as $post_id ) {
+            $card = $this->render_newsletter_post_card( (int) $post_id, $atts );
+            if ( ! empty( $card ) ) {
+                $cards[] = $card;
+            }
+        }
+
+        $layout = strtolower( trim( $atts['layout'] ) );
+        if ( $layout === 'slider' ) {
+            // Slider is not supported by email clients; use a static two-column grid fallback.
+            return $this->render_newsletter_cards_grid( $cards, 2 );
+        }
+        if ( $layout === 'list' ) {
+            return $this->render_newsletter_cards_grid( $cards, 1 );
+        }
+
+        $columns = absint( $atts['columns'] );
+        if ( $columns < 1 ) {
+            $columns = 2;
+        }
+
+        return $this->render_newsletter_cards_grid( $cards, $columns > 1 ? 2 : 1 );
+    }
+
+    function enews_post_links_shortcode( $atts ) {
+        $atts = shortcode_atts(
+            array(
+                'ids' => '',
+                'count' => 5,
+                'show_image' => 1,
+                'show_excerpt' => 1,
+                'excerpt_words' => 16,
+                'track' => 1,
+                'utm_source' => 'newsletter',
+                'utm_medium' => 'email',
+                'utm_campaign' => 'ps-enewsletter',
+                'utm_content' => '',
+            ),
+            $atts,
+            'enews_post_links'
+        );
+
+        $ids = $this->parse_newsletter_ids( $atts['ids'] );
+        if ( empty( $ids ) ) {
+            $count = max( 1, min( 12, absint( $atts['count'] ) ) );
+            $ids = get_posts(
+                array(
+                    'post_type' => 'post',
+                    'post_status' => 'publish',
+                    'posts_per_page' => $count,
+                    'orderby' => 'date',
+                    'order' => 'DESC',
+                    'fields' => 'ids',
+                )
+            );
+        }
+
+        if ( empty( $ids ) ) {
+            return '';
+        }
+
+        $items = '';
+        foreach ( $ids as $post_id ) {
+            if ( get_post_type( $post_id ) !== 'post' ) {
+                continue;
+            }
+
+            $title = get_the_title( $post_id );
+            $url = get_permalink( $post_id );
+            if ( empty( $title ) || empty( $url ) ) {
+                continue;
+            }
+
+            $url = $this->newsletter_track_link( $url, $atts, 'post', $post_id );
+            $preview = '';
+            if ( $this->newsletter_bool( $atts['show_excerpt'], true ) ) {
+                $raw_excerpt = get_the_excerpt( $post_id );
+                if ( empty( $raw_excerpt ) ) {
+                    $raw_excerpt = wp_strip_all_tags( get_post_field( 'post_content', $post_id ) );
+                }
+                $preview = '<div style="margin-top:4px;font-size:13px;line-height:1.4;color:#555555;">' . esc_html( wp_trim_words( $raw_excerpt, absint( $atts['excerpt_words'] ), ' ...' ) ) . '</div>';
+            }
+
+            $thumb = '';
+            if ( $this->newsletter_bool( $atts['show_image'], true ) ) {
+                $img = get_the_post_thumbnail_url( $post_id, 'thumbnail' );
+                if ( $img ) {
+                    $thumb = '<img src="' . esc_url( $img ) . '" alt="" style="width:56px;height:56px;display:block;border:0;object-fit:cover;" />';
+                }
+            }
+
+            $items .= '<tr>'
+                . '<td valign="top" style="padding:0 10px 12px 0;width:56px;">' . $thumb . '</td>'
+                . '<td valign="top" style="padding:0 0 12px 0;"><a href="' . esc_url( $url ) . '" style="font-size:15px;line-height:1.35;color:#111111;text-decoration:none;font-weight:600;">' . esc_html( $title ) . '</a>' . $preview . '</td>'
+                . '</tr>';
+        }
+
+        if ( empty( $items ) ) {
+            return '';
+        }
+
+        return '<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;">' . $items . '</table>';
     }
 
     function unsubscribe_message_shortcode( $atts ) {
