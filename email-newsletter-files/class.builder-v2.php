@@ -155,8 +155,10 @@ class Email_Newsletter_Builder_V2 {
 				'label' => __( 'Produkte', 'email-newsletter' ),
 				'icon'  => 'P',
 				'defaults' => array(
+					'query_mode' => 'manual',
+					'query_limit' => 6,
 					'ids' => '',
-					'layout' => 'grid',
+					'layout' => 'single',
 					'show_image' => '1',
 					'show_price' => '1',
 					'show_old_price' => '1',
@@ -171,8 +173,11 @@ class Email_Newsletter_Builder_V2 {
 				'label' => __( 'Beitraege', 'email-newsletter' ),
 				'icon'  => 'A',
 				'defaults' => array(
+					'query_mode' => 'manual',
+					'query_scope' => 'all',
+					'query_limit' => 6,
 					'ids' => '',
-					'layout' => 'grid',
+					'layout' => 'single',
 					'show_image' => '1',
 					'show_excerpt' => '1',
 					'excerpt_words' => 24,
@@ -535,8 +540,10 @@ class Email_Newsletter_Builder_V2 {
 					$settings['html'] = wp_kses_post( $settings['html'] );
 					break;
 				case 'products':
+					$settings['query_mode'] = in_array( $settings['query_mode'], array( 'manual', 'latest', 'trigger' ), true ) ? $settings['query_mode'] : 'manual';
+					$settings['query_limit'] = max( 1, min( 24, intval( $settings['query_limit'] ) ) );
 					$settings['ids'] = $this->sanitize_ids( $settings['ids'] );
-					$settings['layout'] = in_array( $settings['layout'], array( 'list', 'grid' ), true ) ? $settings['layout'] : 'grid';
+					$settings['layout'] = in_array( $settings['layout'], array( 'single', 'list', 'grid' ), true ) ? $settings['layout'] : 'single';
 					$settings['show_image'] = $this->sanitize_bool_string( $settings['show_image'] );
 					$settings['show_price'] = $this->sanitize_bool_string( $settings['show_price'] );
 					$settings['show_old_price'] = $this->sanitize_bool_string( $settings['show_old_price'] );
@@ -547,6 +554,9 @@ class Email_Newsletter_Builder_V2 {
 					$settings['button_text'] = sanitize_text_field( $settings['button_text'] );
 					break;
 				case 'posts':
+					$settings['query_mode'] = in_array( $settings['query_mode'], array( 'manual', 'latest', 'trigger' ), true ) ? $settings['query_mode'] : 'manual';
+					$settings['query_scope'] = in_array( $settings['query_scope'], array( 'all', 'week', 'month' ), true ) ? $settings['query_scope'] : 'all';
+					$settings['query_limit'] = max( 1, min( 24, intval( $settings['query_limit'] ) ) );
 					$settings['ids'] = $this->sanitize_ids( $settings['ids'] );
 					$settings['layout'] = in_array( $settings['layout'], array( 'single', 'links', 'grid', 'slider' ), true ) ? $settings['layout'] : 'grid';
 					$settings['show_image'] = $this->sanitize_bool_string( $settings['show_image'] );
@@ -612,12 +622,12 @@ class Email_Newsletter_Builder_V2 {
 		return $this->render_full_email_document( $state, 'preview' );
 	}
 
-	function render_newsletter_email( $newsletter_id, $mode = 'send' ) {
+	function render_newsletter_email( $newsletter_id, $mode = 'send', $context = array() ) {
 		$state = $this->get_state( $newsletter_id );
-		return $this->render_full_email_document( $state, $mode, $newsletter_id );
+		return $this->render_full_email_document( $state, $mode, $newsletter_id, $context );
 	}
 
-	function render_state( $state, $mode = 'storage' ) {
+	function render_state( $state, $mode = 'storage', $context = array() ) {
 		$global = $state['global'];
 		$is_full_width = '1' === (string) $global['full_width'];
 		$inner_width = $is_full_width ? '100%' : intval( $global['content_width'] );
@@ -635,7 +645,7 @@ class Email_Newsletter_Builder_V2 {
 		$current_grid_row = 1;
 
 		foreach ( $modules as $module ) {
-			$content = $this->render_module_content( $module, $global, $mode );
+			$content = $this->render_module_content( $module, $global, $mode, $context );
 			if ( '' === $content ) {
 				continue;
 			}
@@ -696,7 +706,7 @@ class Email_Newsletter_Builder_V2 {
 		return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:' . esc_attr( $global['background_color'] ) . ';"><tr><td align="center" style="padding:' . ( $is_full_width ? '24px 0' : '24px 12px' ) . ';"><table role="presentation" width="' . esc_attr( $inner_width ) . '" cellpadding="0" cellspacing="0" border="0" style="' . $inner_style . '">' . implode( '', $rows ) . '</table></td></tr></table>';
 	}
 
-	function render_full_email_document( $state, $mode = 'send', $newsletter_id = 0 ) {
+	function render_full_email_document( $state, $mode = 'send', $newsletter_id = 0, $context = array() ) {
 		$global = $state['global'];
 		$is_full_width = '1' === (string) $global['full_width'];
 		$shell_width = $is_full_width ? '100%' : intval( $global['content_width'] );
@@ -714,7 +724,7 @@ class Email_Newsletter_Builder_V2 {
 		$branding = $this->render_optional_shell_block( $global['branding_html'], $global, 'padding:18px 24px 6px 24px;text-align:left;' );
 		$contact_info = $this->render_optional_shell_block( $global['contact_info'], $global, 'padding:18px 24px 24px 24px;text-align:left;font-size:13px;line-height:1.6;color:#64748b;' );
 		$view_browser_row = $this->render_optional_shell_block( $view_browser, $global, 'padding:18px 24px 4px 24px;text-align:center;font-size:12px;line-height:1.5;color:#64748b;' );
-		$content = $this->render_state( $state, $mode );
+		$content = $this->render_state( $state, $mode, $context );
 
 		return '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><meta name="viewport" content="width=device-width" /><title>' . esc_html( $title ) . '</title>' . $font_link . '<style type="text/css">' . $typography_css . '@media only screen and (max-width:640px){.enews-grid-col{display:block!important;width:100%!important;padding-left:0!important;padding-right:0!important;}}</style></head><body style="margin:0;padding:0;background:' . esc_attr( $global['background_color'] ) . ';">'
 			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:' . esc_attr( $global['background_color'] ) . ';margin:0;padding:0;">'
@@ -823,7 +833,7 @@ class Email_Newsletter_Builder_V2 {
 		return $this->wrap_row( $content, $global );
 	}
 
-	function render_module_content( $module, $global, $mode = 'storage' ) {
+	function render_module_content( $module, $global, $mode = 'storage', $context = array() ) {
 		$type = $module['type'];
 		$settings = $module['settings'];
 		$is_preview = 'preview' === $mode;
@@ -861,12 +871,14 @@ class Email_Newsletter_Builder_V2 {
 				}
 				return $is_preview ? do_shortcode( $settings['html'] ) : $settings['html'];
 			case 'products':
+				$settings['ids'] = $this->resolve_module_item_ids( 'products', $settings, $context );
 				if ( empty( $settings['ids'] ) ) {
 					return '';
 				}
 				$shortcode = $this->build_products_shortcode( $settings );
 				return $is_preview ? do_shortcode( $shortcode ) : $shortcode;
 			case 'posts':
+				$settings['ids'] = $this->resolve_module_item_ids( 'posts', $settings, $context );
 				if ( empty( $settings['ids'] ) ) {
 					return '';
 				}
@@ -995,7 +1007,18 @@ class Email_Newsletter_Builder_V2 {
 	}
 
 	function build_products_shortcode( $settings ) {
-		$shortcode = '[enews_products ids="' . esc_attr( $settings['ids'] ) . '" layout="' . esc_attr( $settings['layout'] ) . '" show_image="' . esc_attr( $settings['show_image'] ) . '" show_price="' . esc_attr( $settings['show_price'] ) . '" show_old_price="' . esc_attr( $settings['show_old_price'] ) . '" show_button="' . esc_attr( $settings['show_button'] ) . '" show_badge="' . esc_attr( $settings['show_badge'] ) . '" track="' . esc_attr( $settings['track'] ) . '"';
+		if ( 'single' === $settings['layout'] ) {
+			$ids = explode( ',', (string) $settings['ids'] );
+			$single_id = intval( trim( $ids[0] ) );
+			if ( $single_id <= 0 ) {
+				return '';
+			}
+
+			$shortcode = '[enews_product id="' . esc_attr( $single_id ) . '" show_image="' . esc_attr( $settings['show_image'] ) . '" show_price="' . esc_attr( $settings['show_price'] ) . '" show_old_price="' . esc_attr( $settings['show_old_price'] ) . '" show_button="' . esc_attr( $settings['show_button'] ) . '" show_badge="' . esc_attr( $settings['show_badge'] ) . '" track="' . esc_attr( $settings['track'] ) . '"';
+		} else {
+			$shortcode = '[enews_products ids="' . esc_attr( $settings['ids'] ) . '" layout="' . esc_attr( $settings['layout'] ) . '" show_image="' . esc_attr( $settings['show_image'] ) . '" show_price="' . esc_attr( $settings['show_price'] ) . '" show_old_price="' . esc_attr( $settings['show_old_price'] ) . '" show_button="' . esc_attr( $settings['show_button'] ) . '" show_badge="' . esc_attr( $settings['show_badge'] ) . '" track="' . esc_attr( $settings['track'] ) . '"';
+		}
+
 		if ( ! empty( $settings['badge_text'] ) ) {
 			$shortcode .= ' badge_text="' . esc_attr( $settings['badge_text'] ) . '"';
 		}
@@ -1005,6 +1028,170 @@ class Email_Newsletter_Builder_V2 {
 		$shortcode .= ']';
 
 		return $shortcode;
+	}
+
+	function resolve_module_item_ids( $item_type, $settings, $context = array() ) {
+		$query_mode = isset( $settings['query_mode'] ) ? $settings['query_mode'] : 'manual';
+		if ( 'trigger' === $query_mode ) {
+			return $this->resolve_trigger_module_item_ids( $item_type, $settings, $context );
+		}
+
+		if ( 'latest' === $query_mode ) {
+			$layout = isset( $settings['layout'] ) ? (string) $settings['layout'] : '';
+			$default_limit = ( 'single' === $layout ) ? 1 : 6;
+			$limit = isset( $settings['query_limit'] ) ? intval( $settings['query_limit'] ) : $default_limit;
+			if ( 'single' === $layout ) {
+				$limit = 1;
+			}
+			$limit = max( 1, min( 24, $limit ) );
+
+			if ( 'posts' === $item_type ) {
+				$scope = isset( $settings['query_scope'] ) ? (string) $settings['query_scope'] : 'all';
+				$ids = $this->get_latest_item_ids( $item_type, $limit, $scope );
+				return implode( ',', $ids );
+			}
+
+			$items = $this->search_items( $item_type, '', array(), $limit );
+			$ids = array();
+			foreach ( (array) $items as $item ) {
+				if ( isset( $item['id'] ) ) {
+					$ids[] = intval( $item['id'] );
+				}
+			}
+			$ids = array_values( array_unique( array_filter( $ids ) ) );
+			return implode( ',', $ids );
+		}
+
+		return isset( $settings['ids'] ) ? $this->sanitize_ids( $settings['ids'] ) : '';
+	}
+
+	function resolve_trigger_module_item_ids( $item_type, $settings, $context = array() ) {
+		$layout = isset( $settings['layout'] ) ? (string) $settings['layout'] : '';
+		$limit = isset( $settings['query_limit'] ) ? intval( $settings['query_limit'] ) : ( 'single' === $layout ? 1 : 6 );
+		if ( 'single' === $layout ) {
+			$limit = 1;
+		}
+		$limit = max( 1, min( 24, $limit ) );
+
+		$post_types = $this->get_post_types_for_item_type( $item_type );
+		if ( empty( $post_types ) ) {
+			return '';
+		}
+
+		$source_post_id = isset( $context['source_post_id'] ) ? intval( $context['source_post_id'] ) : 0;
+		$ids = array();
+
+		if ( $source_post_id > 0 ) {
+			$source_post_type = get_post_type( $source_post_id );
+			if ( $source_post_type && in_array( $source_post_type, $post_types, true ) && 'publish' === get_post_status( $source_post_id ) ) {
+				$ids[] = $source_post_id;
+			}
+		}
+
+		if ( count( $ids ) < $limit ) {
+			$args = array(
+				'post_type' => $post_types,
+				'post_status' => 'publish',
+				'posts_per_page' => $limit - count( $ids ),
+				'orderby' => 'date',
+				'order' => 'DESC',
+				'fields' => 'ids',
+				'no_found_rows' => true,
+				'ignore_sticky_posts' => true,
+			);
+
+			if ( ! empty( $ids ) ) {
+				$args['post__not_in'] = $ids;
+			}
+
+			if ( 'posts' === $item_type && $source_post_id > 0 && in_array( $source_post_id, $ids, true ) ) {
+				$source_categories = wp_get_post_categories( $source_post_id, array( 'fields' => 'ids' ) );
+				if ( ! empty( $source_categories ) ) {
+					$args['category__in'] = array_map( 'intval', $source_categories );
+				}
+			}
+
+			if ( 'posts' === $item_type ) {
+				$scope = isset( $settings['query_scope'] ) ? (string) $settings['query_scope'] : 'all';
+				$date_query = $this->build_posts_date_query_for_scope( $scope );
+				if ( ! empty( $date_query ) ) {
+					$args['date_query'] = array( $date_query );
+				}
+			}
+
+			$latest_ids = get_posts( $args );
+			if ( ! empty( $latest_ids ) ) {
+				$ids = array_merge( $ids, array_map( 'intval', $latest_ids ) );
+			}
+		}
+
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
+		if ( empty( $ids ) ) {
+			return '';
+		}
+
+		if ( count( $ids ) > $limit ) {
+			$ids = array_slice( $ids, 0, $limit );
+		}
+
+		return implode( ',', $ids );
+	}
+
+	function get_latest_item_ids( $item_type, $limit, $scope = 'all' ) {
+		$post_types = $this->get_post_types_for_item_type( $item_type );
+		if ( empty( $post_types ) ) {
+			return array();
+		}
+
+		$args = array(
+			'post_type' => $post_types,
+			'post_status' => 'publish',
+			'posts_per_page' => max( 1, min( 24, intval( $limit ) ) ),
+			'orderby' => 'date',
+			'order' => 'DESC',
+			'fields' => 'ids',
+			'no_found_rows' => true,
+			'ignore_sticky_posts' => true,
+		);
+
+		if ( 'posts' === $item_type ) {
+			$date_query = $this->build_posts_date_query_for_scope( $scope );
+			if ( ! empty( $date_query ) ) {
+				$args['date_query'] = array( $date_query );
+			}
+		}
+
+		$ids = get_posts( $args );
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', (array) $ids ) ) ) );
+		return $ids;
+	}
+
+	function build_posts_date_query_for_scope( $scope ) {
+		$scope = is_string( $scope ) ? strtolower( trim( $scope ) ) : 'all';
+		$now = current_time( 'timestamp' );
+
+		if ( 'week' === $scope ) {
+			$week_start = intval( date( 'N', $now ) );
+			$start = mktime( 0, 0, 0, intval( date( 'n', $now ) ), intval( date( 'j', $now ) ) - ( $week_start - 1 ), intval( date( 'Y', $now ) ) );
+			$end = mktime( 23, 59, 59, intval( date( 'n', $now ) ), intval( date( 'j', $now ) ) + ( 7 - $week_start ), intval( date( 'Y', $now ) ) );
+			return array(
+				'after' => gmdate( 'Y-m-d H:i:s', $start ),
+				'before' => gmdate( 'Y-m-d H:i:s', $end ),
+				'inclusive' => true,
+			);
+		}
+
+		if ( 'month' === $scope ) {
+			$year = intval( date( 'Y', $now ) );
+			$month = intval( date( 'n', $now ) );
+			return array(
+				'year' => $year,
+				'monthnum' => $month,
+				'inclusive' => true,
+			);
+		}
+
+		return array();
 	}
 
 	function build_posts_shortcode( $settings ) {

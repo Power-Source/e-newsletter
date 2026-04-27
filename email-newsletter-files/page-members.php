@@ -466,9 +466,12 @@
                         <option selected="selected" value="-1"><?php _e( 'Massenaktionen', 'email-newsletter' ) ?></option>
 
                         <?php if ( $groups ): ?>
-                        <option value="add_members_group"><?php _e( 'Zur Gruppe hinzufügen', 'email-newsletter' ) ?></option>
-                        <option value="delete_members_group"><?php _e( 'Aus Gruppe löschen', 'email-newsletter' ) ?></option>
+                        <option value="add_members_group"><?php _e( 'Tag/Liste hinzufügen', 'email-newsletter' ) ?></option>
+                        <option value="delete_members_group"><?php _e( 'Tag/Liste entfernen', 'email-newsletter' ) ?></option>
+                        <option value="move_members_group"><?php _e( 'Liste ersetzen', 'email-newsletter' ) ?></option>
                         <?php endif; ?>
+
+                        <option value="set_members_status"><?php _e( 'Status setzen', 'email-newsletter' ) ?></option>
 
                         <option value="delete_members"><?php _e( 'Löschen', 'email-newsletter' ) ?></option>
                     </select>
@@ -476,12 +479,6 @@
                     <?php if ( $groups ): ?>
                     <select name="list_group_id" id="list_group_id" style="display: none;">
                         <option selected="selected" value="-1"> <?php _e( 'Gruppenliste', 'email-newsletter' ) ?> </option>
-                            <option value="subscribed">
-                                <?php _e( 'Abonniert', 'email-newsletter' ); ?>
-                            </option>
-                            <option value="unsubscribed">
-                                <?php _e( 'Abbestellt', 'email-newsletter' ); ?>
-                            </option>
                         <?php foreach( $groups as $group ) : ?>
                             <option value="<?php echo $group['group_id'];?>">
                             <?php echo ( $group['public'] ) ? $group['group_name'] .' ('.__( 'Öffentlich', 'email-newsletter' ).')' : $group['group_name']; ?>
@@ -489,6 +486,12 @@
                         <?php endforeach; ?>
                     </select>
                     <?php endif; ?>
+
+                    <select name="members_status" id="members_status" style="display: none;">
+                        <option selected="selected" value="-1"><?php _e( 'Status wählen', 'email-newsletter' ) ?></option>
+                        <option value="subscribed"><?php _e( 'Abonniert', 'email-newsletter' ) ?></option>
+                        <option value="unsubscribed"><?php _e( 'Abbestellt', 'email-newsletter' ) ?></option>
+                    </select>
 
                     <input type="button" value="<?php _e( 'Anwenden', 'email-newsletter' ) ?>" id="apply" class="button-secondary action" name="">
                 </div>

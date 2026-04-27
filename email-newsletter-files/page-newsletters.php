@@ -23,6 +23,35 @@
 
     $newsletters = $this->get_newsletters($arg);
 
+    $total_newsletters = is_array( $newsletters ) ? count( $newsletters ) : 0;
+    $total_sent = 0;
+    $total_opened = 0;
+    $total_bounced = 0;
+    $top_opened_count = -1;
+    $top_opened_subject = '';
+
+    if ( is_array( $newsletters ) ) {
+        foreach ( $newsletters as $newsletter_stat ) {
+            $sent = intval( isset( $newsletter_stat['count_sent'] ) ? $newsletter_stat['count_sent'] : 0 );
+            $opened = intval( isset( $newsletter_stat['count_opened'] ) ? $newsletter_stat['count_opened'] : 0 );
+            $bounced = intval( isset( $newsletter_stat['count_bounced'] ) ? $newsletter_stat['count_bounced'] : 0 );
+
+            $total_sent += $sent;
+            $total_opened += $opened;
+            $total_bounced += $bounced;
+
+            if ( $opened > $top_opened_count ) {
+                $top_opened_count = $opened;
+                $top_opened_subject = isset( $newsletter_stat['subject'] ) ? trim( $newsletter_stat['subject'] ) : '';
+            }
+        }
+    }
+
+    $open_rate = $total_sent > 0 ? round( ( $total_opened / $total_sent ) * 100, 1 ) : 0;
+    if ( '' === $top_opened_subject ) {
+        $top_opened_subject = __( '(Ohne Betreff)', 'email-newsletter' );
+    }
+
     //Display status message
     if ( isset( $_GET['updated'] ) ) {
         ?><div id="message" class="updated fade"><p><?php echo esc_html( urldecode( $_GET['message'] ) ); ?></p></div><?php
@@ -37,7 +66,39 @@
             <?php } ?>
         </h2>
         <p><?php _e( 'Diese Seite enthält die Liste aller Newsletter.', 'email-newsletter' ) ?></p>
-        <p class="description"><?php _e( 'Hinweis: Bitte speichere Deine benutzerdefinierten Designs im Ordner enewsletter-custom-themes, der sich unter wp-content/uploads befindet (plus/siteID/, falls die Aktivierung auf einem einzelnen Blog einer Multisite-Installation erfolgt).', 'email-newsletter' ) ?></p>
+        <section class="enews-hero" aria-label="<?php esc_attr_e( 'Newsletter Gesamtübersicht', 'email-newsletter' ); ?>">
+            <div class="enews-hero-head">
+                <h3><?php _e( 'Gesamtübersicht', 'email-newsletter' ); ?></h3>
+                <p class="description"><?php _e( 'Deine wichtigsten Newsletter-Kennzahlen auf einen Blick.', 'email-newsletter' ); ?></p>
+            </div>
+            <div class="enews-hero-grid">
+                <article class="enews-hero-card">
+                    <span class="enews-hero-label"><?php _e( 'Newsletter gesamt', 'email-newsletter' ); ?></span>
+                    <strong class="enews-hero-value"><?php echo intval( $total_newsletters ); ?></strong>
+                </article>
+                <article class="enews-hero-card">
+                    <span class="enews-hero-label"><?php _e( 'Gesendet', 'email-newsletter' ); ?></span>
+                    <strong class="enews-hero-value"><?php echo intval( $total_sent ); ?></strong>
+                </article>
+                <article class="enews-hero-card">
+                    <span class="enews-hero-label"><?php _e( 'Geöffnet', 'email-newsletter' ); ?></span>
+                    <strong class="enews-hero-value"><?php echo intval( $total_opened ); ?></strong>
+                </article>
+                <article class="enews-hero-card">
+                    <span class="enews-hero-label"><?php _e( 'Öffnungsrate', 'email-newsletter' ); ?></span>
+                    <strong class="enews-hero-value"><?php echo esc_html( number_format_i18n( $open_rate, 1 ) ); ?>%</strong>
+                </article>
+                <article class="enews-hero-card">
+                    <span class="enews-hero-label"><?php _e( 'Unzustellbar', 'email-newsletter' ); ?></span>
+                    <strong class="enews-hero-value"><?php echo intval( $total_bounced ); ?></strong>
+                </article>
+                <article class="enews-hero-card enews-hero-card-wide">
+                    <span class="enews-hero-label"><?php _e( 'Meistgelesener Newsletter', 'email-newsletter' ); ?></span>
+                    <strong class="enews-hero-value enews-hero-value-title"><?php echo esc_html( $top_opened_subject ); ?></strong>
+                    <span class="enews-hero-meta"><?php echo max( 0, intval( $top_opened_count ) ); ?> <?php _e( 'Öffnungen', 'email-newsletter' ); ?></span>
+                </article>
+            </div>
+        </section>
 
         <?php
         $i = 0;

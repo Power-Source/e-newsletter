@@ -16,6 +16,10 @@ class Email_Newsletter_functions {
             case 'newsletters-subscribes':
             case 'newsletters-settings':
             case 'newsletters-builder-v2':
+            case 'newsletters-campaigns':
+            case 'newsletters-campaign-edit':
+            case 'newsletters-campaign-stats':
+            case 'newsletters-logs':
                 return 1;
                 break;
             case 'unsubscribe_page':
@@ -1079,6 +1083,37 @@ class Email_Newsletter_functions {
     /**
      * Send email
      **/
+    function get_list_unsubscribe_headers( $options = array(), $email_to = '' ) {
+        $headers = array();
+        $list_unsubscribe_values = array();
+
+        $unsubscribe_url = isset( $options['unsubscribe_url'] ) ? trim( (string) $options['unsubscribe_url'] ) : '';
+        if ( ! empty( $unsubscribe_url ) && wp_http_validate_url( $unsubscribe_url ) ) {
+            $list_unsubscribe_values[] = '<' . $unsubscribe_url . '>';
+            if ( 0 === stripos( $unsubscribe_url, 'https://' ) ) {
+                $headers[] = 'List-Unsubscribe-Post: List-Unsubscribe=One-Click';
+            }
+        }
+
+        $mailto = '';
+        if ( ! empty( $options['list_unsubscribe_mailto'] ) ) {
+            $mailto = sanitize_email( $options['list_unsubscribe_mailto'] );
+        } elseif ( isset( $this->settings['from_email'] ) ) {
+            $mailto = sanitize_email( $this->settings['from_email'] );
+        }
+
+        if ( ! empty( $mailto ) && is_email( $mailto ) ) {
+            $list_unsubscribe_values[] = '<mailto:' . $mailto . '>';
+        }
+
+        $list_unsubscribe_values = array_values( array_unique( $list_unsubscribe_values ) );
+        if ( ! empty( $list_unsubscribe_values ) ) {
+            $headers[] = 'List-Unsubscribe: ' . implode( ', ', $list_unsubscribe_values );
+        }
+
+        return $headers;
+    }
+
     function send_email( $email_from_name, $email_from, $email_to, $email_subject, $email_contents, $options=array() ) {
     	global $enewsletter_send_options;
 
@@ -1104,6 +1139,7 @@ class Email_Newsletter_functions {
 
     		$headers = array();
     		$headers[] = $email_from_name ? 'From: '.$email_from_name.' <'.$email_from.'>' : 'From: <'.$email_from.'>';
+        	$headers = array_merge( $headers, $this->get_list_unsubscribe_headers( $options, $email_to ) );
     		if( isset($options['bounce_email']) )
     			$headers[] = 'Return-Path: <'.$options['bounce_email'].'>';
     		if( isset($options['message_id']) ) {
@@ -1115,6 +1151,16 @@ class Email_Newsletter_functions {
 
 	        if( !$sent_status ) {
 	            $this->write_log('WP Mail send email error');
+                $this->log_event(
+                    'send.wp_mail_error',
+                    'error',
+                    array(
+                        'to' => $email_to,
+                        'from' => $email_from,
+                        'subject' => $email_subject,
+                        'transport' => 'wpmail',
+                    )
+                );
 	            //return 'WP Mail send email error';
 	        }
     	}
@@ -1171,6 +1217,16 @@ class Email_Newsletter_functions {
 	            $mail->MessageID = $options['message_id'];
 	        }
 
+            $list_unsubscribe_headers = $this->get_list_unsubscribe_headers( $options, $email_to );
+            if ( ! empty( $list_unsubscribe_headers ) ) {
+                foreach ( $list_unsubscribe_headers as $header_line ) {
+                    $parts = explode( ':', $header_line, 2 );
+                    if ( count( $parts ) === 2 ) {
+                        $mail->AddCustomHeader( trim( $parts[0] ), trim( $parts[1] ) );
+                    }
+                }
+            }
+
 			/**
 			 * Fires after ePHPMailer is initialized.
 			 *
@@ -1181,6 +1237,17 @@ class Email_Newsletter_functions {
 	        $sent_status = $mail->Send();
 	        if( !$sent_status ) {
 	            $this->write_log( 'Send email error: '.$mail->ErrorInfo.'['.json_encode($mail->ErrorInfoRaw).']');
+                $this->log_event(
+                    'send.mail_error',
+                    'error',
+                    array(
+                        'to' => $email_to,
+                        'from' => $email_from,
+                        'subject' => $email_subject,
+                        'transport' => isset( $this->settings['outbound_type'] ) ? $this->settings['outbound_type'] : 'mail',
+                        'error' => $mail->ErrorInfo,
+                    )
+                );
 	            return !empty( $mail->ErrorInfoRaw ) ? json_encode( $mail->ErrorInfoRaw ) : $mail->ErrorInfo;
 	        }
 	    }
@@ -1426,6 +1493,10 @@ class Email_Newsletter_functions {
                 $contents = str_replace( "{".strtoupper($key)."}", $value, $contents );
                 $contents = str_replace( "%7B".strtoupper($key)."%7D", $value, $contents );
             }
+        }
+
+        if ( method_exists( $this, 'wrap_email_click_links' ) ) {
+            $contents = $this->wrap_email_click_links( $contents, $send_id, $member_id, $wp_only_user_id );
         }
 
         return $contents;
@@ -1991,6 +2062,11 @@ class Email_Newsletter_functions {
             $settings['double_opt_in'] = 0;
         }
 
+        if ( ! isset( $settings['debug_enabled'] ) ) {
+            $settings['debug_enabled'] = 0;
+        }
+        $settings['debug_enabled'] = ( intval( $settings['debug_enabled'] ) === 1 ) ? 1 : 0;
+
         if(isset($settings['email_caps'])) {
             $caps = $settings['email_caps'];
             unset($settings['email_caps']);
@@ -2283,6 +2359,90 @@ class Email_Newsletter_functions {
                 $result = $wpdb->query( $enewsletter_table );
             }
 
+            if ( $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_campaigns'" ) != "{$tb_prefix}enewsletter_campaigns" ) {
+
+                $enewsletter_table = "CREATE TABLE `{$tb_prefix}enewsletter_campaigns` (
+                    `campaign_id` int(11) NOT NULL auto_increment,
+                    `entity_type` varchar(20) NOT NULL,
+                    `title` varchar(255) NOT NULL,
+                    `status` varchar(20) NOT NULL,
+                    `newsletter_id` int(11) NOT NULL,
+                    `settings` longtext,
+                    `targets` longtext,
+                    `last_run` int(11) DEFAULT '0',
+                    `next_run` int(11) DEFAULT '0',
+                    `created_at` int(11) NOT NULL,
+                    `updated_at` int(11) NOT NULL,
+                    `created_by` int(11) DEFAULT '0',
+                    PRIMARY KEY (`campaign_id`)
+                ) DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;";
+
+                $result = $wpdb->query( $enewsletter_table );
+            }
+
+            if ( $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_campaign_runs'" ) != "{$tb_prefix}enewsletter_campaign_runs" ) {
+
+                $enewsletter_table = "CREATE TABLE `{$tb_prefix}enewsletter_campaign_runs` (
+                    `run_id` int(11) NOT NULL auto_increment,
+                    `campaign_id` int(11) NOT NULL,
+                    `run_key` varchar(191) NOT NULL,
+                    `send_id` int(11) DEFAULT '0',
+                    `source_post_id` int(11) DEFAULT '0',
+                    `scheduled_at` int(11) DEFAULT '0',
+                    `started_at` int(11) DEFAULT '0',
+                    `finished_at` int(11) DEFAULT '0',
+                    `status` varchar(20) NOT NULL,
+                    `queued` int(11) DEFAULT '0',
+                    `sent` int(11) DEFAULT '0',
+                    `opened` int(11) DEFAULT '0',
+                    `clicked` int(11) DEFAULT '0',
+                    `bounced` int(11) DEFAULT '0',
+                    `failed` int(11) DEFAULT '0',
+                    `meta` longtext,
+                    PRIMARY KEY (`run_id`),
+                    UNIQUE KEY `run_key` (`run_key`)
+                ) DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;";
+
+                $result = $wpdb->query( $enewsletter_table );
+            }
+
+            if ( $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_campaign_clicks'" ) != "{$tb_prefix}enewsletter_campaign_clicks" ) {
+
+                $enewsletter_table = "CREATE TABLE `{$tb_prefix}enewsletter_campaign_clicks` (
+                    `click_id` int(11) NOT NULL auto_increment,
+                    `run_id` int(11) NOT NULL,
+                    `campaign_id` int(11) NOT NULL,
+                    `send_id` int(11) NOT NULL,
+                    `member_key` varchar(32) NOT NULL,
+                    `target_url` text,
+                    `target_hash` char(32) NOT NULL,
+                    `click_count` int(11) DEFAULT '1',
+                    `first_clicked` int(11) DEFAULT '0',
+                    `last_clicked` int(11) DEFAULT '0',
+                    PRIMARY KEY (`click_id`),
+                    UNIQUE KEY `run_member_target` (`run_id`,`member_key`,`target_hash`),
+                    KEY `run_id` (`run_id`),
+                    KEY `campaign_id` (`campaign_id`),
+                    KEY `send_id` (`send_id`)
+                ) DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;";
+
+                $result = $wpdb->query( $enewsletter_table );
+            }
+
+            if ( $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_campaign_dedupe'" ) != "{$tb_prefix}enewsletter_campaign_dedupe" ) {
+
+                $enewsletter_table = "CREATE TABLE `{$tb_prefix}enewsletter_campaign_dedupe` (
+                    `dedupe_id` int(11) NOT NULL auto_increment,
+                    `campaign_id` int(11) NOT NULL,
+                    `dedupe_key` varchar(191) NOT NULL,
+                    `created_at` int(11) NOT NULL,
+                    PRIMARY KEY (`dedupe_id`),
+                    UNIQUE KEY `campaign_dedupe` (`campaign_id`,`dedupe_key`)
+                ) DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;";
+
+                $result = $wpdb->query( $enewsletter_table );
+            }
+
 			//create folder for custom themes
 			$custom_theme_dir = $this->get_custom_theme_dir();
 
@@ -2566,6 +2726,18 @@ class Email_Newsletter_functions {
             if ( $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_meta'" ) == "{$tb_prefix}enewsletter_meta" )
                 $wpdb->query( "DROP TABLE IF EXISTS {$tb_prefix}enewsletter_meta" );
 
+            if ( $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_campaign_dedupe'" ) == "{$tb_prefix}enewsletter_campaign_dedupe" )
+                $wpdb->query( "DROP TABLE IF EXISTS {$tb_prefix}enewsletter_campaign_dedupe" );
+
+            if ( $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_campaign_runs'" ) == "{$tb_prefix}enewsletter_campaign_runs" )
+                $wpdb->query( "DROP TABLE IF EXISTS {$tb_prefix}enewsletter_campaign_runs" );
+
+            if ( $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_campaign_clicks'" ) == "{$tb_prefix}enewsletter_campaign_clicks" )
+                $wpdb->query( "DROP TABLE IF EXISTS {$tb_prefix}enewsletter_campaign_clicks" );
+
+            if ( $wpdb->get_var( "SHOW TABLES LIKE '{$tb_prefix}enewsletter_campaigns'" ) == "{$tb_prefix}enewsletter_campaigns" )
+                $wpdb->query( "DROP TABLE IF EXISTS {$tb_prefix}enewsletter_campaigns" );
+
             //if we are deleting entire site, we dont need to deal with it.
             if(!$deleting_specific_site) {
                 foreach($wp_roles->get_names() as $name => $obj) {
@@ -2679,16 +2851,217 @@ class Email_Newsletter_functions {
     }
 
     /**
+     * Build safe structured log payload.
+     **/
+    function normalize_log_context( $context ) {
+        $result = array();
+        if ( ! is_array( $context ) ) {
+            return $result;
+        }
+
+        foreach ( $context as $key => $value ) {
+            $key = sanitize_key( (string) $key );
+            if ( '' === $key ) {
+                continue;
+            }
+
+            if ( in_array( $key, array( 'password', 'pass', 'pwd', 'smtp_pass', 'bounce_password', 'token', 'secret', 'api_key' ), true ) ) {
+                $result[ $key ] = '[redacted]';
+                continue;
+            }
+
+            if ( is_scalar( $value ) || null === $value ) {
+                $result[ $key ] = $value;
+                continue;
+            }
+
+            if ( is_array( $value ) ) {
+                $result[ $key ] = $this->normalize_log_context( $value );
+                continue;
+            }
+
+            $result[ $key ] = '[object]';
+        }
+
+        return $result;
+    }
+
+    /**
+     * Structured log helper.
+     **/
+    function log_event( $event, $level = 'info', $context = array() ) {
+        $level = sanitize_key( (string) $level );
+        if ( ! in_array( $level, array( 'debug', 'info', 'warning', 'error' ), true ) ) {
+            $level = 'info';
+        }
+
+        $event = sanitize_key( str_replace( '-', '_', (string) $event ) );
+        if ( '' === $event ) {
+            $event = 'event';
+        }
+
+        $payload = array(
+            'level' => $level,
+            'event' => $event,
+            'context' => $this->normalize_log_context( $context ),
+        );
+
+        $this->write_log( wp_json_encode( $payload ) );
+    }
+
+    /**
+     * Get debug log file path.
+     **/
+    function get_debug_log_file_path() {
+        return $this->plugin_dir . "email-newsletter-files/debug.log";
+    }
+
+    /**
+     * Get max debug log file size before rotation.
+     **/
+    function get_debug_log_max_bytes() {
+        $default = 5 * 1024 * 1024;
+        $value = apply_filters( 'email_newsletter_debug_log_max_bytes', $default );
+        $value = intval( $value );
+        return $value > 0 ? $value : $default;
+    }
+
+    /**
+     * Rotate debug log file when max size is reached.
+     **/
+    function rotate_debug_log_if_needed() {
+        $file = $this->get_debug_log_file_path();
+        if ( ! file_exists( $file ) ) {
+            return;
+        }
+
+        $max_size = $this->get_debug_log_max_bytes();
+        $size = @filesize( $file );
+        if ( false === $size || $size < $max_size ) {
+            return;
+        }
+
+        $rotated = $file . '.1';
+        if ( file_exists( $rotated ) ) {
+            @unlink( $rotated );
+        }
+
+        @rename( $file, $rotated );
+        @file_put_contents( $file, '' );
+    }
+
+    /**
+     * Download-friendly debug log file name.
+     **/
+    function get_debug_log_download_name() {
+        return 'enewsletter-debug-' . date_i18n( 'Ymd-His' ) . '.log';
+    }
+
+    /**
+     * Parse one debug log line.
+     **/
+    function parse_debug_log_line( $line ) {
+        $line = (string) $line;
+        $entry = array(
+            'time' => '',
+            'level' => 'legacy',
+            'event' => 'legacy',
+            'message' => trim( $line ),
+            'context' => array(),
+        );
+
+        if ( preg_match( '/^\[(.*?)\](.*)$/', $line, $matches ) ) {
+            $entry['time'] = trim( $matches[1] );
+            $entry['message'] = trim( $matches[2] );
+        }
+
+        $decoded = json_decode( $entry['message'], true );
+        if ( is_array( $decoded ) && isset( $decoded['event'] ) ) {
+            $entry['level'] = isset( $decoded['level'] ) ? sanitize_key( (string) $decoded['level'] ) : 'info';
+            $entry['event'] = sanitize_key( (string) $decoded['event'] );
+            $entry['context'] = isset( $decoded['context'] ) && is_array( $decoded['context'] ) ? $decoded['context'] : array();
+            $entry['message'] = isset( $decoded['message'] ) ? (string) $decoded['message'] : '';
+        }
+
+        return $entry;
+    }
+
+    /**
+     * Return parsed debug log entries.
+     **/
+    function get_debug_log_entries( $limit = 200, $level_filter = '', $event_filter = '', $search = '' ) {
+        $file = $this->get_debug_log_file_path();
+        if ( ! file_exists( $file ) ) {
+            return array();
+        }
+
+        $raw_lines = @file( $file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+        if ( ! is_array( $raw_lines ) ) {
+            return array();
+        }
+
+        $entries = array();
+        $level_filter = sanitize_key( (string) $level_filter );
+        $event_filter = sanitize_key( (string) $event_filter );
+        $search = strtolower( trim( (string) $search ) );
+
+        foreach ( $raw_lines as $line ) {
+            $entry = $this->parse_debug_log_line( $line );
+
+            if ( $level_filter && $entry['level'] !== $level_filter ) {
+                continue;
+            }
+
+            if ( $event_filter && $entry['event'] !== $event_filter ) {
+                continue;
+            }
+
+            if ( $search ) {
+                $haystack = strtolower( $entry['message'] . ' ' . wp_json_encode( $entry['context'] ) . ' ' . $entry['event'] . ' ' . $entry['level'] );
+                if ( false === strpos( $haystack, $search ) ) {
+                    continue;
+                }
+            }
+
+            $entries[] = $entry;
+        }
+
+        $entries = array_reverse( $entries );
+        $limit = max( 1, min( 1000, intval( $limit ) ) );
+        return array_slice( $entries, 0, $limit );
+    }
+
+    /**
+     * Clear debug log file.
+     **/
+    function clear_debug_log() {
+        $file = $this->get_debug_log_file_path();
+        if ( ! file_exists( $file ) ) {
+            return true;
+        }
+
+        return false !== @file_put_contents( $file, '' );
+    }
+
+    /**
      * Write log for CRON
      **/
     function write_log( $message ) {
         if(!$this->debug)
             return false;
 
-        $file = $this->plugin_dir . "email-newsletter-files/debug.log";
+        $file = $this->get_debug_log_file_path();
+        $this->rotate_debug_log_if_needed();
 
         $handle = fopen( $file, 'ab' );
-        $data = date( "[d.m.Y H:i:s]" ) . $message . "\r\n";
+        if ( ! $handle ) {
+            return false;
+        }
+        if ( is_array( $message ) || is_object( $message ) ) {
+            $message = wp_json_encode( $message );
+        }
+
+        $data = date( "[d.m.Y H:i:s]" ) . (string) $message . "\r\n";
         fwrite($handle, $data);
         fclose($handle);
     }

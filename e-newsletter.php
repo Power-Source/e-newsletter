@@ -51,7 +51,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
         $this->plugin_ver = '1.0.4';
 
-        //enable or disable debugging
+        // Debug flag is resolved after plugin settings are loaded.
         $this->debug = 0;
 
         //checking for MultiSite
@@ -77,6 +77,10 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
         //get all setting of plugin
         $this->settings = $this->get_settings();
+        $settings_debug = ( is_array( $this->settings ) && ! empty( $this->settings['debug_enabled'] ) ) ? 1 : 0;
+        $constant_debug = ( defined( 'ENEWSLETTER_DEBUG' ) && ENEWSLETTER_DEBUG ) ? 1 : 0;
+        $this->debug = ( $constant_debug || $settings_debug ) ? 1 : 0;
+        $this->debug = apply_filters( 'email_newsletter_debug_enabled', $this->debug ? 1 : 0 );
         $this->builder_v2 = new Email_Newsletter_Builder_V2( $this );
 
         // Setup all plugin capabilities
@@ -151,6 +155,11 @@ class Email_Newsletter extends Email_Newsletter_functions {
         add_action( $this->cron_bounce_name .'_1', array( &$this, 'check_bounces' ) );
         add_action( $this->cron_bounce_name .'_2', array( &$this, 'check_bounces' ) );
 
+        add_action( 'enewsletter_campaign_runner', array( &$this, 'campaigns_run_due' ) );
+        add_action( 'publish_post', array( &$this, 'campaigns_handle_publish_post' ), 10, 2 );
+        add_action( 'publish_product', array( &$this, 'campaigns_handle_publish_post' ), 10, 2 );
+        add_action( 'publish_mp_product', array( &$this, 'campaigns_handle_publish_post' ), 10, 2 );
+
         //subscribe widget stuff
         add_shortcode( 'enewsletter_subscribe', array( &$this, 'subscribe_shortcode' ) );
 		add_shortcode( 'enews_product', array( &$this, 'enews_product_shortcode' ) );
@@ -179,6 +188,10 @@ class Email_Newsletter extends Email_Newsletter_functions {
         //ajax action for show transparent image 1x1 for check that email was opened
         add_action( 'wp_ajax_nopriv_check_email_opened', array( &$this, 'check_email_opened_ajax' ) );
         add_action( 'wp_ajax_check_email_opened', array( &$this, 'check_email_opened_ajax' ) );
+
+        //ajax action for tracked link clicks in emails
+        add_action( 'wp_ajax_nopriv_check_email_clicked', array( &$this, 'check_email_clicked_ajax' ) );
+        add_action( 'wp_ajax_check_email_clicked', array( &$this, 'check_email_clicked_ajax' ) );
 
         //ajax action for test connection to bounces email
         add_action( 'wp_ajax_nopriv_test_bounces', array( &$this, 'test_bounces_ajax' ) );
@@ -242,6 +255,11 @@ class Email_Newsletter extends Email_Newsletter_functions {
             if ( wp_next_scheduled( $this->cron_send_name ) )
                 wp_clear_scheduled_hook( $this->cron_send_name );
         }
+
+        $this->ensure_campaign_tables();
+        if ( ! wp_next_scheduled( 'enewsletter_campaign_runner' ) ) {
+            wp_schedule_event( time() + 60, 'hourly', 'enewsletter_campaign_runner' );
+        }
     }
 
     /**
@@ -255,6 +273,8 @@ class Email_Newsletter extends Email_Newsletter_functions {
             wp_clear_scheduled_hook( $this->cron_bounce_name .'_1' );
         if ( wp_next_scheduled( $this->cron_bounce_name .'_2' ) )
             wp_clear_scheduled_hook( $this->cron_bounce_name .'_2' );
+        if ( wp_next_scheduled( 'enewsletter_campaign_runner' ) )
+            wp_clear_scheduled_hook( 'enewsletter_campaign_runner' );
     }
 
     /**
@@ -335,9 +355,15 @@ class Email_Newsletter extends Email_Newsletter_functions {
             wp_register_style( 'enewsletter-style', $this->plugin_url . 'email-newsletter-files/css/admin.css' );
             wp_enqueue_style( 'enewsletter-style' );
 
+            wp_register_style( 'enewsletter-admin-modern', $this->plugin_url . 'email-newsletter-files/ui/admin-modern.css', array( 'enewsletter-style' ), $this->plugin_ver );
+            wp_enqueue_style( 'enewsletter-admin-modern' );
+
             // Including JS file
             wp_register_script( 'enewsletter-script', $this->plugin_url . 'email-newsletter-files/js/admin.js' );
             wp_enqueue_script( 'enewsletter-script' );
+
+            wp_register_script( 'enewsletter-admin-modern', $this->plugin_url . 'email-newsletter-files/ui/admin-modern.js', array(), $this->plugin_ver, true );
+            wp_enqueue_script( 'enewsletter-admin-modern' );
 
             if ( isset( $_REQUEST['page'] ) && 'newsletters-builder-v2' === $_REQUEST['page'] ) {
                 $newsletter_id = isset( $_REQUEST['newsletter_id'] ) ? intval( $_REQUEST['newsletter_id'] ) : 0;
@@ -478,6 +504,15 @@ class Email_Newsletter extends Email_Newsletter_functions {
                         'height' => __( 'Hoehe', 'email-newsletter' ),
                         'html' => __( 'HTML / Shortcode', 'email-newsletter' ),
                         'ids' => __( 'IDs', 'email-newsletter' ),
+                        'queryMode' => __( 'Inhaltsquelle', 'email-newsletter' ),
+                        'queryManual' => __( 'Manuelle IDs', 'email-newsletter' ),
+                        'queryLatest' => __( 'Neueste Inhalte automatisch', 'email-newsletter' ),
+                        'queryTrigger' => __( 'Aus Automation-Trigger', 'email-newsletter' ),
+                        'queryScope' => __( 'Zeitraum', 'email-newsletter' ),
+                        'queryScopeAll' => __( 'Alle (ohne Zeitraumfilter)', 'email-newsletter' ),
+                        'queryScopeWeek' => __( 'Diese Woche', 'email-newsletter' ),
+                        'queryScopeMonth' => __( 'Dieser Monat', 'email-newsletter' ),
+                        'queryLimit' => __( 'Anzahl Elemente', 'email-newsletter' ),
                         'layout' => __( 'Layout', 'email-newsletter' ),
                         'eyebrow' => __( 'Eyebrow / Kicker', 'email-newsletter' ),
                         'buttonBackground' => __( 'Button-Hintergrund', 'email-newsletter' ),
@@ -556,6 +591,10 @@ class Email_Newsletter extends Email_Newsletter_functions {
      **/
     function template_redirect() {
         if ( $this->is_enewsletter_page( 'unsubscribe_page' ) ) {
+            $is_one_click_post = 'POST' === strtoupper( isset( $_SERVER['REQUEST_METHOD'] ) ? $_SERVER['REQUEST_METHOD'] : '' )
+                && isset( $_POST['List-Unsubscribe'] )
+                && 'One-Click' === trim( wp_unslash( $_POST['List-Unsubscribe'] ) );
+
             $member_id = get_query_var( 'unsubscribe_member_id' );
             $unsubscribe_code = get_query_var( 'unsubscribe_code' );
             $result = $this->unsubscribe_by_code( $unsubscribe_code );
@@ -566,6 +605,14 @@ class Email_Newsletter extends Email_Newsletter_functions {
             else {
                 $message = $result['message'];
                 $unsubscribed = 0;
+            }
+
+            if ( $is_one_click_post ) {
+                status_header( 200 );
+                nocache_headers();
+                header( 'Content-Type: text/plain; charset=UTF-8' );
+                echo $unsubscribed ? 'OK' : 'NOOP';
+                exit;
             }
 
             if(isset($this->settings['unsubscribe_page_id']) && is_numeric($this->settings['unsubscribe_page_id']) && get_post($this->settings['unsubscribe_page_id']))
@@ -637,6 +684,11 @@ class Email_Newsletter extends Email_Newsletter_functions {
      **/
     function admin_init() {
         $mu_cap = (function_exists('is_multisite' && is_multisite()) ? 'manage_network_options' : 'manage_options');
+
+        $this->ensure_campaign_tables();
+        if ( ! wp_next_scheduled( 'enewsletter_campaign_runner' ) ) {
+            wp_schedule_event( time() + 60, 'hourly', 'enewsletter_campaign_runner' );
+        }
 
         if ( isset( $_REQUEST['newsletter_builder_action'] ) && ! defined( 'DOING_AJAX' ) ) {
             $action = sanitize_key( wp_unslash( $_REQUEST['newsletter_builder_action'] ) );
@@ -899,6 +951,40 @@ class Email_Newsletter extends Email_Newsletter_functions {
                     exit();
                 break;
 
+                case "set_members_status":
+                    if(! (current_user_can('add_members_group') || current_user_can('delete_members_group') || current_user_can($mu_cap)) )
+                        wp_die('Du hast keine Erlaubnis das zu tun');
+
+                    $status = isset( $_REQUEST['members_status'] ) ? sanitize_text_field( $_REQUEST['members_status'] ) : '';
+                    $result = $this->set_members_subscription_status( $_REQUEST['members_id'], $status );
+
+                    $message = ( 'unsubscribed' === $status )
+                        ? __( 'Status auf abbestellt gesetzt.', 'email-newsletter' )
+                        : __( 'Status auf abonniert gesetzt.', 'email-newsletter' );
+
+                    if ( false === $result ) {
+                        $message = __( 'Status konnte nicht gesetzt werden.', 'email-newsletter' );
+                    }
+
+                    $redirect = !isset($redirect) ? esc_url_raw(add_query_arg( array( 'page' => 'newsletters-members', 'updated' => ( false === $result ? 'false' : 'true' ), 'message' => urlencode( $message ) ) )) : $redirect;
+                    wp_redirect( $redirect );
+                    exit();
+                break;
+
+                case "move_members_group":
+                    if(! (current_user_can('add_members_group') || current_user_can('delete_members_group') || current_user_can($mu_cap)) )
+                        wp_die('Du hast keine Erlaubnis das zu tun');
+
+                    $result = $this->move_members_to_group( $_REQUEST['members_id'], $_REQUEST['list_group_id'] );
+                    $message = false === $result
+                        ? __( 'Liste konnte nicht geändert werden.', 'email-newsletter' )
+                        : __( 'Liste wurde für ausgewählte Abonnenten ersetzt.', 'email-newsletter' );
+
+                    $redirect = !isset($redirect) ? esc_url_raw(add_query_arg( array( 'page' => 'newsletters-members', 'updated' => ( false === $result ? 'false' : 'true' ), 'message' => urlencode( $message ) ) )) : $redirect;
+                    wp_redirect( $redirect );
+                    exit();
+                break;
+
                 //Bulk action add members to group
                 case "export_members":
 
@@ -925,6 +1011,49 @@ class Email_Newsletter extends Email_Newsletter_functions {
                     $this->save_settings( $_REQUEST['settings'] );
                 break;
 
+                case "clear_logs":
+                    if(! (current_user_can('save_newsletter_settings') || current_user_can($mu_cap)) )
+                        wp_die('Du hast keine Erlaubnis das zu tun');
+
+                    $result = $this->clear_debug_log();
+                    $redirect = add_query_arg(
+                        array(
+                            'page' => 'newsletters-logs',
+                            'updated' => $result ? 'true' : 'false',
+                            'message' => urlencode( $result ? __( 'Logs wurden geleert.', 'email-newsletter' ) : __( 'Logs konnten nicht geleert werden.', 'email-newsletter' ) ),
+                        ),
+                        'admin.php'
+                    );
+                    wp_redirect( $redirect );
+                    exit();
+                break;
+
+                case "download_logs":
+                    if(! (current_user_can('save_newsletter_settings') || current_user_can($mu_cap)) )
+                        wp_die('Du hast keine Erlaubnis das zu tun');
+
+                    $log_file = $this->get_debug_log_file_path();
+                    if ( ! file_exists( $log_file ) ) {
+                        $redirect = add_query_arg(
+                            array(
+                                'page' => 'newsletters-logs',
+                                'updated' => 'false',
+                                'message' => urlencode( __( 'Keine Log-Datei gefunden.', 'email-newsletter' ) ),
+                            ),
+                            'admin.php'
+                        );
+                        wp_redirect( $redirect );
+                        exit();
+                    }
+
+                    nocache_headers();
+                    header( 'Content-Type: text/plain; charset=utf-8' );
+                    header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $this->get_debug_log_download_name() ) . '"' );
+                    header( 'Content-Length: ' . filesize( $log_file ) );
+                    readfile( $log_file );
+                    exit();
+                break;
+
                 //action send newsletter
                 case "send_newsletter":
 
@@ -939,6 +1068,72 @@ class Email_Newsletter extends Email_Newsletter_functions {
                     //handles main send buttons
                     else if ( isset( $_REQUEST['action'] ) && 'send' == $_REQUEST["action"] )
                         $this->send_newsletter( $_REQUEST['newsletter_id'] );
+                break;
+
+                case "save_campaign":
+                    if(! (current_user_can('save_newsletter') || current_user_can($mu_cap)) )
+                        wp_die('Du hast keine Erlaubnis das zu tun');
+
+                    $campaign_id = $this->save_campaign_from_request( $_REQUEST );
+                    $redirect = add_query_arg(
+                        array(
+                            'page' => 'newsletters-campaign-edit',
+                            'campaign_id' => intval( $campaign_id ),
+                            'updated' => 'true',
+                            'message' => urlencode( __( 'Kampagne/Automation gespeichert.', 'email-newsletter' ) ),
+                        ),
+                        'admin.php'
+                    );
+                    wp_redirect( $redirect );
+                    exit();
+                break;
+
+                case "pause_campaign":
+                case "resume_campaign":
+                case "stop_campaign":
+                    if(! (current_user_can('save_newsletter') || current_user_can($mu_cap)) )
+                        wp_die('Du hast keine Erlaubnis das zu tun');
+
+                    $campaign_id = isset( $_REQUEST['campaign_id'] ) ? intval( $_REQUEST['campaign_id'] ) : 0;
+                    $status = 'paused';
+                    if ( 'resume_campaign' === $_REQUEST['newsletter_action'] ) {
+                        $status = 'active';
+                    } elseif ( 'stop_campaign' === $_REQUEST['newsletter_action'] ) {
+                        $status = 'stopped';
+                    }
+                    if ( $campaign_id ) {
+                        $this->set_campaign_status( $campaign_id, $status );
+                    }
+                    $redirect = add_query_arg(
+                        array(
+                            'page' => 'newsletters-campaigns',
+                            'updated' => 'true',
+                            'message' => urlencode( __( 'Status aktualisiert.', 'email-newsletter' ) ),
+                        ),
+                        'admin.php'
+                    );
+                    wp_redirect( $redirect );
+                    exit();
+                break;
+
+                case "delete_campaign":
+                    if(! (current_user_can('save_newsletter') || current_user_can($mu_cap)) )
+                        wp_die('Du hast keine Erlaubnis das zu tun');
+
+                    $campaign_id = isset( $_REQUEST['campaign_id'] ) ? intval( $_REQUEST['campaign_id'] ) : 0;
+                    if ( $campaign_id ) {
+                        $this->delete_campaign( $campaign_id );
+                    }
+                    $redirect = add_query_arg(
+                        array(
+                            'page' => 'newsletters-campaigns',
+                            'updated' => 'true',
+                            'message' => urlencode( __( 'Kampagne/Automation gelöscht.', 'email-newsletter' ) ),
+                        ),
+                        'admin.php'
+                    );
+                    wp_redirect( $redirect );
+                    exit();
                 break;
 
                 //action import members
@@ -1661,6 +1856,65 @@ class Email_Newsletter extends Email_Newsletter_functions {
         return $result;
     }
 
+    /**
+     * Bulk option - set member subscription status.
+     **/
+    function set_members_subscription_status( $members_id, $status ) {
+        global $wpdb;
+
+        if ( ! in_array( $status, array( 'subscribed', 'unsubscribed' ), true ) ) {
+            return false;
+        }
+
+        if(!is_array($members_id))
+            $members_id = array($members_id);
+
+        $result = 0;
+        foreach ( $members_id as $member_id ) {
+            $member_id = intval( $member_id );
+            if ( $member_id <= 0 ) {
+                continue;
+            }
+
+            if ( 'subscribed' === $status ) {
+                $result = $wpdb->query( $wpdb->prepare( "UPDATE {$this->tb_prefix}enewsletter_members SET unsubscribe_code = '%s' WHERE member_id = %d", $this->gen_unsubscribe_code(), $member_id ) );
+            } else {
+                $result = $wpdb->query( $wpdb->prepare( "UPDATE {$this->tb_prefix}enewsletter_members SET unsubscribe_code = '' WHERE member_id = %d", $member_id ) );
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Bulk option - move members to one list (replace all list assignments).
+     **/
+    function move_members_to_group( $members_id, $group_id ) {
+        global $wpdb;
+
+        $group_id = intval( $group_id );
+        if ( $group_id <= 0 || ! $this->get_group_by_id( $group_id ) ) {
+            return false;
+        }
+
+        if ( ! is_array( $members_id ) ) {
+            $members_id = array( $members_id );
+        }
+
+        $result = 0;
+        foreach ( $members_id as $member_id ) {
+            $member_id = intval( $member_id );
+            if ( $member_id <= 0 ) {
+                continue;
+            }
+
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$this->tb_prefix}enewsletter_member_group WHERE member_id = %d", $member_id ) );
+            $result = $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_member_group SET member_id = %d, group_id = %d", $member_id, $group_id ) );
+        }
+
+        return $result;
+    }
+
 
 
 
@@ -1743,6 +1997,81 @@ class Email_Newsletter extends Email_Newsletter_functions {
         fclose( $handle );
         echo $content;
         die();
+    }
+
+    function wrap_email_click_links( $contents, $send_id, $member_id, $wp_only_user_id ) {
+        $contents = (string) $contents;
+        $send_id = intval( $send_id );
+        $member_id = intval( $member_id );
+        $wp_only_user_id = intval( $wp_only_user_id );
+
+        if ( '' === $contents || $send_id <= 0 ) {
+            return $contents;
+        }
+
+        if ( false === strpos( strtolower( $contents ), 'href=' ) ) {
+            return $contents;
+        }
+
+        $callback = function( $matches ) use ( $send_id, $member_id, $wp_only_user_id ) {
+            $quote = isset( $matches[1] ) ? $matches[1] : '"';
+            $url = isset( $matches[2] ) ? trim( $matches[2] ) : '';
+
+            if ( '' === $url || 0 === strpos( $url, '#' ) || 0 === stripos( $url, 'mailto:' ) || 0 === stripos( $url, 'tel:' ) ) {
+                return $matches[0];
+            }
+
+            if ( false !== strpos( $url, 'admin-ajax.php?action=check_email_clicked' ) ) {
+                return $matches[0];
+            }
+
+            $target_url = rawurlencode( base64_encode( $url ) );
+            $track_url = add_query_arg(
+                array(
+                    'action' => 'check_email_clicked',
+                    'send_id' => $send_id,
+                    'member_id' => $member_id,
+                    'wp_only_user_id' => $wp_only_user_id,
+                    'target' => $target_url,
+                ),
+                admin_url( 'admin-ajax.php' )
+            );
+
+            return 'href=' . $quote . esc_url( $track_url ) . $quote;
+        };
+
+        return preg_replace_callback( '/href\\s*=\\s*(["\'])(.*?)\\1/i', $callback, $contents );
+    }
+
+    function check_email_clicked_ajax() {
+        $send_id = isset( $_REQUEST['send_id'] ) ? intval( $_REQUEST['send_id'] ) : 0;
+        $member_id = isset( $_REQUEST['member_id'] ) ? intval( $_REQUEST['member_id'] ) : 0;
+        $wp_only_user_id = isset( $_REQUEST['wp_only_user_id'] ) ? intval( $_REQUEST['wp_only_user_id'] ) : 0;
+        $target = isset( $_REQUEST['target'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['target'] ) ) : '';
+
+        $target_url = '';
+        if ( '' !== $target ) {
+            $decoded = base64_decode( rawurldecode( $target ), true );
+            if ( false !== $decoded ) {
+                $target_url = trim( $decoded );
+            }
+        }
+
+        if ( '' === $target_url ) {
+            $target_url = home_url();
+        }
+
+        if ( ! wp_http_validate_url( $target_url ) && 0 !== strpos( $target_url, '/' ) ) {
+            $target_url = home_url();
+        }
+
+        $run = $this->get_campaign_run_by_send_id( $send_id );
+        if ( $run ) {
+            $this->campaign_record_click( $run, $member_id, $wp_only_user_id, $target_url );
+        }
+
+        wp_redirect( $target_url );
+        exit;
     }
 
     /**
@@ -1923,12 +2252,24 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 );
 
 
-                $contents = $this->personalise_email_body( $contents, $send_member['member_id'], $send_member['wp_only_user_id'], $member_data['join_date'], $member_data['unsubscribe_code'], $send_data['start_time'], $replacements );
+                $contents = $this->personalise_email_body( $contents, $send_member['member_id'], $send_member['wp_only_user_id'], $member_data['join_date'], $member_data['unsubscribe_code'], $send_member['send_id'], $replacements );
 
-                $newsletter_data["subject"] = $this->personalise_email_body($newsletter_data["subject"], $send_member['member_id'], $send_member['wp_only_user_id'], $member_data['join_date'], $member_data['unsubscribe_code'], $send_data['start_time'], array('user_name' => $user_name, 'first_name' => $first_name, 'to_email' => $member_data["member_email"]));
+                $newsletter_data["subject"] = $this->personalise_email_body($newsletter_data["subject"], $send_member['member_id'], $send_member['wp_only_user_id'], $member_data['join_date'], $member_data['unsubscribe_code'], $send_member['send_id'], array('user_name' => $user_name, 'first_name' => $first_name, 'to_email' => $member_data["member_email"]));
 
                 if((isset($newsletter_data['bounce_email']) && !empty($newsletter_data['bounce_email'])) || (isset($this->settings['bounce_email']) && !empty($this->settings['bounce_email'])))
                     $options['bounce_email'] = (isset($newsletter_data['bounce_email']) && !empty($newsletter_data['bounce_email'])) ? $newsletter_data['bounce_email'] : $this->settings['bounce_email'];
+
+                if ( ! empty( $member_data['unsubscribe_code'] ) ) {
+                    $unsubscribe_member_id = intval( $send_member['member_id'] ) > 0 ? intval( $send_member['member_id'] ) : intval( $send_member['wp_only_user_id'] );
+                    $options['unsubscribe_url'] = add_query_arg(
+                        array(
+                            'unsubscribe_page' => '1',
+                            'unsubscribe_code' => $member_data['unsubscribe_code'],
+                            'unsubscribe_member_id' => $unsubscribe_member_id,
+                        ),
+                        home_url()
+                    );
+                }
 
                 $from_domain = explode('@',$newsletter_data['from_email']);
                 $from_domain = isset($from_domain[1]) ? '@'.$from_domain[1] : '';
@@ -2077,6 +2418,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
                         if( !empty($newsletter_data) ) {
                             $this->write_log( $process_id . " 07-2 - send_member_id:" . $send_member['member_id'] . "/" . $send_member['wp_only_user_id'] . "/" . $send_data['newsletter_id'] . "/" . $newsletter_data['from_name'] . "/" . $send_member['send_id'] );
+                            $options = array();
                             if(isset($this->settings['cron_wait']) && is_numeric($this->settings['cron_wait']) && $this->settings['cron_wait'])
                                 $options['cron_wait'] = $this->settings['cron_wait'];
 
@@ -2085,10 +2427,22 @@ class Email_Newsletter extends Email_Newsletter_functions {
                             //Replace some content inside the email body
                             $user_name = $this->get_nicename($member_data['wp_user_id'], $member_data['member_nicename']);
                             $first_name = $this->get_firstname($member_data['wp_user_id'], $member_data['member_nicename']);
-                            $contents = $this->personalise_email_body($contents, $send_member['member_id'], $send_member['wp_only_user_id'], $member_data['join_date'], $member_data['unsubscribe_code'], $send_data['start_time'], array('user_name' => $user_name, 'first_name' => $first_name, 'to_email' => $member_data["member_email"]));
+                            $contents = $this->personalise_email_body($contents, $send_member['member_id'], $send_member['wp_only_user_id'], $member_data['join_date'], $member_data['unsubscribe_code'], $send_member['send_id'], array('user_name' => $user_name, 'first_name' => $first_name, 'to_email' => $member_data["member_email"]));
 
                             if((isset($newsletter_data['bounce_email']) && !empty($newsletter_data['bounce_email'])) || (isset($this->settings['bounce_email']) && !empty($this->settings['bounce_email'])))
                                 $options['bounce_email'] = (isset($newsletter_data['bounce_email']) && !empty($newsletter_data['bounce_email'])) ? $newsletter_data['bounce_email'] : $this->settings['bounce_email'];
+
+                            if ( ! empty( $member_data['unsubscribe_code'] ) ) {
+                                $unsubscribe_member_id = intval( $send_member['member_id'] ) > 0 ? intval( $send_member['member_id'] ) : intval( $send_member['wp_only_user_id'] );
+                                $options['unsubscribe_url'] = add_query_arg(
+                                    array(
+                                        'unsubscribe_page' => '1',
+                                        'unsubscribe_code' => $member_data['unsubscribe_code'],
+                                        'unsubscribe_member_id' => $unsubscribe_member_id,
+                                    ),
+                                    home_url()
+                                );
+                            }
 
                             $from_domain = explode('@',$newsletter_data['from_email']);
                             $from_domain = isset($from_domain[1]) ? '@'.$from_domain : '';
@@ -2558,6 +2912,10 @@ class Email_Newsletter extends Email_Newsletter_functions {
             add_submenu_page( null, __( 'Newsletter Builder', 'email-newsletter' ), __( 'Newsletter Builder', 'email-newsletter' ), 'save_newsletter', 'newsletters-builder-v2', array( &$this, 'newsletters_builder_v2_page' ) );
             add_submenu_page( $slug, __( 'Gruppen', 'email-newsletter' ), __( 'Gruppen', 'email-newsletter' ), 'edit_newsletter_group', 'newsletters-groups', array( &$this, 'member_groups_page' ) );
             add_submenu_page( $slug, __( 'Abonnenten', 'email-newsletter' ), __( 'Abonnenten', 'email-newsletter' ), 'view_newsletter_members', 'newsletters-members',  array( &$this, 'members_page' ) );
+            add_submenu_page( $slug, __( 'Kampagnen & Automationen', 'email-newsletter' ), __( 'Kampagnen & Automationen', 'email-newsletter' ), 'save_newsletter', 'newsletters-campaigns',  array( &$this, 'campaigns_page' ) );
+            add_submenu_page( null, __( 'Kampagne bearbeiten', 'email-newsletter' ), __( 'Kampagne bearbeiten', 'email-newsletter' ), 'save_newsletter', 'newsletters-campaign-edit',  array( &$this, 'campaign_edit_page' ) );
+            add_submenu_page( null, __( 'Kampagnen-Metriken', 'email-newsletter' ), __( 'Kampagnen-Metriken', 'email-newsletter' ), 'save_newsletter', 'newsletters-campaign-stats',  array( &$this, 'campaign_stats_page' ) );
+            add_submenu_page( $slug, __( 'Logs', 'email-newsletter' ), __( 'Logs', 'email-newsletter' ), 'save_newsletter_settings', 'newsletters-logs', array( &$this, 'logs_page' ) );
             add_submenu_page( $slug, __( 'Einstellungen', 'email-newsletter' ), __( 'Einstellungen', 'email-newsletter' ), 'save_newsletter_settings', 'newsletters-settings', array( &$this, 'settings_page' ) );
 
             //menu for lowest level users
@@ -2567,6 +2925,920 @@ class Email_Newsletter extends Email_Newsletter_functions {
             add_menu_page( __( 'PS-eNewsletter', 'email-newsletter' ), __( 'PS-eNewsletter', 'email-newsletter' ), $mu_cap, 'newsletters-settings' );
             add_submenu_page( 'newsletters-settings', __( 'Basis-Einstellung', 'email-newsletter' ), __( 'Basis-Einstellung', 'email-newsletter' ), $mu_cap, 'newsletters-settings', array( &$this, 'settings_page' ) );
         }
+    }
+
+    function get_campaigns_table_name() {
+        return $this->tb_prefix . 'enewsletter_campaigns';
+    }
+
+    function get_campaign_runs_table_name() {
+        return $this->tb_prefix . 'enewsletter_campaign_runs';
+    }
+
+    function get_campaign_dedupe_table_name() {
+        return $this->tb_prefix . 'enewsletter_campaign_dedupe';
+    }
+
+    function get_campaign_clicks_table_name() {
+        return $this->tb_prefix . 'enewsletter_campaign_clicks';
+    }
+
+    function ensure_campaign_tables() {
+        global $wpdb;
+
+        $campaigns_table = $this->get_campaigns_table_name();
+        $runs_table = $this->get_campaign_runs_table_name();
+        $dedupe_table = $this->get_campaign_dedupe_table_name();
+        $clicks_table = $this->get_campaign_clicks_table_name();
+
+        if ( $wpdb->get_var( "SHOW TABLES LIKE '{$campaigns_table}'" ) != $campaigns_table ) {
+            $wpdb->query( "CREATE TABLE `{$campaigns_table}` (
+                `campaign_id` int(11) NOT NULL auto_increment,
+                `entity_type` varchar(20) NOT NULL,
+                `title` varchar(255) NOT NULL,
+                `status` varchar(20) NOT NULL,
+                `newsletter_id` int(11) NOT NULL,
+                `settings` longtext,
+                `targets` longtext,
+                `last_run` int(11) DEFAULT '0',
+                `next_run` int(11) DEFAULT '0',
+                `created_at` int(11) NOT NULL,
+                `updated_at` int(11) NOT NULL,
+                `created_by` int(11) DEFAULT '0',
+                PRIMARY KEY (`campaign_id`)
+            ) DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;" );
+        }
+
+        if ( $wpdb->get_var( "SHOW TABLES LIKE '{$runs_table}'" ) != $runs_table ) {
+            $wpdb->query( "CREATE TABLE `{$runs_table}` (
+                `run_id` int(11) NOT NULL auto_increment,
+                `campaign_id` int(11) NOT NULL,
+                `run_key` varchar(191) NOT NULL,
+                `send_id` int(11) DEFAULT '0',
+                `source_post_id` int(11) DEFAULT '0',
+                `scheduled_at` int(11) DEFAULT '0',
+                `started_at` int(11) DEFAULT '0',
+                `finished_at` int(11) DEFAULT '0',
+                `status` varchar(20) NOT NULL,
+                `queued` int(11) DEFAULT '0',
+                `sent` int(11) DEFAULT '0',
+                `opened` int(11) DEFAULT '0',
+                `clicked` int(11) DEFAULT '0',
+                `bounced` int(11) DEFAULT '0',
+                `failed` int(11) DEFAULT '0',
+                `meta` longtext,
+                PRIMARY KEY (`run_id`),
+                UNIQUE KEY `run_key` (`run_key`)
+            ) DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;" );
+        }
+
+        if ( ! $wpdb->get_var( "SHOW COLUMNS FROM `{$runs_table}` LIKE 'send_id'" ) ) {
+            $wpdb->query( "ALTER TABLE `{$runs_table}` ADD `send_id` int(11) DEFAULT '0' AFTER `run_key`" );
+        }
+
+        if ( $wpdb->get_var( "SHOW TABLES LIKE '{$dedupe_table}'" ) != $dedupe_table ) {
+            $wpdb->query( "CREATE TABLE `{$dedupe_table}` (
+                `dedupe_id` int(11) NOT NULL auto_increment,
+                `campaign_id` int(11) NOT NULL,
+                `dedupe_key` varchar(191) NOT NULL,
+                `created_at` int(11) NOT NULL,
+                PRIMARY KEY (`dedupe_id`),
+                UNIQUE KEY `campaign_dedupe` (`campaign_id`,`dedupe_key`)
+            ) DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;" );
+        }
+
+        if ( $wpdb->get_var( "SHOW TABLES LIKE '{$clicks_table}'" ) != $clicks_table ) {
+            $wpdb->query( "CREATE TABLE `{$clicks_table}` (
+                `click_id` int(11) NOT NULL auto_increment,
+                `run_id` int(11) NOT NULL,
+                `campaign_id` int(11) NOT NULL,
+                `send_id` int(11) NOT NULL,
+                `member_key` varchar(32) NOT NULL,
+                `target_url` text,
+                `target_hash` char(32) NOT NULL,
+                `click_count` int(11) DEFAULT '1',
+                `first_clicked` int(11) DEFAULT '0',
+                `last_clicked` int(11) DEFAULT '0',
+                PRIMARY KEY (`click_id`),
+                UNIQUE KEY `run_member_target` (`run_id`,`member_key`,`target_hash`),
+                KEY `run_id` (`run_id`),
+                KEY `campaign_id` (`campaign_id`),
+                KEY `send_id` (`send_id`)
+            ) DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;" );
+        }
+    }
+
+    function get_campaign( $campaign_id ) {
+        global $wpdb;
+        $campaign_id = intval( $campaign_id );
+        if ( ! $campaign_id ) {
+            return false;
+        }
+
+        return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$this->get_campaigns_table_name()} WHERE campaign_id = %d", $campaign_id ), 'ARRAY_A' );
+    }
+
+    function get_campaigns( $where_sql = '' ) {
+        global $wpdb;
+        $query = "SELECT * FROM {$this->get_campaigns_table_name()}";
+        if ( ! empty( $where_sql ) ) {
+            $query .= ' WHERE ' . $where_sql;
+        }
+        $query .= ' ORDER BY updated_at DESC, campaign_id DESC';
+        $rows = $wpdb->get_results( $query, 'ARRAY_A' );
+        return is_array( $rows ) ? $rows : array();
+    }
+
+    function get_campaign_runs( $campaign_id = 0, $limit = 100 ) {
+        global $wpdb;
+        $limit = max( 1, min( 500, intval( $limit ) ) );
+        $query = "SELECT * FROM {$this->get_campaign_runs_table_name()}";
+        if ( intval( $campaign_id ) > 0 ) {
+            $query .= $wpdb->prepare( ' WHERE campaign_id = %d', intval( $campaign_id ) );
+        }
+        $query .= ' ORDER BY run_id DESC LIMIT ' . intval( $limit );
+        $rows = $wpdb->get_results( $query, 'ARRAY_A' );
+        return is_array( $rows ) ? $rows : array();
+    }
+
+    function get_campaign_run_summary( $campaign_id = 0 ) {
+        global $wpdb;
+        $query = "SELECT
+            COUNT(*) AS runs,
+            SUM(queued) AS queued,
+            SUM(sent) AS sent,
+            SUM(opened) AS opened,
+            SUM(clicked) AS clicked,
+            SUM(bounced) AS bounced,
+            SUM(failed) AS failed
+            FROM {$this->get_campaign_runs_table_name()}";
+        if ( intval( $campaign_id ) > 0 ) {
+            $query .= $wpdb->prepare( ' WHERE campaign_id = %d', intval( $campaign_id ) );
+        }
+
+        $row = $wpdb->get_row( $query, 'ARRAY_A' );
+        if ( ! is_array( $row ) ) {
+            return array(
+                'runs' => 0,
+                'queued' => 0,
+                'sent' => 0,
+                'opened' => 0,
+                'clicked' => 0,
+                'bounced' => 0,
+                'failed' => 0,
+            );
+        }
+
+        foreach ( array( 'runs', 'queued', 'sent', 'opened', 'clicked', 'bounced', 'failed' ) as $key ) {
+            $row[ $key ] = intval( isset( $row[ $key ] ) ? $row[ $key ] : 0 );
+        }
+        return $row;
+    }
+
+    function get_campaign_run_send_id( $run ) {
+        if ( isset( $run['send_id'] ) && intval( $run['send_id'] ) > 0 ) {
+            return intval( $run['send_id'] );
+        }
+
+        $meta = $this->decode_campaign_json( isset( $run['meta'] ) ? $run['meta'] : '' );
+        return isset( $meta['send_id'] ) ? intval( $meta['send_id'] ) : 0;
+    }
+
+    function get_campaign_run_by_send_id( $send_id ) {
+        global $wpdb;
+        $send_id = intval( $send_id );
+        if ( $send_id <= 0 ) {
+            return false;
+        }
+
+        $run = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->get_campaign_runs_table_name()} WHERE send_id = %d ORDER BY run_id DESC LIMIT 1",
+                $send_id
+            ),
+            'ARRAY_A'
+        );
+
+        if ( is_array( $run ) ) {
+            return $run;
+        }
+
+        $runs = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->get_campaign_runs_table_name()} WHERE meta LIKE %s ORDER BY run_id DESC LIMIT 50",
+                '%"send_id":' . $send_id . '%'
+            ),
+            'ARRAY_A'
+        );
+
+        foreach ( (array) $runs as $row ) {
+            if ( $this->get_campaign_run_send_id( $row ) === $send_id ) {
+                return $row;
+            }
+        }
+
+        return false;
+    }
+
+    function get_campaign_top_links( $campaign_id = 0, $run_id = 0, $limit = 20 ) {
+        global $wpdb;
+
+        $limit = max( 1, min( 100, intval( $limit ) ) );
+        $where = array();
+
+        if ( intval( $campaign_id ) > 0 ) {
+            $where[] = $wpdb->prepare( 'campaign_id = %d', intval( $campaign_id ) );
+        }
+
+        if ( intval( $run_id ) > 0 ) {
+            $where[] = $wpdb->prepare( 'run_id = %d', intval( $run_id ) );
+        }
+
+        $query = "SELECT
+            target_hash,
+            MAX(target_url) AS target_url,
+            SUM(click_count) AS clicks,
+            COUNT(DISTINCT member_key) AS unique_clickers,
+            MAX(last_clicked) AS last_clicked
+            FROM {$this->get_campaign_clicks_table_name()}";
+
+        if ( ! empty( $where ) ) {
+            $query .= ' WHERE ' . implode( ' AND ', $where );
+        }
+
+        $query .= ' GROUP BY target_hash ORDER BY clicks DESC, last_clicked DESC LIMIT ' . intval( $limit );
+
+        $rows = $wpdb->get_results( $query, 'ARRAY_A' );
+        return is_array( $rows ) ? $rows : array();
+    }
+
+    function campaign_build_click_member_key( $member_id, $wp_only_user_id ) {
+        $member_id = intval( $member_id );
+        $wp_only_user_id = intval( $wp_only_user_id );
+
+        if ( $member_id > 0 ) {
+            return 'm:' . $member_id;
+        }
+
+        if ( $wp_only_user_id > 0 ) {
+            return 'w:' . $wp_only_user_id;
+        }
+
+        return 'm:0';
+    }
+
+    function campaign_sync_run_clicked_metric( $run_id ) {
+        global $wpdb;
+
+        $run_id = intval( $run_id );
+        if ( $run_id <= 0 ) {
+            return;
+        }
+
+        $clicked = intval( $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(DISTINCT member_key) FROM {$this->get_campaign_clicks_table_name()} WHERE run_id = %d",
+            $run_id
+        ) ) );
+
+        $wpdb->update(
+            $this->get_campaign_runs_table_name(),
+            array( 'clicked' => $clicked ),
+            array( 'run_id' => $run_id ),
+            array( '%d' ),
+            array( '%d' )
+        );
+    }
+
+    function campaign_record_click( $run, $member_id, $wp_only_user_id, $target_url ) {
+        global $wpdb;
+
+        if ( ! is_array( $run ) || empty( $run['run_id'] ) ) {
+            return false;
+        }
+
+        $target_url = trim( (string) $target_url );
+        if ( '' === $target_url ) {
+            return false;
+        }
+
+        $run_id = intval( $run['run_id'] );
+        $campaign_id = intval( $run['campaign_id'] );
+        $send_id = $this->get_campaign_run_send_id( $run );
+        $member_key = $this->campaign_build_click_member_key( $member_id, $wp_only_user_id );
+        $target_hash = md5( $target_url );
+        $now = current_time( 'timestamp' );
+
+        $wpdb->query(
+            $wpdb->prepare(
+                "INSERT INTO {$this->get_campaign_clicks_table_name()}
+                (run_id, campaign_id, send_id, member_key, target_url, target_hash, click_count, first_clicked, last_clicked)
+                VALUES (%d, %d, %d, %s, %s, %s, 1, %d, %d)
+                ON DUPLICATE KEY UPDATE click_count = click_count + 1, last_clicked = VALUES(last_clicked)",
+                $run_id,
+                $campaign_id,
+                $send_id,
+                $member_key,
+                $target_url,
+                $target_hash,
+                $now,
+                $now
+            )
+        );
+
+        $this->campaign_sync_run_clicked_metric( $run_id );
+        return true;
+    }
+
+    function campaigns_sync_run_metrics( $campaign_id = 0 ) {
+        global $wpdb;
+
+        $where = "status IN ('queued','running')";
+        if ( intval( $campaign_id ) > 0 ) {
+            $where .= $wpdb->prepare( ' AND campaign_id = %d', intval( $campaign_id ) );
+        }
+
+        $runs = $wpdb->get_results(
+            "SELECT * FROM {$this->get_campaign_runs_table_name()} WHERE {$where} ORDER BY run_id DESC LIMIT 200",
+            'ARRAY_A'
+        );
+
+        foreach ( (array) $runs as $run ) {
+            $send_id = $this->get_campaign_run_send_id( $run );
+            if ( $send_id <= 0 ) {
+                continue;
+            }
+
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT
+                        COUNT(*) AS queued,
+                        SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END) AS sent,
+                        SUM(CASE WHEN status='bounced' THEN 1 ELSE 0 END) AS bounced,
+                        SUM(CASE WHEN opened_time > 0 THEN 1 ELSE 0 END) AS opened,
+                        SUM(CASE WHEN status='by_cron' OR status='waiting_send' THEN 1 ELSE 0 END) AS pending
+                    FROM {$this->tb_prefix}enewsletter_send_members
+                    WHERE send_id = %d",
+                    $send_id
+                ),
+                'ARRAY_A'
+            );
+
+            if ( ! is_array( $row ) ) {
+                continue;
+            }
+
+            $queued = intval( $row['queued'] );
+            $sent = intval( $row['sent'] );
+            $opened = intval( $row['opened'] );
+            $bounced = intval( $row['bounced'] );
+            $pending = intval( $row['pending'] );
+            $failed = max( 0, $queued - $sent - $bounced - $pending );
+            $status = $pending > 0 ? 'running' : 'finished';
+            $clicked = intval( $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(DISTINCT member_key) FROM {$this->get_campaign_clicks_table_name()} WHERE run_id = %d",
+                intval( $run['run_id'] )
+            ) ) );
+            $previous_status = isset( $run['status'] ) ? $run['status'] : '';
+
+            $wpdb->update(
+                $this->get_campaign_runs_table_name(),
+                array(
+                    'status' => $status,
+                    'queued' => $queued,
+                    'sent' => $sent,
+                    'opened' => $opened,
+                    'clicked' => $clicked,
+                    'bounced' => $bounced,
+                    'failed' => $failed,
+                    'finished_at' => $pending > 0 ? intval( $run['finished_at'] ) : current_time( 'timestamp' ),
+                ),
+                array( 'run_id' => intval( $run['run_id'] ) ),
+                array( '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%d' ),
+                array( '%d' )
+            );
+
+            if ( $status !== $previous_status ) {
+                $this->log_event(
+                    'campaign.run_status_changed',
+                    'info',
+                    array(
+                        'run_id' => intval( $run['run_id'] ),
+                        'campaign_id' => intval( $run['campaign_id'] ),
+                        'from' => $previous_status,
+                        'to' => $status,
+                        'queued' => $queued,
+                        'sent' => $sent,
+                        'opened' => $opened,
+                        'clicked' => $clicked,
+                        'bounced' => $bounced,
+                        'failed' => $failed,
+                    )
+                );
+            }
+        }
+    }
+
+    function sanitize_campaign_entity_type( $value ) {
+        $value = sanitize_key( $value );
+        return in_array( $value, array( 'campaign', 'automation' ), true ) ? $value : 'campaign';
+    }
+
+    function sanitize_campaign_status( $value ) {
+        $value = sanitize_key( $value );
+        return in_array( $value, array( 'draft', 'active', 'paused', 'stopped' ), true ) ? $value : 'draft';
+    }
+
+    function sanitize_campaign_targets( $raw ) {
+        $targets = array(
+            'group_ids' => array(),
+        );
+
+        if ( ! is_array( $raw ) || ! isset( $raw['group_ids'] ) ) {
+            return $targets;
+        }
+
+        $group_ids = is_array( $raw['group_ids'] ) ? $raw['group_ids'] : array( $raw['group_ids'] );
+        foreach ( $group_ids as $group_id ) {
+            $group_id = intval( $group_id );
+            if ( $group_id > 0 ) {
+                $targets['group_ids'][] = $group_id;
+            }
+        }
+        $targets['group_ids'] = array_values( array_unique( $targets['group_ids'] ) );
+        return $targets;
+    }
+
+    function sanitize_campaign_settings( $entity_type, $raw ) {
+        $settings = array();
+        if ( ! is_array( $raw ) ) {
+            $raw = array();
+        }
+
+        if ( 'campaign' === $entity_type ) {
+            $settings['interval_value'] = max( 1, min( 365, intval( isset( $raw['interval_value'] ) ? $raw['interval_value'] : 7 ) ) );
+            $interval_unit = isset( $raw['interval_unit'] ) ? sanitize_key( $raw['interval_unit'] ) : 'days';
+            $settings['interval_unit'] = in_array( $interval_unit, array( 'hours', 'days', 'weeks' ), true ) ? $interval_unit : 'days';
+            $settings['start_at'] = isset( $raw['start_at'] ) ? intval( $raw['start_at'] ) : 0;
+        } else {
+            $trigger_type = isset( $raw['trigger_type'] ) ? sanitize_key( $raw['trigger_type'] ) : 'new_post';
+            $settings['trigger_type'] = in_array( $trigger_type, array( 'new_post', 'new_product', 'digest' ), true ) ? $trigger_type : 'new_post';
+            $digest_period = isset( $raw['digest_period'] ) ? sanitize_key( $raw['digest_period'] ) : 'weekly';
+            $settings['digest_period'] = in_array( $digest_period, array( 'weekly', 'monthly' ), true ) ? $digest_period : 'weekly';
+            $settings['weekday'] = max( 1, min( 7, intval( isset( $raw['weekday'] ) ? $raw['weekday'] : 1 ) ) );
+            $settings['month_day'] = max( 1, min( 31, intval( isset( $raw['month_day'] ) ? $raw['month_day'] : 1 ) ) );
+            $send_hour = max( 0, min( 23, intval( isset( $raw['send_hour'] ) ? $raw['send_hour'] : 9 ) ) );
+            $send_minute = max( 0, min( 59, intval( isset( $raw['send_minute'] ) ? $raw['send_minute'] : 0 ) ) );
+            $settings['send_hour'] = $send_hour;
+            $settings['send_minute'] = $send_minute;
+        }
+
+        return $settings;
+    }
+
+    function save_campaign_from_request( $request ) {
+        global $wpdb;
+
+        $campaign_id = isset( $request['campaign_id'] ) ? intval( $request['campaign_id'] ) : 0;
+        $entity_type = $this->sanitize_campaign_entity_type( isset( $request['entity_type'] ) ? $request['entity_type'] : 'campaign' );
+        $title = sanitize_text_field( isset( $request['title'] ) ? wp_unslash( $request['title'] ) : '' );
+        if ( '' === $title ) {
+            $title = 'campaign' === $entity_type ? __( 'Neue Kampagne', 'email-newsletter' ) : __( 'Neue Automation', 'email-newsletter' );
+        }
+        $status = $this->sanitize_campaign_status( isset( $request['status'] ) ? $request['status'] : 'draft' );
+        $newsletter_id = isset( $request['newsletter_id'] ) ? intval( $request['newsletter_id'] ) : 0;
+        $campaign_raw = isset( $request['campaign'] ) ? wp_unslash( $request['campaign'] ) : array();
+        $settings = $this->sanitize_campaign_settings( $entity_type, $campaign_raw );
+        $targets = $this->sanitize_campaign_targets( $campaign_raw );
+        $now = current_time( 'timestamp' );
+
+        $data = array(
+            'entity_type' => $entity_type,
+            'title' => $title,
+            'status' => $status,
+            'newsletter_id' => $newsletter_id,
+            'settings' => wp_json_encode( $settings ),
+            'targets' => wp_json_encode( $targets ),
+            'updated_at' => $now,
+        );
+
+        if ( $campaign_id > 0 ) {
+            $wpdb->update( $this->get_campaigns_table_name(), $data, array( 'campaign_id' => $campaign_id ) );
+        } else {
+            $data['created_at'] = $now;
+            $data['created_by'] = get_current_user_id();
+            $data['last_run'] = 0;
+            $data['next_run'] = 0;
+            $wpdb->insert( $this->get_campaigns_table_name(), $data );
+            $campaign_id = intval( $wpdb->insert_id );
+        }
+
+        $campaign = $this->get_campaign( $campaign_id );
+        if ( $campaign ) {
+            $next_run = $this->compute_campaign_next_run( $campaign );
+            if ( 'active' !== $campaign['status'] ) {
+                $next_run = 0;
+            }
+            $wpdb->update( $this->get_campaigns_table_name(), array( 'next_run' => $next_run ), array( 'campaign_id' => $campaign_id ) );
+        }
+
+        return $campaign_id;
+    }
+
+    function set_campaign_status( $campaign_id, $status ) {
+        global $wpdb;
+        $campaign_id = intval( $campaign_id );
+        if ( ! $campaign_id ) {
+            return;
+        }
+
+        $status = $this->sanitize_campaign_status( $status );
+        $campaign = $this->get_campaign( $campaign_id );
+        if ( ! $campaign ) {
+            return;
+        }
+
+        $next_run = 0;
+        if ( 'active' === $status ) {
+            $campaign['status'] = 'active';
+            $next_run = $this->compute_campaign_next_run( $campaign );
+        }
+
+        $wpdb->update(
+            $this->get_campaigns_table_name(),
+            array(
+                'status' => $status,
+                'next_run' => $next_run,
+                'updated_at' => current_time( 'timestamp' ),
+            ),
+            array( 'campaign_id' => $campaign_id )
+        );
+    }
+
+    function delete_campaign( $campaign_id ) {
+        global $wpdb;
+        $campaign_id = intval( $campaign_id );
+        if ( ! $campaign_id ) {
+            return;
+        }
+
+        $wpdb->delete( $this->get_campaign_dedupe_table_name(), array( 'campaign_id' => $campaign_id ) );
+        $wpdb->delete( $this->get_campaign_clicks_table_name(), array( 'campaign_id' => $campaign_id ) );
+        $wpdb->delete( $this->get_campaign_runs_table_name(), array( 'campaign_id' => $campaign_id ) );
+        $wpdb->delete( $this->get_campaigns_table_name(), array( 'campaign_id' => $campaign_id ) );
+    }
+
+    function decode_campaign_json( $json ) {
+        $decoded = json_decode( (string) $json, true );
+        return is_array( $decoded ) ? $decoded : array();
+    }
+
+    function compute_campaign_next_run( $campaign ) {
+        $campaign = is_array( $campaign ) ? $campaign : array();
+        $status = isset( $campaign['status'] ) ? $campaign['status'] : 'draft';
+        if ( 'active' !== $status ) {
+            return 0;
+        }
+
+        $entity_type = isset( $campaign['entity_type'] ) ? $campaign['entity_type'] : 'campaign';
+        $settings = $this->decode_campaign_json( isset( $campaign['settings'] ) ? $campaign['settings'] : '' );
+        $now = current_time( 'timestamp' );
+
+        if ( 'campaign' === $entity_type ) {
+            $value = max( 1, intval( isset( $settings['interval_value'] ) ? $settings['interval_value'] : 7 ) );
+            $unit = isset( $settings['interval_unit'] ) ? $settings['interval_unit'] : 'days';
+            $seconds = DAY_IN_SECONDS;
+            if ( 'hours' === $unit ) {
+                $seconds = HOUR_IN_SECONDS;
+            } elseif ( 'weeks' === $unit ) {
+                $seconds = WEEK_IN_SECONDS;
+            }
+
+            $start_at = intval( isset( $settings['start_at'] ) ? $settings['start_at'] : 0 );
+            $last_run = intval( isset( $campaign['last_run'] ) ? $campaign['last_run'] : 0 );
+            if ( $last_run > 0 ) {
+                return $last_run + ( $value * $seconds );
+            }
+            if ( $start_at > $now ) {
+                return $start_at;
+            }
+            return $now + ( $value * $seconds );
+        }
+
+        $trigger_type = isset( $settings['trigger_type'] ) ? $settings['trigger_type'] : 'new_post';
+        if ( in_array( $trigger_type, array( 'new_post', 'new_product' ), true ) ) {
+            return 0;
+        }
+
+        $hour = max( 0, min( 23, intval( isset( $settings['send_hour'] ) ? $settings['send_hour'] : 9 ) ) );
+        $minute = max( 0, min( 59, intval( isset( $settings['send_minute'] ) ? $settings['send_minute'] : 0 ) ) );
+        $digest_period = isset( $settings['digest_period'] ) ? $settings['digest_period'] : 'weekly';
+
+        if ( 'monthly' === $digest_period ) {
+            $day = max( 1, min( 31, intval( isset( $settings['month_day'] ) ? $settings['month_day'] : 1 ) ) );
+            $year = intval( date( 'Y', $now ) );
+            $month = intval( date( 'n', $now ) );
+            $last_day = intval( date( 't', mktime( 0, 0, 0, $month, 1, $year ) ) );
+            $target_day = min( $day, $last_day );
+            $candidate = mktime( $hour, $minute, 0, $month, $target_day, $year );
+            if ( $candidate <= $now ) {
+                $month += 1;
+                if ( $month > 12 ) {
+                    $month = 1;
+                    $year += 1;
+                }
+                $last_day = intval( date( 't', mktime( 0, 0, 0, $month, 1, $year ) ) );
+                $target_day = min( $day, $last_day );
+                $candidate = mktime( $hour, $minute, 0, $month, $target_day, $year );
+            }
+
+            return $candidate;
+        }
+
+        $weekday = max( 1, min( 7, intval( isset( $settings['weekday'] ) ? $settings['weekday'] : 1 ) ) );
+        $current_weekday = intval( date( 'N', $now ) );
+        $delta = $weekday - $current_weekday;
+        $candidate = mktime( $hour, $minute, 0, intval( date( 'n', $now ) ), intval( date( 'j', $now ) ) + $delta, intval( date( 'Y', $now ) ) );
+        if ( $candidate <= $now ) {
+            $candidate += WEEK_IN_SECONDS;
+        }
+
+        return $candidate;
+    }
+
+    function resolve_campaign_members( $campaign ) {
+        $targets = $this->decode_campaign_json( isset( $campaign['targets'] ) ? $campaign['targets'] : '' );
+        $group_ids = isset( $targets['group_ids'] ) && is_array( $targets['group_ids'] ) ? $targets['group_ids'] : array();
+
+        if ( empty( $group_ids ) ) {
+            $members = $this->get_members( array( 'where' => "A.unsubscribe_code != ''" ), 0, 0 );
+            $ids = array();
+            foreach ( (array) $members as $member ) {
+                if ( isset( $member['member_id'] ) ) {
+                    $ids[] = intval( $member['member_id'] );
+                }
+            }
+            return array_values( array_unique( array_filter( $ids ) ) );
+        }
+
+        $ids = array();
+        foreach ( $group_ids as $group_id ) {
+            $group_member_ids = $this->get_members_of_group( intval( $group_id ), '', 1 );
+            if ( is_array( $group_member_ids ) ) {
+                $ids = array_merge( $ids, $group_member_ids );
+            }
+        }
+
+        $ids = array_map( 'intval', $ids );
+        $ids = array_filter( $ids );
+        return array_values( array_unique( $ids ) );
+    }
+
+    function build_campaign_run_key( $campaign_id, $dedupe_key ) {
+        return 'c' . intval( $campaign_id ) . ':' . md5( (string) $dedupe_key );
+    }
+
+    function has_campaign_dedupe( $campaign_id, $dedupe_key ) {
+        global $wpdb;
+        $value = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT dedupe_id FROM {$this->get_campaign_dedupe_table_name()} WHERE campaign_id = %d AND dedupe_key = %s",
+                intval( $campaign_id ),
+                (string) $dedupe_key
+            )
+        );
+
+        return ! empty( $value );
+    }
+
+    function register_campaign_dedupe( $campaign_id, $dedupe_key ) {
+        global $wpdb;
+        $wpdb->insert(
+            $this->get_campaign_dedupe_table_name(),
+            array(
+                'campaign_id' => intval( $campaign_id ),
+                'dedupe_key' => (string) $dedupe_key,
+                'created_at' => current_time( 'timestamp' ),
+            ),
+            array( '%d', '%s', '%d' )
+        );
+    }
+
+    function dispatch_campaign_send( $campaign, $context = array() ) {
+        global $wpdb;
+
+        $campaign_id = intval( isset( $campaign['campaign_id'] ) ? $campaign['campaign_id'] : 0 );
+        $newsletter_id = intval( isset( $campaign['newsletter_id'] ) ? $campaign['newsletter_id'] : 0 );
+        if ( ! $campaign_id || ! $newsletter_id ) {
+            $this->log_event(
+                'campaign.dispatch_invalid',
+                'warning',
+                array(
+                    'campaign_id' => $campaign_id,
+                    'newsletter_id' => $newsletter_id,
+                )
+            );
+            return false;
+        }
+
+        $dedupe_key = isset( $context['dedupe_key'] ) ? (string) $context['dedupe_key'] : 'run:' . gmdate( 'YmdHi' );
+        if ( $this->has_campaign_dedupe( $campaign_id, $dedupe_key ) ) {
+            $this->log_event(
+                'campaign.dispatch_dedupe_skip',
+                'info',
+                array(
+                    'campaign_id' => $campaign_id,
+                    'dedupe_key' => $dedupe_key,
+                )
+            );
+            return false;
+        }
+
+        $member_ids = $this->resolve_campaign_members( $campaign );
+        $run_key = $this->build_campaign_run_key( $campaign_id, $dedupe_key );
+        $status = 'queued';
+        $queued_count = count( $member_ids );
+        $send_id = 0;
+
+        if ( $queued_count > 0 ) {
+            $result = $this->add_send_email_info( $newsletter_id, $member_ids, 0, 'by_cron', 1, 0 );
+            if ( isset( $result['send_id'] ) ) {
+                $send_id = intval( $result['send_id'] );
+            }
+
+            if ( $send_id > 0 && isset( $this->builder_v2 ) && $this->builder_v2 && $this->builder_v2->has_saved_state( $newsletter_id ) ) {
+                $email_body = $this->builder_v2->render_newsletter_email( $newsletter_id, 'send', $context );
+                if ( ! empty( $email_body ) ) {
+                    $wpdb->update(
+                        $this->tb_prefix . 'enewsletter_send',
+                        array( 'email_body' => $email_body ),
+                        array( 'send_id' => $send_id ),
+                        array( '%s' ),
+                        array( '%d' )
+                    );
+                }
+            }
+        } else {
+            $status = 'skipped';
+        }
+
+        $wpdb->insert(
+            $this->get_campaign_runs_table_name(),
+            array(
+                'campaign_id' => $campaign_id,
+                'run_key' => $run_key,
+                'send_id' => $send_id,
+                'source_post_id' => intval( isset( $context['source_post_id'] ) ? $context['source_post_id'] : 0 ),
+                'scheduled_at' => intval( isset( $context['scheduled_at'] ) ? $context['scheduled_at'] : current_time( 'timestamp' ) ),
+                'started_at' => current_time( 'timestamp' ),
+                'finished_at' => current_time( 'timestamp' ),
+                'status' => $status,
+                'queued' => $queued_count,
+                'meta' => wp_json_encode( array( 'send_id' => $send_id ) ),
+            ),
+            array( '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%d', '%s' )
+        );
+        $run_id = intval( $wpdb->insert_id );
+
+        $this->log_event(
+            'campaign.dispatch_created',
+            'info',
+            array(
+                'campaign_id' => $campaign_id,
+                'run_id' => $run_id,
+                'send_id' => $send_id,
+                'status' => $status,
+                'queued' => $queued_count,
+                'dedupe_key' => $dedupe_key,
+                'source_post_id' => intval( isset( $context['source_post_id'] ) ? $context['source_post_id'] : 0 ),
+            )
+        );
+
+        $this->register_campaign_dedupe( $campaign_id, $dedupe_key );
+
+        $now = current_time( 'timestamp' );
+        $campaign['last_run'] = $now;
+        $campaign['next_run'] = $this->compute_campaign_next_run( $campaign );
+        $wpdb->update(
+            $this->get_campaigns_table_name(),
+            array(
+                'last_run' => $campaign['last_run'],
+                'next_run' => $campaign['next_run'],
+                'updated_at' => $now,
+            ),
+            array( 'campaign_id' => $campaign_id )
+        );
+
+        return true;
+    }
+
+    function campaigns_run_due() {
+        $lock_key = 'enewsletter_campaign_runner_lock_' . get_current_blog_id();
+        $lock_token = wp_generate_password( 20, false, false );
+        if ( false !== get_transient( $lock_key ) ) {
+            $this->log_event( 'campaign.runner_skipped_lock', 'debug', array() );
+            return;
+        }
+
+        set_transient( $lock_key, $lock_token, 15 * MINUTE_IN_SECONDS );
+
+        $this->ensure_campaign_tables();
+        $now = current_time( 'timestamp' );
+        $campaigns = $this->get_campaigns( "status = 'active' AND next_run > 0 AND next_run <= " . intval( $now ) );
+
+        $this->log_event(
+            'campaign.runner_tick',
+            'debug',
+            array(
+                'due_count' => count( (array) $campaigns ),
+                'now' => $now,
+            )
+        );
+
+        foreach ( $campaigns as $campaign ) {
+            $dedupe_key = 'schedule:' . gmdate( 'YmdHi', intval( $campaign['next_run'] ) );
+            $this->dispatch_campaign_send(
+                $campaign,
+                array(
+                    'dedupe_key' => $dedupe_key,
+                    'scheduled_at' => intval( $campaign['next_run'] ),
+                )
+            );
+        }
+
+        $this->campaigns_sync_run_metrics();
+
+        $existing_lock = get_transient( $lock_key );
+        if ( $existing_lock === $lock_token ) {
+            delete_transient( $lock_key );
+        }
+    }
+
+    function campaigns_handle_publish_post( $post_id, $post ) {
+        if ( ! is_object( $post ) || 'publish' !== $post->post_status ) {
+            return;
+        }
+
+        if ( wp_is_post_revision( $post_id ) ) {
+            return;
+        }
+
+        $this->ensure_campaign_tables();
+        $campaigns = $this->get_campaigns( "status = 'active' AND entity_type = 'automation'" );
+        $triggered = 0;
+        foreach ( $campaigns as $campaign ) {
+            $settings = $this->decode_campaign_json( $campaign['settings'] );
+
+            $trigger_type = isset( $settings['trigger_type'] ) ? $settings['trigger_type'] : 'new_post';
+            if ( 'new_post' === $trigger_type && 'post' !== $post->post_type ) {
+                continue;
+            }
+            if ( 'new_product' === $trigger_type && ! in_array( $post->post_type, array( 'product', 'mp_product' ), true ) ) {
+                continue;
+            }
+            if ( ! in_array( $trigger_type, array( 'new_post', 'new_product' ), true ) ) {
+                continue;
+            }
+
+            $dispatched = $this->dispatch_campaign_send(
+                $campaign,
+                array(
+                    'dedupe_key' => 'post:' . intval( $post_id ),
+                    'source_post_id' => intval( $post_id ),
+                    'scheduled_at' => current_time( 'timestamp' ),
+                )
+            );
+
+            if ( $dispatched ) {
+                $triggered++;
+            }
+        }
+
+        $this->log_event(
+            'campaign.publish_post_trigger',
+            'info',
+            array(
+                'post_id' => intval( $post_id ),
+                'triggered_runs' => $triggered,
+            )
+        );
+    }
+
+    function campaigns_page() {
+        $this->campaigns_sync_run_metrics();
+        require_once( $this->plugin_dir . 'email-newsletter-files/page-campaigns.php' );
+    }
+
+    function campaign_edit_page() {
+        require_once( $this->plugin_dir . 'email-newsletter-files/page-campaign-edit.php' );
+    }
+
+    function campaign_stats_page() {
+        $this->campaigns_sync_run_metrics( isset( $_REQUEST['campaign_id'] ) ? intval( $_REQUEST['campaign_id'] ) : 0 );
+        require_once( $this->plugin_dir . 'email-newsletter-files/page-campaign-stats.php' );
+    }
+
+    function logs_page() {
+        require_once( $this->plugin_dir . 'email-newsletter-files/page-logs.php' );
     }
 
     /**
@@ -2624,7 +3896,13 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 }
             }
 
-            wp_redirect( $target );
+            if ( ! headers_sent() ) {
+                wp_redirect( $target );
+                exit();
+            }
+
+            echo '<script>window.location.replace(' . wp_json_encode( $target ) . ');</script>';
+            echo '<noscript><meta http-equiv="refresh" content="0;url=' . esc_url( $target ) . '" /></noscript>';
             exit();
         }
 

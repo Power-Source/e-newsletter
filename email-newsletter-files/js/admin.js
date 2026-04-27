@@ -1,5 +1,33 @@
 jQuery( document ).ready( function() {
 
+    function sanitizeAjaxHtml( html ) {
+        var parsed = jQuery.parseHTML( String( html || '' ), document, false ) || [];
+        var wrapper = jQuery( '<div></div>' ).append( parsed );
+
+        wrapper.find( 'script' ).remove();
+        wrapper.find( '*' ).each( function() {
+            var attrs = this.attributes;
+            if ( !attrs ) {
+                return;
+            }
+
+            for ( var i = attrs.length - 1; i >= 0; i -= 1 ) {
+                var attrName = attrs[i].name;
+                var attrValue = attrs[i].value || '';
+                if ( /^on/i.test( attrName ) ) {
+                    jQuery( this ).removeAttr( attrName );
+                    continue;
+                }
+
+                if ( /^(href|src)$/i.test( attrName ) && /^\s*javascript:/i.test( attrValue ) ) {
+                    jQuery( this ).removeAttr( attrName );
+                }
+            }
+        });
+
+        return wrapper.contents();
+    }
+
 
     //Groups page
 
@@ -16,21 +44,23 @@ jQuery( document ).ready( function() {
 
     var group_name      = "";
     var group_public    = "";
+    var member_nicename = "";
+    var member_email    = "";
 
     jQuery.fn.editGroup = function ( id ) {
         if ( enewsletter.edit == jQuery( this ).val() ) {
-            group_name = jQuery( "#group_name_block_" + id ).html();
-            group_name = group_name.replace(/(^\s+)|(\s+$)/g, "");
+            group_name = jQuery.trim( jQuery( "#group_name_block_" + id ).text() );
 
-            jQuery( "#group_name_block_" + id ).html( '<input type="text" name="edit_group_name" size="30" id="edit_group_name"  value="' + group_name + '" /><input type="hidden" name="group_id" value="' + id + '" />' );
+            jQuery( "#group_name_block_" + id )
+                .empty()
+                .append( jQuery( '<input>', { type: 'text', name: 'edit_group_name', size: 30, id: 'edit_group_name' } ).val( group_name ) )
+                .append( jQuery( '<input>', { type: 'hidden', name: 'group_id', value: id } ) );
 
-            group_public = jQuery( "#public_block_" + id ).html();
-            group_public = group_public.replace(/(^\s+)|(\s+$)/g, "");
+            group_public = jQuery.trim( jQuery( "#public_block_" + id ).text() );
 
-            if ( "Yes" == group_public )
-                jQuery( "#public_block_" + id ).html( '<input type="checkbox" name="edit_public" id="public" value="1" checked="checked" />' );
-            else
-                jQuery( "#public_block_" + id ).html( '<input type="checkbox" name="edit_public" id="public" value="1" />' );
+            jQuery( "#public_block_" + id )
+                .empty()
+                .append( jQuery( '<input>', { type: 'checkbox', name: 'edit_public', id: 'public', value: '1' } ).prop( 'checked', "Yes" == group_public ) );
 
 
             jQuery( '#edit_group input[type="button"]' ).prop( 'disabled', true );
@@ -38,14 +68,22 @@ jQuery( document ).ready( function() {
             jQuery( this ).val(enewsletter.close);
             jQuery( this ).prop( 'disabled', false );
 
-            jQuery( "#save_block_" + id ).html( '<input class="button button-secondary" type="button" name="save_button" onClick="jQuery(this).saveGroup();" value="'+enewsletter.save+'" />' );
+            jQuery( "#save_block_" + id )
+                .empty()
+                .append(
+                    jQuery( '<input>', { 'class': 'button button-secondary', type: 'button', name: 'save_button' } )
+                        .val( enewsletter.save )
+                        .on( 'click', function() {
+                            jQuery( this ).saveGroup();
+                        })
+                );
 
             return;
         }
 
         if ( enewsletter.close == jQuery( this ).val() ) {
-            jQuery( "#group_name_block_" + id ).html( group_name );
-            jQuery( "#public_block_" + id ).html( group_public );
+            jQuery( "#group_name_block_" + id ).text( group_name );
+            jQuery( "#public_block_" + id ).text( group_public );
 
             jQuery( this ).val(enewsletter.edit);
             jQuery( '#edit_group input[type="button"]' ).prop( 'disabled', false );
@@ -104,24 +142,35 @@ jQuery( document ).ready( function() {
 
     //Some actions
     jQuery( "#apply" ).on('click', function() {
+        var action = jQuery( "#some_action" ).val();
+
         if ( -1 == jQuery( "#some_action" ).val() ) {
             return false;
-        } else if ( ( 'add_members_group' == jQuery( "#some_action" ).val() || 'delete_members_group' == jQuery( "#some_action" ).val() )
+        } else if ( ( 'add_members_group' == action || 'delete_members_group' == action || 'move_members_group' == action )
                         && -1 == jQuery( "#list_group_id" ).val() ) {
+            return false;
+        } else if ( 'set_members_status' == action && -1 == jQuery( "#members_status" ).val() ) {
             return false;
         }
 
-        jQuery( "#newsletter_action" ).val( jQuery( "#some_action" ).val() );
+        jQuery( "#newsletter_action" ).val( action );
         jQuery( "#form_members" )[0].submit();
         return false;
     });
 
     //show/hide select box of groups list
     jQuery( "#some_action" ).on('change', function() {
-        if ( 'add_members_group' == jQuery( "#some_action" ).val() || 'delete_members_group' == jQuery( "#some_action" ).val() ) {
+        var action = jQuery( "#some_action" ).val();
+        if ( 'add_members_group' == action || 'delete_members_group' == action || 'move_members_group' == action ) {
             jQuery( "#list_group_id" ).show();
         } else {
             jQuery( "#list_group_id" ).hide();
+        }
+
+        if ( 'set_members_status' == action ) {
+            jQuery( "#members_status" ).show();
+        } else {
+            jQuery( "#members_status" ).hide();
         }
     });
 
@@ -161,22 +210,32 @@ jQuery( document ).ready( function() {
         if ( enewsletter.edit == jQuery( this ).val() ) {
             jQuery( "#member_id" ).val( id );
 
-            member_nicename = jQuery( "#member_nicename_block_" + id ).html();
-            member_nicename = member_nicename.replace(/(^\s+)|(\s+$)/g, "");
+            member_nicename = jQuery.trim( jQuery( "#member_nicename_block_" + id ).text() );
 
-            jQuery( "#member_nicename_block_" + id ).html( '<input type="text" name="edit_member_nicename" id="edit_member_nicename"  value="' + member_nicename + '" />' );
+            jQuery( "#member_nicename_block_" + id )
+                .empty()
+                .append( jQuery( '<input>', { type: 'text', name: 'edit_member_nicename', id: 'edit_member_nicename' } ).val( member_nicename ) );
 
-            member_email = jQuery( "#member_email_block_" + id ).html();
-            member_email = member_email.replace(/(^\s+)|(\s+$)/g, "");
+            member_email = jQuery.trim( jQuery( "#member_email_block_" + id ).text() );
 
-            jQuery( "#member_email_block_" + id ).html( '<input type="text" size="30" name="edit_member_email" id="edit_member_email"  value="' + member_email + '" />' );
+            jQuery( "#member_email_block_" + id )
+                .empty()
+                .append( jQuery( '<input>', { type: 'text', size: 30, name: 'edit_member_email', id: 'edit_member_email' } ).val( member_email ) );
 
             jQuery( '#form_members input[type="button"]' ).prop( 'disabled', true );
 
             jQuery( this ).val(enewsletter.close);
             jQuery( this ).prop( 'disabled', false );
 
-            jQuery( "#save_block_" + id ).html( '<input class="button button-secondary" type="button" id="save_member_button" name="save_button" onClick="jQuery(this).saveMember();" value="'+enewsletter.save+'" />' );
+            jQuery( "#save_block_" + id )
+                .empty()
+                .append(
+                    jQuery( '<input>', { 'class': 'button button-secondary', type: 'button', id: 'save_member_button', name: 'save_button' } )
+                        .val( enewsletter.save )
+                        .on( 'click', function() {
+                            jQuery( this ).saveMember();
+                        })
+                );
 
             return;
         }
@@ -184,8 +243,8 @@ jQuery( document ).ready( function() {
         if ( enewsletter.close == jQuery( this ).val() ) {
             jQuery( "#member_id" ).val( '' );
 
-            jQuery( "#member_nicename_block_" + id ).html( member_nicename );
-            jQuery( "#member_email_block_" + id ).html( member_email );
+            jQuery( "#member_nicename_block_" + id ).text( member_nicename );
+            jQuery( "#member_email_block_" + id ).text( member_email );
 
             jQuery( this ).val(enewsletter.edit);
             jQuery( '#form_members input[type="button"]' ).prop( 'disabled', false );
@@ -229,8 +288,17 @@ jQuery( document ).ready( function() {
             url: ajaxurl,
             data: "action=change_groups&member_id=" + id,
             success: function(html){
-                jQuery( "#change_group_block_" + id ).html( html );
-                jQuery( "#close_block_" + id ).html( '<input class="button button-secondary" type="button" onClick="jQuery(this).closeChangeGroups( ' + id + ' );" value="'+enewsletter.close+'" />' );
+                jQuery( "#change_group_block_" + id ).empty().append( sanitizeAjaxHtml( html ) );
+
+                jQuery( "#close_block_" + id )
+                    .empty()
+                    .append(
+                        jQuery( '<input>', { 'class': 'button button-secondary', type: 'button' } )
+                            .val( enewsletter.close )
+                            .on( 'click', function() {
+                                jQuery( this ).closeChangeGroups( id );
+                            })
+                    );
 
                 jQuery( "#change_button_" + id ).val(enewsletter.save_groups);
 
@@ -266,7 +334,7 @@ jQuery( document ).ready( function() {
 
 
     var cron = 0;
-    var assoontext = jQuery('#timestamp b').html();
+    var assoontext = jQuery('#timestamp b').text();
 
     jQuery( '#add_cron' ).on('click', function() {
         cron = 1;
@@ -328,7 +396,7 @@ jQuery( document ).ready( function() {
     jQuery('.save-timestamp', '#timestampdiv').on('click', function () {
         aa = jQuery('#aa').val(), mm = jQuery('#mm').val(), jj = jQuery('#jj').val(), hh = jQuery('#hh').val(), mn = jQuery('#mn').val();
 
-        jQuery('#timestamp b').html(
+        jQuery('#timestamp b').text(
             jQuery('option[value="' + jQuery('#mm').val() + '"]', '#mm').text() + ' ' +
             jj + ', ' +
             aa + ' @ ' +
@@ -344,7 +412,7 @@ jQuery( document ).ready( function() {
     jQuery('.cancel-timestamp', '#timestampdiv').on('click', function() {
         jQuery('#timestampdiv').slideUp('fast');
         jQuery('a.edit-timestamp').show();
-        jQuery('#timestamp b').html(assoontext);
+        jQuery('#timestamp b').text(assoontext);
         jQuery( '#cron_time' ).val( '' );
         return false;
     });

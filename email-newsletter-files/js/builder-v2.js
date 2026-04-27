@@ -1133,8 +1133,10 @@
 				break;
 			case 'products':
 				schema = [
+					{ key: 'query_mode', label: config.l10n.queryMode, type: 'select', options: { manual: config.l10n.queryManual, latest: config.l10n.queryLatest, trigger: config.l10n.queryTrigger } },
+					{ key: 'query_limit', label: config.l10n.queryLimit, type: 'number', min: 1, max: 24, step: 1 },
 					{ key: 'ids', label: config.l10n.ids, type: 'item_picker', itemType: 'products' },
-					{ key: 'layout', label: config.l10n.layout, type: 'select', options: { list: config.l10n.list, grid: config.l10n.grid } },
+					{ key: 'layout', label: config.l10n.layout, type: 'select', options: { single: config.l10n.single, list: config.l10n.list, grid: config.l10n.grid } },
 					{ key: 'show_image', label: config.l10n.showImage, type: 'select', options: getBooleanOptions() },
 					{ key: 'show_price', label: config.l10n.showPrice, type: 'select', options: getBooleanOptions() },
 					{ key: 'show_old_price', label: config.l10n.showOldPrice, type: 'select', options: getBooleanOptions() },
@@ -1147,6 +1149,9 @@
 				break;
 			case 'posts':
 				schema = [
+					{ key: 'query_mode', label: config.l10n.queryMode, type: 'select', options: { manual: config.l10n.queryManual, latest: config.l10n.queryLatest, trigger: config.l10n.queryTrigger } },
+					{ key: 'query_scope', label: config.l10n.queryScope, type: 'select', options: { all: config.l10n.queryScopeAll, week: config.l10n.queryScopeWeek, month: config.l10n.queryScopeMonth } },
+					{ key: 'query_limit', label: config.l10n.queryLimit, type: 'number', min: 1, max: 24, step: 1 },
 					{ key: 'ids', label: config.l10n.ids, type: 'item_picker', itemType: 'posts' },
 					{ key: 'layout', label: config.l10n.layout, type: 'select', options: { single: config.l10n.single, links: config.l10n.links, grid: config.l10n.grid, slider: config.l10n.slider } },
 					{ key: 'show_image', label: config.l10n.showImage, type: 'select', options: getBooleanOptions() },

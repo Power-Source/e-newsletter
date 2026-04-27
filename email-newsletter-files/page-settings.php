@@ -339,6 +339,17 @@
                                         <?php _e( 'Sekunde(n) zwischen jeder E-Mail', 'email-newsletter' ) ?>.
                                     </td>
                                 </tr>
+                                <tr valign="top">
+                                    <th scope="row"><?php _e( 'Debug-Logging', 'email-newsletter' ); ?></th>
+                                    <td>
+                                        <?php if ( ! isset( $this->settings['debug_enabled'] ) ) { $this->settings['debug_enabled'] = 0; } ?>
+                                        <select name="settings[debug_enabled]">
+                                            <option value="0" <?php selected( '0', esc_attr( $this->settings['debug_enabled'] ) ); ?>><?php _e( 'Deaktivieren', 'email-newsletter' ); ?></option>
+                                            <option value="1" <?php selected( '1', esc_attr( $this->settings['debug_enabled'] ) ); ?>><?php _e( 'Aktivieren', 'email-newsletter' ); ?></option>
+                                        </select>
+                                        <span class="description"><?php _e( 'Schreibt strukturierte Ereignisse in die Log-Datei auf der Logs-Seite.', 'email-newsletter' ); ?></span>
+                                    </td>
+                                </tr>
 							</tbody>
                         </table>
                     </div>
