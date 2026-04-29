@@ -197,6 +197,7 @@ class Email_Newsletter_Builder_V2 {
 
 		return array(
 			'global' => array(
+				'subject' => '',
 				'email_title' => $this->plugin->get_default_builder_var( 'email_title' ),
 				'full_width' => '0',
 				'content_width' => 600,
@@ -230,6 +231,7 @@ class Email_Newsletter_Builder_V2 {
 		}
 
 		$newsletter = $this->plugin->get_newsletter_data( $newsletter_id );
+		$state['global']['subject'] = isset( $newsletter['subject'] ) ? sanitize_text_field( $newsletter['subject'] ) : '';
 		$state['global']['email_title'] = $this->plugin->get_newsletter_meta( $newsletter_id, 'email_title', $state['global']['email_title'] );
 		$state['global']['branding_html'] = $this->plugin->get_newsletter_meta( $newsletter_id, 'branding_html', $state['global']['branding_html'] );
 		$state['global']['contact_info'] = ! empty( $newsletter['contact_info'] ) ? $newsletter['contact_info'] : $state['global']['contact_info'];
@@ -403,6 +405,7 @@ class Email_Newsletter_Builder_V2 {
 		$sanitized = $defaults;
 
 		if ( isset( $state['global'] ) && is_array( $state['global'] ) ) {
+			$sanitized['global']['subject'] = sanitize_text_field( $this->get_array_value( $state['global'], 'subject', '' ) );
 			$sanitized['global']['email_title'] = sanitize_text_field( $this->get_array_value( $state['global'], 'email_title', $defaults['global']['email_title'] ) );
 			$sanitized['global']['full_width'] = $this->sanitize_bool_string( $this->get_array_value( $state['global'], 'full_width', $defaults['global']['full_width'] ) );
 			$sanitized['global']['content_width'] = $this->sanitize_int( $state['global'], 'content_width', 420, 760, $defaults['global']['content_width'] );
@@ -592,6 +595,9 @@ class Email_Newsletter_Builder_V2 {
 		global $wpdb;
 
 		$sanitized = $this->sanitize_state( $state, $newsletter_id );
+		if ( '' === $sanitized['global']['email_title'] && '' !== $sanitized['global']['subject'] ) {
+			$sanitized['global']['email_title'] = $sanitized['global']['subject'];
+		}
 		$content = $this->render_state_to_content( $sanitized );
 
 		$this->plugin->update_newsletter_meta( $newsletter_id, $this->meta_key, wp_json_encode( $sanitized ) );
@@ -600,11 +606,12 @@ class Email_Newsletter_Builder_V2 {
 		$wpdb->update(
 			$this->plugin->tb_prefix . 'enewsletter_newsletters',
 			array(
+				'subject' => $sanitized['global']['subject'],
 				'content' => $content,
 				'contact_info' => $sanitized['global']['contact_info'],
 			),
 			array( 'newsletter_id' => $newsletter_id ),
-			array( '%s', '%s' ),
+			array( '%s', '%s', '%s' ),
 			array( '%d' )
 		);
 
@@ -717,7 +724,9 @@ class Email_Newsletter_Builder_V2 {
 			$font_link = '<link rel="stylesheet" type="text/css" href="' . $font_css_url . '" />';
 		}
 		$typography_css = $this->build_typography_css( $global );
-		$title = ! empty( $global['email_title'] ) ? $global['email_title'] : __( 'Newsletter', 'email-newsletter' );
+		$title = ! empty( $global['email_title'] )
+			? $global['email_title']
+			: ( ! empty( $global['subject'] ) ? $global['subject'] : __( 'Newsletter', 'email-newsletter' ) );
 		$view_link = 'preview' === $mode ? '#' : '{VIEW_LINK}';
 		$view_browser = str_replace( '{VIEW_LINK}', $view_link, $global['view_browser_html'] );
 		$tracker = 'preview' === $mode ? '' : '{OPENED_TRACKER}';

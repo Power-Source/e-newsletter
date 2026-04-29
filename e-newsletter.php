@@ -3,7 +3,7 @@
 Plugin Name: PS-eNewsletter
 Plugin URI: https://psource.eimen.net/wiki/ps-enewsletter-dokumentation/
 Description: Das ultimative Newsletter Plugin für ClassicPress. Keine Drittanbieterdienste oder Abo-Kosten, Newsletter direkt aus dem ClassicPress-Dashboard managen und versenden.
-Version: 1.0.4
+Version: 1.0.5
 Text Domain: email-newsletter
 Author: PSOURCE
 Author URI: https://psource.eimen.net/
@@ -49,7 +49,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
         global $wpdb;
 
 
-        $this->plugin_ver = '1.0.4';
+        $this->plugin_ver = '1.0.5';
 
         // Debug flag is resolved after plugin settings are loaded.
         $this->debug = 0;
@@ -746,6 +746,57 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 wp_redirect( $target );
                 exit();
             }
+        }
+
+        // Save Builder V2 state before scripts are enqueued/localized, then redirect to GET.
+        if (
+            isset( $_REQUEST['page'] )
+            && 'newsletters-builder-v2' === sanitize_key( wp_unslash( $_REQUEST['page'] ) )
+            && isset( $_POST['enews_builder_v2_action'] )
+            && 'save' === sanitize_key( wp_unslash( $_POST['enews_builder_v2_action'] ) )
+            && ! defined( 'DOING_AJAX' )
+        ) {
+            if ( ! current_user_can( 'save_newsletter' ) ) {
+                wp_die( __( 'Dazu hast Du keine Berechtigung.', 'email-newsletter' ) );
+            }
+
+            $newsletter_id = isset( $_REQUEST['newsletter_id'] ) ? intval( $_REQUEST['newsletter_id'] ) : 0;
+            if ( $newsletter_id <= 0 ) {
+                wp_die( __( 'Newsletter-ID fehlt.', 'email-newsletter' ) );
+            }
+
+            check_admin_referer( 'enews_builder_v2_save_' . $newsletter_id );
+
+            $raw_state = isset( $_POST['builder_state_json'] ) ? wp_unslash( $_POST['builder_state_json'] ) : '';
+            $decoded = json_decode( $raw_state, true );
+            $updated = 'false';
+            $notice_message = __( 'Der Builder-Status konnte nicht gelesen werden.', 'email-newsletter' );
+
+            if ( is_array( $decoded ) ) {
+                $this->builder_v2->save_state( $newsletter_id, $decoded );
+                $updated = 'true';
+                $notice_message = __( 'Newsletter gespeichert. Der Inhalt wurde aktualisiert.', 'email-newsletter' );
+            }
+
+            $default_return = admin_url( 'admin.php?page=newsletters' );
+            $return = isset( $_REQUEST['return'] ) ? wp_validate_redirect( wp_unslash( $_REQUEST['return'] ), $default_return ) : $default_return;
+
+            $target = add_query_arg(
+                array(
+                    'page' => 'newsletters-builder-v2',
+                    'newsletter_id' => $newsletter_id,
+                    'updated' => $updated,
+                    'message' => urlencode( $notice_message ),
+                ),
+                admin_url( 'admin.php' )
+            );
+
+            if ( ! empty( $return ) ) {
+                $target = add_query_arg( 'return', $return, $target );
+            }
+
+            wp_redirect( $target );
+            exit();
         }
 
         //Force caps for admin
@@ -2652,7 +2703,12 @@ class Email_Newsletter extends Email_Newsletter_functions {
         $content = str_replace( array( '{OPENED_TRACKER}', '%7BOPENED_TRACKER%7D', ),
             '<div style="font-size: 0px; line-height:0px; display:none; visibility: hidden;"><img src="#" width="1" height="1"/></div>', $content );
         if($newsletter_data && $content) {
-            $subject = '(PREVIEW) '.$newsletter_data['subject'];
+            $live_subject = '';
+            if ( isset( $live_state ) && is_array( $live_state ) && isset( $live_state['global'] ) && is_array( $live_state['global'] ) ) {
+                $live_subject = isset( $live_state['global']['subject'] ) ? sanitize_text_field( $live_state['global']['subject'] ) : '';
+            }
+            $subject_source = '' !== $live_subject ? $live_subject : $newsletter_data['subject'];
+            $subject = '(PREVIEW) ' . $subject_source;
             if( $this->settings['bounce_email'] ) {
                 $options = array('bounce_email' => $this->settings['bounce_email']);
             }
@@ -2907,7 +2963,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
             add_menu_page( __( 'PS-eNewsletter', 'email-newsletter' ), __( 'PS-eNewsletter', 'email-newsletter' ), $capability, $slug, '', $this->plugin_url . 'email-newsletter-files/images/icon.png');
             add_submenu_page( $slug, __( 'Berichte', 'email-newsletter' ), __( 'Berichte', 'email-newsletter' ), 'view_newsletter_dashboard', 'newsletters-dashboard', array( &$this, 'newsletters_dashboard_page' ) );
             add_submenu_page( $slug, __( 'Newsletters', 'email-newsletter' ), __( 'Newsletters', 'email-newsletter' ), 'save_newsletter', 'newsletters', array( &$this, 'newsletters_page' ) );
-            add_submenu_page( $slug, __( 'Neuer Newsletter', 'email-newsletter' ), __( 'Neuer Newsletter', 'email-newsletter' ), 'create_newsletter', 'admin.php?page=newsletters-builder-v2&create=1' );
+            add_submenu_page( $slug, __( 'Neuer Newsletter', 'email-newsletter' ), __( 'Neuer Newsletter', 'email-newsletter' ), 'create_newsletter', 'newsletters-new', array( &$this, 'newsletters_new_page' ) );
             // Hidden page: keep direct links (Edit/Create flow) without cluttering the sidebar menu.
             add_submenu_page( null, __( 'Newsletter Builder', 'email-newsletter' ), __( 'Newsletter Builder', 'email-newsletter' ), 'save_newsletter', 'newsletters-builder-v2', array( &$this, 'newsletters_builder_v2_page' ) );
             add_submenu_page( $slug, __( 'Gruppen', 'email-newsletter' ), __( 'Gruppen', 'email-newsletter' ), 'edit_newsletter_group', 'newsletters-groups', array( &$this, 'member_groups_page' ) );
@@ -3909,6 +3965,23 @@ class Email_Newsletter extends Email_Newsletter_functions {
         require_once( $this->plugin_dir . "email-newsletter-files/page-newsletters-builder-v2.php" );
     }
 
+    function newsletters_new_page() {
+        if ( ! current_user_can( 'create_newsletter' ) ) {
+            wp_die( __( 'Dazu hast Du keine Berechtigung.', 'email-newsletter' ) );
+        }
+
+        $target = add_query_arg(
+            array(
+                'page' => 'newsletters-builder-v2',
+                'create' => 1,
+            ),
+            admin_url( 'admin.php' )
+        );
+
+        wp_redirect( $target );
+        exit();
+    }
+
     function builder_v2_preview_ajax() {
         $this->builder_v2->ajax_preview();
     }
@@ -3941,7 +4014,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
             array(
                 'create_date' => time(),
                 'template' => $template,
-                'subject' => '',
+                'subject' => __( 'Neuer Newsletter', 'email-newsletter' ),
                 'from_name' => isset( $this->settings['from_name'] ) ? $this->settings['from_name'] : '',
                 'from_email' => isset( $this->settings['from_email'] ) ? $this->settings['from_email'] : '',
                 'content' => '',

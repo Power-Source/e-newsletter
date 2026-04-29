@@ -16,6 +16,7 @@ class Email_Newsletter_functions {
             case 'newsletters-subscribes':
             case 'newsletters-settings':
             case 'newsletters-builder-v2':
+            case 'newsletters-new':
             case 'newsletters-campaigns':
             case 'newsletters-campaign-edit':
             case 'newsletters-campaign-stats':

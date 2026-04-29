@@ -10,18 +10,10 @@ if ( ! current_user_can( 'save_newsletter' ) ) {
 	wp_die( __( 'Dazu hast Du keine Berechtigung.', 'email-newsletter' ) );
 }
 
-if ( $newsletter_id && isset( $_POST['enews_builder_v2_action'] ) && 'save' === $_POST['enews_builder_v2_action'] ) {
-	check_admin_referer( 'enews_builder_v2_save_' . $newsletter_id );
-	$raw_state = isset( $_POST['builder_state_json'] ) ? wp_unslash( $_POST['builder_state_json'] ) : '';
-	$decoded = json_decode( $raw_state, true );
-
-	if ( is_array( $decoded ) ) {
-		$result = $this->builder_v2->save_state( $newsletter_id, $decoded );
-		$message = __( 'Builder gespeichert. Der Newsletter-Inhalt wurde aktualisiert.', 'email-newsletter' );
-	} else {
-		$message = __( 'Der Builder-Status konnte nicht gelesen werden.', 'email-newsletter' );
-		$message_type = 'error';
-	}
+if ( isset( $_GET['updated'] ) ) {
+	$raw_message = isset( $_GET['message'] ) ? wp_unslash( $_GET['message'] ) : '';
+	$message = $raw_message ? urldecode( $raw_message ) : __( 'Newsletter gespeichert.', 'email-newsletter' );
+	$message_type = 'true' === sanitize_text_field( wp_unslash( $_GET['updated'] ) ) ? 'updated' : 'error';
 }
 
 $newsletter = $newsletter_id ? $this->get_newsletter_data( $newsletter_id ) : false;
@@ -47,7 +39,9 @@ $newsletter = $newsletter_id ? $this->get_newsletter_data( $newsletter_id ) : fa
 
 			<div class="enews-builder-v2-toolbar">
 				<a class="button button-secondary" href="<?php echo esc_url( $back_url ); ?>"><?php _e( 'Zurueck zur Liste', 'email-newsletter' ); ?></a>
-				<button type="submit" class="button button-primary"><?php _e( 'Builder speichern', 'email-newsletter' ); ?></button>
+				<label for="enews-builder-v2-subject" class="screen-reader-text"><?php _e( 'E-Mail-Betreff', 'email-newsletter' ); ?></label>
+				<input type="text" id="enews-builder-v2-subject" value="<?php echo esc_attr( $newsletter['subject'] ); ?>" placeholder="<?php esc_attr_e( 'E-Mail-Betreff', 'email-newsletter' ); ?>" style="min-width:280px;" />
+				<button type="submit" class="button button-primary"><?php _e( 'Newsletter speichern', 'email-newsletter' ); ?></button>
 				<div class="enews-builder-v2-toolbar-test">
 					<input type="email" id="enews-builder-v2-preview-email" value="<?php echo esc_attr( isset( $this->settings['preview_email'] ) && ! empty( $this->settings['preview_email'] ) ? $this->settings['preview_email'] : $this->settings['from_email'] ); ?>" placeholder="<?php esc_attr_e( 'Test-E-Mail-Adresse', 'email-newsletter' ); ?>" />
 					<button type="button" class="button" id="enews-builder-v2-send-test"><?php _e( 'Test-Mail (Live)', 'email-newsletter' ); ?></button>

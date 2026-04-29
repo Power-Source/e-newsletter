@@ -14,7 +14,7 @@
     $url_orginal = add_query_arg( $args );
 
     // Whitelist validation for orderby parameter
-    $allowed_orderby = array('newsletter_id', 'create_date', 'subject', 'template');
+    $allowed_orderby = array('newsletter_id', 'create_date', 'subject');
     if ( isset( $_REQUEST['orderby'] ) && in_array($_REQUEST['orderby'], $allowed_orderby) )
         $arg['orderby'] = $_REQUEST['orderby'];
 
@@ -128,13 +128,6 @@
                             <span class="sorting-indicator"></span>
                         </a>
                     </th>
-                    <th <?php echo (isset($arg['orderby']) && "template" == $arg['orderby']) ? 'class="newsletter-template sorted '. $arg['order'].'"' : 'class="newsletter-template sortable desc"';?>>
-                        <?php $url = add_query_arg( array('orderby' => 'template'), $url_orginal ); ?>
-                        <a href="<?php echo esc_url( $url ); ?>">
-                            <span><?php _e( 'Template', 'email-newsletter' ) ?></span>
-                            <span class="sorting-indicator"></span>
-                        </a>
-                    </th>
                     <th>
                         <span><?php _e( 'Gesendet an', 'email-newsletter' ) ?></span>
                     </th>
@@ -175,9 +168,6 @@
                     </td>
                     <td>
                         <?php echo $newsletter['subject']; ?>
-                    </td>
-                    <td>
-                        <?php echo $newsletter['template']; ?>
                     </td>
                     <td>
                         <?php echo $newsletter['count_sent']; ?> <?php _e( 'Abonnenten', 'email-newsletter' ) ?>
@@ -229,7 +219,7 @@
         <?php
                 }
             else
-                echo '<tr><td colspan="8">'.__( 'Keine Newsletter gefunden.', 'email-newsletter' ).'</td><td>';
+                echo '<tr><td colspan="8">'.__( 'Keine Newsletter gefunden.', 'email-newsletter' ).'</td></tr>';
         ?>
         </table>
 

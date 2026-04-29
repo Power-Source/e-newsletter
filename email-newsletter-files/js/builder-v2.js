@@ -20,6 +20,7 @@
 	var resizeState = null;
 	var itemCache = {};
 	var itemSearchTimers = {};
+	var reflowAnimationCleanupTimer = null;
 	var moduleRowSpanCache = {};
 	var moduleIdCounter = 0;
 	var paletteEl = document.getElementById('enews-builder-v2-palette');
@@ -32,10 +33,12 @@
 	var sendTestButtonEl = document.getElementById('enews-builder-v2-send-test');
 	var sendTestEmailEl = document.getElementById('enews-builder-v2-preview-email');
 	var sendTestStatusEl = document.getElementById('enews-builder-v2-send-test-status');
+	var subjectInputEl = document.getElementById('enews-builder-v2-subject');
 
 	function normalizeState(rawState) {
 		var defaults = {
 			global: {
+				subject: '',
 				email_title: '',
 				full_width: '0',
 				content_width: 600,
@@ -207,8 +210,10 @@
 	}
 
 	function renderCanvas() {
+		var previousItemRects = captureCanvasItemRects();
 		canvasEl.innerHTML = '';
 		canvasEl.classList.toggle('is-empty', state.modules.length === 0);
+		canvasEl.style.minHeight = '';
 		ensureGridPositions();
 		var activeModuleMap = {};
 		state.modules.forEach(function (module) {
@@ -336,13 +341,93 @@
 		});
 
 		syncVisualRowSpans();
-		if (ensureGridPositions()) {
+		if (ensureGridPositions(true)) {
 			renderCanvas();
 			return;
 		}
+		applyDynamicCanvasMinHeight();
 		markGridConflicts();
 
 		renderDragHint();
+		animateCanvasReflow(previousItemRects);
+	}
+
+	function captureCanvasItemRects() {
+		var rects = {};
+		canvasEl.querySelectorAll('.enews-builder-v2-canvas-item').forEach(function (item) {
+			var moduleId = item.dataset.moduleId;
+			if (!moduleId) {
+				return;
+			}
+			var rect = item.getBoundingClientRect();
+			rects[moduleId] = {
+				left: rect.left,
+				top: rect.top
+			};
+		});
+		return rects;
+	}
+
+	function animateCanvasReflow(previousItemRects) {
+		if (!previousItemRects || dragSourceId || resizeState) {
+			return;
+		}
+
+		var hasAnimation = false;
+		canvasEl.querySelectorAll('.enews-builder-v2-canvas-item').forEach(function (item) {
+			var moduleId = item.dataset.moduleId;
+			var previous = moduleId ? previousItemRects[moduleId] : null;
+			if (!previous) {
+				return;
+			}
+
+			var now = item.getBoundingClientRect();
+			var deltaX = previous.left - now.left;
+			var deltaY = previous.top - now.top;
+			if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
+				return;
+			}
+
+			hasAnimation = true;
+			item.classList.remove('is-reflow-animating');
+			item.style.transition = 'none';
+			item.style.transform = 'translate(' + deltaX + 'px,' + deltaY + 'px)';
+			item.getBoundingClientRect();
+			item.classList.add('is-reflow-animating');
+			item.style.transition = '';
+			item.style.transform = '';
+		});
+
+		if (!hasAnimation) {
+			return;
+		}
+
+		window.clearTimeout(reflowAnimationCleanupTimer);
+		reflowAnimationCleanupTimer = window.setTimeout(function () {
+			canvasEl.querySelectorAll('.enews-builder-v2-canvas-item.is-reflow-animating').forEach(function (item) {
+				item.classList.remove('is-reflow-animating');
+			});
+		}, 260);
+	}
+
+	function applyDynamicCanvasMinHeight() {
+		var rowStep = getCanvasRowStep();
+		if (rowStep <= 0) {
+			return;
+		}
+
+		var maxRowEnd = 1;
+		state.modules.forEach(function (module) {
+			var rowStart = getModuleRow(module);
+			var rowSpan = getModuleGridRows(module);
+			maxRowEnd = Math.max(maxRowEnd, rowStart + rowSpan - 1);
+		});
+
+		// Keep a few free rows below the last module to make further drag/drop easier.
+		var reserveRows = state.modules.length ? 6 : 12;
+		var targetRows = maxRowEnd + reserveRows;
+		var minPixels = Math.max(320, targetRows * rowStep);
+		canvasEl.style.minHeight = Math.ceil(minPixels) + 'px';
 	}
 
 	function markGridConflicts() {
@@ -368,7 +453,8 @@
 	}
 
 	function syncVisualRowSpans() {
-		var rowStep = getCanvasRowStep();
+		var grid = getCanvasGridMetrics();
+		var rowStep = grid.step;
 		if (rowStep <= 0) {
 			return;
 		}
@@ -378,22 +464,15 @@
 				return;
 			}
 			var baseRows = getModuleBaseRows(module);
-			var transientHeight = getTransientCanvasEditorHeight(item);
-			var measuredHeight = Math.max(rowStep, item.scrollHeight - transientHeight);
-			var measuredRows = Math.max(1, Math.ceil(measuredHeight / rowStep));
+			// Expanded inline settings must consume grid height so following modules move down.
+			var measuredHeight = Math.max(rowStep, item.scrollHeight);
+			// Grid item height is n*rowHeight + (n-1)*rowGap, so compensate the final missing gap.
+			var measuredRows = Math.max(1, Math.ceil((measuredHeight + grid.rowGap) / rowStep));
 			var nextRows = Math.max(baseRows, measuredRows);
 			moduleRowSpanCache[module.id] = nextRows;
 			module.settings.grid_rows = nextRows;
 			item.style.gridRow = getModuleRow(module) + ' / span ' + nextRows;
 		});
-	}
-
-	function getTransientCanvasEditorHeight(item) {
-		var transientHeight = 0;
-		item.querySelectorAll('.enews-builder-v2-inline-editor, .enews-builder-v2-quick-layout').forEach(function (element) {
-			transientHeight += getElementOuterHeight(element);
-		});
-		return transientHeight;
 	}
 
 	function getElementOuterHeight(element) {
@@ -484,7 +563,8 @@
 		document.removeEventListener('mouseup', stopResize);
 	}
 
-	function ensureGridPositions() {
+	function ensureGridPositions(compactRows) {
+		compactRows = !!compactRows;
 		var occupied = {};
 		var changed = false;
 
@@ -521,7 +601,7 @@
 			var savedCol = parseInt(module.settings.grid_col, 10) || 0;
 			var savedRow = parseInt(module.settings.grid_row, 10) || 0;
 
-			if (isSlotFree(savedCol, savedRow, span, rowSpan)) {
+			if (!compactRows && isSlotFree(savedCol, savedRow, span, rowSpan)) {
 				if (module.settings.grid_col !== savedCol || module.settings.grid_row !== savedRow) {
 					changed = true;
 				}
@@ -532,6 +612,26 @@
 			}
 
 			var found = false;
+
+			if (compactRows) {
+				var preferredCol = savedCol;
+				if (!preferredCol || preferredCol < 1 || preferredCol > (13 - span)) {
+					preferredCol = 1;
+				}
+				for (var preferredRow = 1; preferredRow <= 999 && !found; preferredRow += 1) {
+					if (!isSlotFree(preferredCol, preferredRow, span, rowSpan)) {
+						continue;
+					}
+					if (module.settings.grid_col !== preferredCol || module.settings.grid_row !== preferredRow) {
+						changed = true;
+					}
+					module.settings.grid_col = preferredCol;
+					module.settings.grid_row = preferredRow;
+					markSlot(preferredCol, preferredRow, span, rowSpan);
+					found = true;
+				}
+			}
+
 			for (var row = 1; row <= 999 && !found; row += 1) {
 				for (var col = 1; col <= (13 - span); col += 1) {
 					if (!isSlotFree(col, row, span, rowSpan)) {
@@ -613,10 +713,20 @@
 	}
 
 	function getCanvasRowStep() {
+		var grid = getCanvasGridMetrics();
+		return grid.step;
+	}
+
+	function getCanvasGridMetrics() {
 		var styles = window.getComputedStyle(canvasEl);
 		var rowHeight = parseFloat(styles.gridAutoRows) || 24;
 		var rowGap = parseFloat(styles.rowGap || styles.gap) || 0;
-		return Math.max(1, rowHeight + rowGap);
+		var step = Math.max(1, rowHeight + rowGap);
+		return {
+			rowHeight: rowHeight,
+			rowGap: rowGap,
+			step: step
+		};
 	}
 
 	function isModuleWidthLocked(module) {
@@ -855,7 +965,6 @@
 
 	function renderGlobalSettings() {
 		[
-			{ key: 'email_title', label: config.l10n.emailTitle, type: 'text' },
 			{ key: 'full_width', label: config.l10n.fullWidth, type: 'toggle' },
 			{ key: 'content_width', label: config.l10n.contentWidth, type: 'number' },
 			{ key: 'background_color', label: config.l10n.backgroundColor, type: 'color' },
@@ -893,6 +1002,17 @@
 				saveStateToInput();
 			});
 		});
+	}
+
+	function syncSubjectInput() {
+		if (!subjectInputEl) {
+			return;
+		}
+
+		var nextValue = String((state.global && state.global.subject) || '');
+		if (subjectInputEl.value !== nextValue) {
+			subjectInputEl.value = nextValue;
+		}
 	}
 
 	function createGlobalField(field) {
@@ -2275,6 +2395,7 @@
 	function renderAll() {
 		renderCanvas();
 		renderSettings();
+		syncSubjectInput();
 		saveStateToInput();
 		schedulePreview();
 	}
@@ -2314,11 +2435,24 @@
 		});
 	}
 
+	if (subjectInputEl) {
+		subjectInputEl.addEventListener('input', function () {
+			state.global.subject = String(subjectInputEl.value || '').trim();
+			saveStateToInput();
+		});
+		subjectInputEl.addEventListener('change', function () {
+			state.global.subject = String(subjectInputEl.value || '').trim();
+			saveStateToInput();
+		});
+		syncSubjectInput();
+	}
+
 	initSidebarAccordions();
 	renderPresets();
 	renderPalette();
 	renderCanvas();
 	renderSettings();
+	syncSubjectInput();
 	saveStateToInput();
 	renderServerPreview();
 })();

@@ -145,7 +145,7 @@
 	grid-template-columns: repeat(12, minmax(0, 1fr));
 	grid-auto-rows: 24px;
 	column-gap: 12px;
-	row-gap: 0;
+	row-gap: 8px;
 	align-items: start;
 	min-height: 320px;
 	padding: 14px;
@@ -156,6 +156,7 @@
 		linear-gradient(to right, rgba(148, 163, 184, 0.14) 1px, transparent 1px),
 		linear-gradient(to bottom, rgba(148, 163, 184, 0.14) 1px, transparent 1px);
 	background-size: 24px 24px;
+	transition: min-height 0.2s ease;
 }
 
 .enews-builder-v2-canvas.is-drop-target {
@@ -179,6 +180,11 @@
 	padding: 14px;
 	cursor: default;
 	overflow: hidden;
+}
+
+.enews-builder-v2-canvas-item.is-reflow-animating {
+	transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+	will-change: transform;
 }
 
 .enews-builder-v2-drop-hint {
