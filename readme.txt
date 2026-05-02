@@ -4,7 +4,7 @@ Tags: newsletter
 Requires at least: 4.9
 Tested up to: WordPress 6.4 
 ClassicPress: 2.7.0
-Stable tag: 1.0.5
+Stable tag: 1.0.6
 Requires PHP: 8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -33,6 +33,11 @@ Wir lieben OpenSource, wenn Du Vorschläge oder Idee hast, so teile uns diese do
 zu verbessern.
 
 == ChangeLog ==
+
+= 1.0.6 =
+* Builder-Canvas: Grid-Zeilenhoehe stabilisiert, damit nebeneinander/untereinander Layouts nicht mehr ungewollt weggedrueckt werden
+* Builder-Canvas: Inline-Editor beeinflusst die persistierten Grid-Zeilen nicht mehr
+* Mail-Renderer: Grid-Rowspans werden korrekt verarbeitet, damit mehrspaltige Newsletter in empfangenen E-Mails nicht zerstoert ankommen
 
 = 1.0.5 =
 * Canvas sortiert korrekt bei Preset-Auswahl

@@ -647,9 +647,7 @@ class Email_Newsletter_Builder_V2 {
 			array( $this, 'sort_modules_by_grid' )
 		);
 		$rows = array();
-		$current_row = array();
-		$current_span = 0;
-		$current_grid_row = 1;
+		$grid_entries = array();
 
 		foreach ( $modules as $module ) {
 			$content = $this->render_module_content( $module, $global, $mode, $context );
@@ -657,53 +655,18 @@ class Email_Newsletter_Builder_V2 {
 				continue;
 			}
 
-			$span = $this->get_module_span( $module );
-			$module_grid_row = $this->get_module_row( $module );
-			$module_grid_col = $this->get_module_col( $module );
-
-			if ( ! empty( $current_row ) && $module_grid_row !== $current_grid_row ) {
-				$rows[] = $this->render_grid_row( $current_row, $global );
-				$current_row = array();
-				$current_span = 0;
-			}
-
-			$current_grid_row = $module_grid_row;
-
-			$target_start = max( 1, min( 12, $module_grid_col ) );
-			if ( $target_start > ( $current_span + 1 ) ) {
-				$spacer_span = $target_start - ( $current_span + 1 );
-				$current_row[] = array(
-					'module' => array( 'settings' => array() ),
-					'content' => '&nbsp;',
-					'span' => $spacer_span,
-					'is_spacer' => true,
-				);
-				$current_span += $spacer_span;
-			}
-
-			if ( ! empty( $current_row ) && ( $current_span + $span ) > 12 ) {
-				$rows[] = $this->render_grid_row( $current_row, $global );
-				$current_row = array();
-				$current_span = 0;
-				$current_grid_row = $module_grid_row;
-			}
-
-			$current_row[] = array(
+			$grid_entries[] = array(
 				'module' => $module,
 				'content' => $content,
-				'span' => $span,
+				'span' => $this->get_module_span( $module ),
+				'col' => $this->get_module_col( $module ),
+				'row' => $this->get_module_row( $module ),
+				'row_span' => $this->get_module_row_span( $module ),
 			);
-			$current_span += $span;
-
-			if ( $current_span >= 12 ) {
-				$rows[] = $this->render_grid_row( $current_row, $global );
-				$current_row = array();
-				$current_span = 0;
-			}
 		}
 
-		if ( ! empty( $current_row ) ) {
-			$rows[] = $this->render_grid_row( $current_row, $global );
+		if ( ! empty( $grid_entries ) ) {
+			$rows[] = $this->render_grid_row( $grid_entries, $global );
 		}
 
 		if ( empty( $rows ) ) {
@@ -786,6 +749,14 @@ class Email_Newsletter_Builder_V2 {
 		return $this->sanitize_int( $module['settings'], 'grid_row', 1, 999, 1 );
 	}
 
+	function get_module_row_span( $module ) {
+		if ( empty( $module['settings'] ) || ! is_array( $module['settings'] ) ) {
+			return 1;
+		}
+
+		return $this->sanitize_int( $module['settings'], 'grid_rows', 1, 999, 1 );
+	}
+
 	function sort_modules_by_grid( $a, $b ) {
 		$row_a = $this->get_module_row( $a );
 		$row_b = $this->get_module_row( $b );
@@ -802,35 +773,122 @@ class Email_Newsletter_Builder_V2 {
 		return 0;
 	}
 
-	function render_grid_row( $row_modules, $global ) {
-		if ( empty( $row_modules ) ) {
+	function render_grid_row( $grid_entries, $global ) {
+		if ( empty( $grid_entries ) ) {
 			return '';
 		}
 
 		$column_gap = max( 0, min( 16, intval( round( intval( $global['section_gap'] ) / 2 ) ) ) );
-		$cells = array();
+		$rows_html = array();
 		$colgroup = '';
 		for ( $i = 0; $i < 12; $i++ ) {
 			$colgroup .= '<col style="width:8.3333%;">';
 		}
 
-		foreach ( $row_modules as $entry ) {
-			$is_spacer = ! empty( $entry['is_spacer'] );
-			$span = $is_spacer ? max( 1, min( 12, intval( $entry['span'] ) ) ) : max( 3, min( 12, intval( $entry['span'] ) ) );
-			$width = round( ( $span / 12 ) * 100, 4 );
-			$settings = isset( $entry['module']['settings'] ) && is_array( $entry['module']['settings'] ) ? $entry['module']['settings'] : array();
-			$min_height = $this->sanitize_int( $settings, 'canvas_min_height', 0, 480, 0 );
-			$inner_style = 0 < $min_height ? 'min-height:' . intval( $min_height ) . 'px;' : '';
+		$starts = array();
+		$max_row_end = 1;
+		foreach ( $grid_entries as $entry ) {
+			$row = max( 1, min( 999, intval( isset( $entry['row'] ) ? $entry['row'] : 1 ) ) );
+			$col = max( 1, min( 12, intval( isset( $entry['col'] ) ? $entry['col'] : 1 ) ) );
+			$span = max( 1, min( 12, intval( isset( $entry['span'] ) ? $entry['span'] : 12 ) ) );
+			if ( ( $col + $span - 1 ) > 12 ) {
+				$span = 12 - $col + 1;
+			}
+			$row_span = max( 1, min( 999, intval( isset( $entry['row_span'] ) ? $entry['row_span'] : 1 ) ) );
 
-			if ( $is_spacer ) {
-				$cells[] = '<td class="enews-grid-col" colspan="' . intval( $span ) . '" width="' . esc_attr( $width ) . '%" valign="top" style="width:' . esc_attr( $width ) . '%;max-width:' . esc_attr( $width ) . '%;padding:0 ' . intval( $column_gap ) . 'px;vertical-align:top;font-size:0;line-height:0;">&nbsp;</td>';
+			$entry['row'] = $row;
+			$entry['col'] = $col;
+			$entry['span'] = $span;
+			$entry['row_span'] = $row_span;
+
+			if ( ! isset( $starts[ $row ] ) ) {
+				$starts[ $row ] = array();
+			}
+			if ( ! isset( $starts[ $row ][ $col ] ) ) {
+				$starts[ $row ][ $col ] = $entry;
+			}
+
+			$max_row_end = max( $max_row_end, $row + $row_span - 1 );
+		}
+
+		$active_rowspans = array();
+		for ( $i = 1; $i <= 12; $i++ ) {
+			$active_rowspans[ $i ] = 0;
+		}
+
+		for ( $row = 1; $row <= $max_row_end; $row++ ) {
+			$has_active = false;
+			for ( $c = 1; $c <= 12; $c++ ) {
+				if ( $active_rowspans[ $c ] > 0 ) {
+					$has_active = true;
+					break;
+				}
+			}
+			if ( ! isset( $starts[ $row ] ) && ! $has_active ) {
 				continue;
 			}
 
-			$cells[] = '<td class="enews-grid-col" colspan="' . intval( $span ) . '" width="' . esc_attr( $width ) . '%" valign="top" style="width:' . esc_attr( $width ) . '%;max-width:' . esc_attr( $width ) . '%;padding:0 ' . intval( $column_gap ) . 'px;vertical-align:top;color:' . esc_attr( $global['text_color'] ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';"><div style="' . esc_attr( $inner_style ) . '">' . $entry['content'] . '</div></td>';
+			$cells = array();
+			$col = 1;
+			while ( $col <= 12 ) {
+				if ( $active_rowspans[ $col ] > 0 ) {
+					$col++;
+					continue;
+				}
+
+				$entry = isset( $starts[ $row ][ $col ] ) ? $starts[ $row ][ $col ] : null;
+				if ( is_array( $entry ) ) {
+					$span = max( 1, min( 12 - $col + 1, intval( $entry['span'] ) ) );
+					$row_span = max( 1, intval( $entry['row_span'] ) );
+					$width = round( ( $span / 12 ) * 100, 4 );
+					$settings = isset( $entry['module']['settings'] ) && is_array( $entry['module']['settings'] ) ? $entry['module']['settings'] : array();
+					$min_height = $this->sanitize_int( $settings, 'canvas_min_height', 0, 480, 0 );
+					$inner_style = 0 < $min_height ? 'min-height:' . intval( $min_height ) . 'px;' : '';
+
+					$cells[] = '<td class="enews-grid-col" colspan="' . intval( $span ) . '" rowspan="' . intval( $row_span ) . '" width="' . esc_attr( $width ) . '%" valign="top" style="width:' . esc_attr( $width ) . '%;max-width:' . esc_attr( $width ) . '%;padding:0 ' . intval( $column_gap ) . 'px;vertical-align:top;color:' . esc_attr( $global['text_color'] ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';"><div style="' . esc_attr( $inner_style ) . '">' . $entry['content'] . '</div></td>';
+
+					if ( $row_span > 1 ) {
+						for ( $span_col = $col; $span_col < ( $col + $span ); $span_col++ ) {
+							$active_rowspans[ $span_col ] = max( $active_rowspans[ $span_col ], $row_span - 1 );
+						}
+					}
+
+					$col += $span;
+					continue;
+				}
+
+				$spacer_span = 0;
+				for ( $probe = $col; $probe <= 12; $probe++ ) {
+					if ( $active_rowspans[ $probe ] > 0 || isset( $starts[ $row ][ $probe ] ) ) {
+						break;
+					}
+					$spacer_span++;
+				}
+
+				if ( $spacer_span <= 0 ) {
+					$col++;
+					continue;
+				}
+
+				$spacer_width = round( ( $spacer_span / 12 ) * 100, 4 );
+				$cells[] = '<td class="enews-grid-col" colspan="' . intval( $spacer_span ) . '" width="' . esc_attr( $spacer_width ) . '%" valign="top" style="width:' . esc_attr( $spacer_width ) . '%;max-width:' . esc_attr( $spacer_width ) . '%;padding:0 ' . intval( $column_gap ) . 'px;vertical-align:top;font-size:0;line-height:0;">&nbsp;</td>';
+				$col += $spacer_span;
+			}
+
+			$rows_html[] = '<tr>' . implode( '', $cells ) . '</tr>';
+
+			for ( $c = 1; $c <= 12; $c++ ) {
+				if ( $active_rowspans[ $c ] > 0 ) {
+					$active_rowspans[ $c ]--;
+				}
+			}
 		}
 
-		return '<tr><td style="padding:' . intval( $global['section_gap'] ) . 'px 24px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;"><colgroup>' . $colgroup . '</colgroup><tr>' . implode( '', $cells ) . '</tr></table></td></tr>';
+		if ( empty( $rows_html ) ) {
+			$rows_html[] = '<tr><td class="enews-grid-col" colspan="12" valign="top" style="padding:0 ' . intval( $column_gap ) . 'px;vertical-align:top;font-size:0;line-height:0;">&nbsp;</td></tr>';
+		}
+
+		return '<tr><td style="padding:' . intval( $global['section_gap'] ) . 'px 24px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;"><colgroup>' . $colgroup . '</colgroup><tbody>' . implode( '', $rows_html ) . '</tbody></table></td></tr>';
 	}
 
 	function render_module_row( $module, $global, $mode = 'storage' ) {

@@ -89,7 +89,7 @@
 		nextModule.settings.grid_span = getModuleSpan(nextModule);
 		nextModule.settings.grid_col = getModuleCol(nextModule);
 		nextModule.settings.grid_row = getModuleRow(nextModule);
-		nextModule.settings.grid_rows = getModuleSavedRows(nextModule);
+		nextModule.settings.grid_rows = getModuleBaseRows(nextModule);
 		nextModule.settings.canvas_min_height = getModuleMinHeight(nextModule);
 		return nextModule;
 	}
@@ -464,13 +464,13 @@
 				return;
 			}
 			var baseRows = getModuleBaseRows(module);
-			// Expanded inline settings must consume grid height so following modules move down.
-			var measuredHeight = Math.max(rowStep, item.scrollHeight);
+			var editor = item.querySelector('.enews-builder-v2-inline-editor');
+			// Ignore expanded inline settings so persisted layout does not get inflated by editor chrome.
+			var measuredHeight = Math.max(rowStep, item.scrollHeight - getElementOuterHeight(editor));
 			// Grid item height is n*rowHeight + (n-1)*rowGap, so compensate the final missing gap.
 			var measuredRows = Math.max(1, Math.ceil((measuredHeight + grid.rowGap) / rowStep));
 			var nextRows = Math.max(baseRows, measuredRows);
 			moduleRowSpanCache[module.id] = nextRows;
-			module.settings.grid_rows = nextRows;
 			item.style.gridRow = getModuleRow(module) + ' / span ' + nextRows;
 		});
 	}
@@ -687,8 +687,7 @@
 			return 1;
 		}
 		var baseRows = getModuleBaseRows(module);
-		var savedRows = getModuleSavedRows(module);
-		var rows = Math.max(baseRows, savedRows);
+		var rows = baseRows;
 		if (module.id && moduleRowSpanCache[module.id]) {
 			rows = Math.max(rows, moduleRowSpanCache[module.id]);
 		}
