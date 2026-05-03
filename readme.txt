@@ -4,7 +4,7 @@ Tags: newsletter
 Requires at least: 4.9
 Tested up to: WordPress 6.4 
 ClassicPress: 2.7.0
-Stable tag: 1.0.6
+Stable tag: 1.0.7
 Requires PHP: 8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -33,6 +33,12 @@ Wir lieben OpenSource, wenn Du Vorschläge oder Idee hast, so teile uns diese do
 zu verbessern.
 
 == ChangeLog ==
+
+= 1.0.7 =
+* Builder V2: Initialisierung stabilisiert, damit Module in der Palette wieder erscheinen und das Canvas nicht leer bleibt
+* Builder V2: "Block hinzufügen" pro Spalte zuverlässig verdrahtet
+* Live-Vorschau: Lade-/Fehlerzustände verbessert und Vorschau-Refresh robuster gemacht
+* Builder-State: Fallback auf Legacy-Inhalt ergänzt, wenn kein valider gespeicherter State vorhanden ist
 
 = 1.0.6 =
 * Builder-Canvas: Grid-Zeilenhoehe stabilisiert, damit nebeneinander/untereinander Layouts nicht mehr ungewollt weggedrueckt werden

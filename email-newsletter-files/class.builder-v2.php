@@ -220,6 +220,7 @@ class Email_Newsletter_Builder_V2 {
 				'contact_info' => $contact_info,
 				'view_browser_html' => $view_browser,
 			),
+			'sections' => array(),
 			'modules' => array(),
 		);
 	}
@@ -380,7 +381,12 @@ class Email_Newsletter_Builder_V2 {
 		if ( ! empty( $saved ) ) {
 			$decoded = json_decode( $saved, true );
 			if ( is_array( $decoded ) ) {
-				return $this->migrate_html_shortcodes_to_typed( $this->sanitize_state( $decoded, $newsletter_id ) );
+				$sanitized = $this->migrate_html_shortcodes_to_typed( $this->sanitize_state( $decoded, $newsletter_id ) );
+				$has_sections = isset( $sanitized['sections'] ) && is_array( $sanitized['sections'] ) && ! empty( $sanitized['sections'] );
+				$has_modules = isset( $sanitized['modules'] ) && is_array( $sanitized['modules'] ) && ! empty( $sanitized['modules'] );
+				if ( $has_sections || $has_modules ) {
+					return $sanitized;
+				}
 			}
 		}
 
@@ -403,6 +409,7 @@ class Email_Newsletter_Builder_V2 {
 		$defaults['global'] = $this->get_newsletter_global_defaults( $newsletter_id );
 		$modules_map = $this->get_available_modules();
 		$sanitized = $defaults;
+		$input_has_sections = isset( $state['sections'] ) && is_array( $state['sections'] );
 
 		if ( isset( $state['global'] ) && is_array( $state['global'] ) ) {
 			$sanitized['global']['subject'] = sanitize_text_field( $this->get_array_value( $state['global'], 'subject', '' ) );
@@ -427,6 +434,10 @@ class Email_Newsletter_Builder_V2 {
 			$sanitized['global']['branding_html'] = wp_kses_post( $this->get_array_value( $state['global'], 'branding_html', $defaults['global']['branding_html'] ) );
 			$sanitized['global']['contact_info'] = wp_kses_post( $this->get_array_value( $state['global'], 'contact_info', $defaults['global']['contact_info'] ) );
 			$sanitized['global']['view_browser_html'] = wp_kses_post( $this->get_array_value( $state['global'], 'view_browser_html', $defaults['global']['view_browser_html'] ) );
+		}
+
+		if ( $input_has_sections ) {
+			$state['modules'] = $this->flatten_sections_to_modules( $state['sections'] );
 		}
 
 		if ( empty( $state['modules'] ) || ! is_array( $state['modules'] ) ) {
@@ -588,7 +599,113 @@ class Email_Newsletter_Builder_V2 {
 			);
 		}
 
+		if ( $input_has_sections ) {
+			$sanitized['sections'] = $this->rebuild_sections_from_sanitized_modules( $sanitized['modules'] );
+		}
+
 		return $sanitized;
+	}
+
+	function flatten_sections_to_modules( $sections ) {
+		$modules = array();
+		if ( ! is_array( $sections ) ) {
+			return $modules;
+		}
+
+		foreach ( $sections as $section_index => $section ) {
+			$rows = isset( $section['rows'] ) && is_array( $section['rows'] ) ? $section['rows'] : array();
+			foreach ( $rows as $row_index => $row ) {
+				$columns = isset( $row['columns'] ) && is_array( $row['columns'] ) ? $row['columns'] : array();
+				foreach ( $columns as $col_index => $column ) {
+					$width = isset( $column['width'] ) ? floatval( $column['width'] ) : 100;
+					$blocks = isset( $column['blocks'] ) && is_array( $column['blocks'] ) ? $column['blocks'] : array();
+					foreach ( $blocks as $block ) {
+						$type = isset( $block['type'] ) ? sanitize_key( $block['type'] ) : '';
+						if ( '' === $type ) {
+							continue;
+						}
+
+						$settings = isset( $block['settings'] ) && is_array( $block['settings'] ) ? $block['settings'] : array();
+						$settings['__section'] = intval( $section_index );
+						$settings['__row'] = intval( $row_index );
+						$settings['__col'] = intval( $col_index );
+						$settings['__col_width'] = $width;
+
+						$modules[] = array(
+							'id' => isset( $block['id'] ) ? $block['id'] : uniqid( 'blk_', false ),
+							'type' => $type,
+							'settings' => $settings,
+						);
+					}
+				}
+			}
+		}
+
+		return $modules;
+	}
+
+	function rebuild_sections_from_sanitized_modules( $modules ) {
+		$sections_map = array();
+		if ( ! is_array( $modules ) ) {
+			return array();
+		}
+
+		foreach ( $modules as $module ) {
+			$settings = isset( $module['settings'] ) && is_array( $module['settings'] ) ? $module['settings'] : array();
+			$section_index = isset( $settings['__section'] ) ? max( 0, intval( $settings['__section'] ) ) : 0;
+			$row_index = isset( $settings['__row'] ) ? max( 0, intval( $settings['__row'] ) ) : 0;
+			$col_index = isset( $settings['__col'] ) ? max( 0, intval( $settings['__col'] ) ) : 0;
+			$col_width = isset( $settings['__col_width'] ) ? floatval( $settings['__col_width'] ) : 100;
+
+			if ( ! isset( $sections_map[ $section_index ] ) ) {
+				$sections_map[ $section_index ] = array(
+					'id' => 'sec_' . $section_index,
+					'rows' => array(),
+				);
+			}
+
+			if ( ! isset( $sections_map[ $section_index ]['rows'][ $row_index ] ) ) {
+				$sections_map[ $section_index ]['rows'][ $row_index ] = array(
+					'id' => 'row_' . $section_index . '_' . $row_index,
+					'columns' => array(),
+				);
+			}
+
+			if ( ! isset( $sections_map[ $section_index ]['rows'][ $row_index ]['columns'][ $col_index ] ) ) {
+				$sections_map[ $section_index ]['rows'][ $row_index ]['columns'][ $col_index ] = array(
+					'id' => 'col_' . $section_index . '_' . $row_index . '_' . $col_index,
+					'width' => max( 10, min( 100, $col_width ) ),
+					'blocks' => array(),
+				);
+			}
+
+			unset( $settings['__section'], $settings['__row'], $settings['__col'], $settings['__col_width'] );
+			$sections_map[ $section_index ]['rows'][ $row_index ]['columns'][ $col_index ]['blocks'][] = array(
+				'id' => isset( $module['id'] ) ? $module['id'] : uniqid( 'blk_', false ),
+				'type' => isset( $module['type'] ) ? $module['type'] : 'text',
+				'settings' => $settings,
+			);
+		}
+
+		ksort( $sections_map );
+		$sections = array();
+		foreach ( $sections_map as $section ) {
+			if ( isset( $section['rows'] ) && is_array( $section['rows'] ) ) {
+				ksort( $section['rows'] );
+				$rows = array();
+				foreach ( $section['rows'] as $row ) {
+					if ( isset( $row['columns'] ) && is_array( $row['columns'] ) ) {
+						ksort( $row['columns'] );
+						$row['columns'] = array_values( $row['columns'] );
+					}
+					$rows[] = $row;
+				}
+				$section['rows'] = $rows;
+			}
+			$sections[] = $section;
+		}
+
+		return $sections;
 	}
 
 	function save_state( $newsletter_id, $state ) {
@@ -636,6 +753,11 @@ class Email_Newsletter_Builder_V2 {
 
 	function render_state( $state, $mode = 'storage', $context = array() ) {
 		$global = $state['global'];
+		$sections = isset( $state['sections'] ) && is_array( $state['sections'] ) ? $state['sections'] : array();
+		if ( ! empty( $sections ) ) {
+			return $this->render_structured_sections( $sections, $global, $mode, $context );
+		}
+
 		$is_full_width = '1' === (string) $global['full_width'];
 		$inner_width = $is_full_width ? '100%' : intval( $global['content_width'] );
 		$inner_style = $is_full_width
@@ -674,6 +796,85 @@ class Email_Newsletter_Builder_V2 {
 		}
 
 		return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:' . esc_attr( $global['background_color'] ) . ';"><tr><td align="center" style="padding:' . ( $is_full_width ? '24px 0' : '24px 12px' ) . ';"><table role="presentation" width="' . esc_attr( $inner_width ) . '" cellpadding="0" cellspacing="0" border="0" style="' . $inner_style . '">' . implode( '', $rows ) . '</table></td></tr></table>';
+	}
+
+	function render_structured_sections( $sections, $global, $mode = 'storage', $context = array() ) {
+		if ( empty( $sections ) || ! is_array( $sections ) ) {
+			return $this->wrap_row( '&nbsp;', $global, 20 );
+		}
+
+		$is_full_width = '1' === (string) $this->get_array_value( $global, 'full_width', '0' );
+		$shell_style = $is_full_width
+			? 'width:100%;max-width:none;background:' . esc_attr( $global['content_background'] ) . ';margin:0 auto;'
+			: 'width:100%;max-width:' . intval( $global['content_width'] ) . 'px;background:' . esc_attr( $global['content_background'] ) . ';margin:0 auto;';
+
+		$rows = array();
+		$default_gap = max( 0, min( 40, intval( $this->get_array_value( $global, 'section_gap', 20 ) ) ) );
+
+		foreach ( $sections as $section ) {
+			$section_rows = isset( $section['rows'] ) && is_array( $section['rows'] ) ? $section['rows'] : array();
+			if ( empty( $section_rows ) ) {
+				continue;
+			}
+
+			foreach ( $section_rows as $row ) {
+				$columns = isset( $row['columns'] ) && is_array( $row['columns'] ) ? $row['columns'] : array();
+				if ( empty( $columns ) ) {
+					continue;
+				}
+
+				$column_cells = array();
+				$column_gap = isset( $row['gap'] ) ? max( 0, min( 40, intval( $row['gap'] ) ) ) : intval( floor( $default_gap / 2 ) );
+				$total_weight = 0;
+				foreach ( $columns as $column ) {
+					$weight = isset( $column['width'] ) ? floatval( $column['width'] ) : 100;
+					if ( $weight <= 0 ) {
+						$weight = 100;
+					}
+					$total_weight += $weight;
+				}
+				if ( $total_weight <= 0 ) {
+					$total_weight = count( $columns ) * 100;
+				}
+
+				foreach ( $columns as $col_index => $column ) {
+					$weight = isset( $column['width'] ) ? floatval( $column['width'] ) : 100;
+					if ( $weight <= 0 ) {
+						$weight = 100;
+					}
+					$width_percent = round( ( $weight / $total_weight ) * 100, 4 );
+					$blocks = isset( $column['blocks'] ) && is_array( $column['blocks'] ) ? $column['blocks'] : array();
+					$block_html = array();
+					foreach ( $blocks as $block ) {
+						$module = array(
+							'id' => isset( $block['id'] ) ? $block['id'] : uniqid( 'blk_', false ),
+							'type' => isset( $block['type'] ) ? $block['type'] : '',
+							'settings' => isset( $block['settings'] ) && is_array( $block['settings'] ) ? $block['settings'] : array(),
+						);
+						$content = $this->render_module_content( $module, $global, $mode, $context );
+						if ( '' !== $content ) {
+							$block_html[] = '<div style="margin:0 0 14px 0;">' . $content . '</div>';
+						}
+					}
+
+					if ( empty( $block_html ) ) {
+						$block_html[] = '<div style="font-size:0;line-height:0;">&nbsp;</div>';
+					}
+
+					$padding_left = 0 === $col_index ? 0 : $column_gap;
+					$padding_right = ( count( $columns ) - 1 ) === $col_index ? 0 : $column_gap;
+					$column_cells[] = '<td class="enews-grid-col" width="' . esc_attr( $width_percent ) . '%" valign="top" style="width:' . esc_attr( $width_percent ) . '%;padding-left:' . intval( $padding_left ) . 'px;padding-right:' . intval( $padding_right ) . 'px;vertical-align:top;">' . implode( '', $block_html ) . '</td>';
+				}
+
+				$rows[] = '<tr><td style="padding:' . intval( $default_gap ) . 'px 24px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;"><tr>' . implode( '', $column_cells ) . '</tr></table></td></tr>';
+			}
+		}
+
+		if ( empty( $rows ) ) {
+			$rows[] = $this->wrap_row( '&nbsp;', $global, 20 );
+		}
+
+		return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:' . esc_attr( $global['background_color'] ) . ';"><tr><td align="center" style="padding:' . ( $is_full_width ? '24px 0' : '24px 12px' ) . ';"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="' . $shell_style . '">' . implode( '', $rows ) . '</table></td></tr></table>';
 	}
 
 	function render_full_email_document( $state, $mode = 'send', $newsletter_id = 0, $context = array() ) {

@@ -3,7 +3,7 @@
 Plugin Name: PS-eNewsletter
 Plugin URI: https://psource.eimen.net/wiki/ps-enewsletter-dokumentation/
 Description: Das ultimative Newsletter Plugin für ClassicPress. Keine Drittanbieterdienste oder Abo-Kosten, Newsletter direkt aus dem ClassicPress-Dashboard managen und versenden.
-Version: 1.0.6
+Version: 1.0.7
 Text Domain: email-newsletter
 Author: PSOURCE
 Author URI: https://psource.eimen.net/
@@ -49,7 +49,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
         global $wpdb;
 
 
-        $this->plugin_ver = '1.0.6';
+        $this->plugin_ver = '1.0.7';
 
         // Debug flag is resolved after plugin settings are loaded.
         $this->debug = 0;
