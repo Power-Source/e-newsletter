@@ -3,7 +3,7 @@
 Plugin Name: PS-eNewsletter
 Plugin URI: https://psource.eimen.net/wiki/ps-enewsletter-dokumentation/
 Description: Das ultimative Newsletter Plugin für ClassicPress. Keine Drittanbieterdienste oder Abo-Kosten, Newsletter direkt aus dem ClassicPress-Dashboard managen und versenden.
-Version: 1.0.7
+Version: 1.0.8
 Text Domain: email-newsletter
 Author: PSOURCE
 Author URI: https://psource.eimen.net/
@@ -49,7 +49,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
         global $wpdb;
 
 
-        $this->plugin_ver = '1.0.7';
+        $this->plugin_ver = '1.0.8';
 
         // Debug flag is resolved after plugin settings are loaded.
         $this->debug = 0;
@@ -180,6 +180,8 @@ class Email_Newsletter extends Email_Newsletter_functions {
         add_action( 'wp_ajax_send_email_preview', array( &$this, 'send_preview_ajax' ) );
         add_action( 'wp_ajax_enews_builder_v2_preview', array( &$this, 'builder_v2_preview_ajax' ) );
         add_action( 'wp_ajax_enews_builder_v2_search_items', array( &$this, 'builder_v2_search_items_ajax' ) );
+        add_action( 'wp_ajax_enews_builder_v2_save_preset', array( &$this, 'builder_v2_save_preset_ajax' ) );
+        add_action( 'wp_ajax_enews_builder_v2_delete_preset', array( &$this, 'builder_v2_delete_preset_ajax' ) );
 
         //ajax action for change member's group on members page
         add_action( 'wp_ajax_nopriv_change_groups', array( &$this, 'change_groups_ajax' ) );
@@ -398,10 +400,11 @@ class Email_Newsletter extends Email_Newsletter_functions {
 					'previewNonce' => wp_create_nonce( 'enews_builder_v2_preview' ),
                     'sendPreviewNonce' => wp_create_nonce( 'enews_send_preview' ),
                     'searchNonce' => wp_create_nonce( 'enews_builder_v2_search_items' ),
+					'presetsNonce' => wp_create_nonce( 'enews_builder_v2_presets' ),
 					'newsletterId' => $newsletter_id,
                     'previewEmail' => isset( $this->settings['preview_email'] ) && ! empty( $this->settings['preview_email'] ) ? $this->settings['preview_email'] : $this->settings['from_email'],
                     'state' => $builder_state,
-                    'modules' => $this->builder_v2->get_available_modules(),
+                    'modules' => $this->builder_v2->get_client_available_modules(),
                     'presets' => $this->builder_v2->get_template_presets(),
                     'l10n' => array(
                         'emptyCanvas' => __( 'Noch keine Module vorhanden. Ziehe ein Modul hierher oder fuege es links per Klick hinzu.', 'email-newsletter' ),
@@ -419,8 +422,19 @@ class Email_Newsletter extends Email_Newsletter_functions {
                         'presetsDescription' => __( 'Starte mit einer typischen Newsletter-Struktur.', 'email-newsletter' ),
                         'selectPreset' => __( 'Preset auswaehlen', 'email-newsletter' ),
                         'applyPreset' => __( 'Preset anwenden', 'email-newsletter' ),
+                        'savePreset' => __( 'Als Preset speichern', 'email-newsletter' ),
+                        'deletePreset' => __( 'Preset loeschen', 'email-newsletter' ),
+                        'presetNamePrompt' => __( 'Name fuer das Preset', 'email-newsletter' ),
+                        'presetSaved' => __( 'Preset gespeichert.', 'email-newsletter' ),
+                        'presetDeleted' => __( 'Preset geloescht.', 'email-newsletter' ),
+                        'presetSaveError' => __( 'Preset konnte nicht gespeichert werden.', 'email-newsletter' ),
+                        'presetDeleteError' => __( 'Preset konnte nicht geloescht werden.', 'email-newsletter' ),
                         'applyPresetConfirm' => __( 'Aktuelles Layout durch Preset ersetzen?', 'email-newsletter' ),
                         'presetApplied' => __( 'Preset angewendet.', 'email-newsletter' ),
+                        'desktopView' => __( 'Desktop', 'email-newsletter' ),
+                        'mobileView' => __( 'Mobil', 'email-newsletter' ),
+                        'undo' => __( 'Rueckgaengig', 'email-newsletter' ),
+                        'redo' => __( 'Wiederholen', 'email-newsletter' ),
                         'searchPlaceholderProducts' => __( 'Produkte nach Titel suchen ...', 'email-newsletter' ),
                         'searchPlaceholderPosts' => __( 'Beitraege nach Titel suchen ...', 'email-newsletter' ),
                         'searchButton' => __( 'Suchen', 'email-newsletter' ),
@@ -3988,6 +4002,14 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
     function builder_v2_search_items_ajax() {
         $this->builder_v2->ajax_search_items();
+    }
+
+    function builder_v2_save_preset_ajax() {
+        $this->builder_v2->ajax_save_user_preset();
+    }
+
+    function builder_v2_delete_preset_ajax() {
+        $this->builder_v2->ajax_delete_user_preset();
     }
 
     function get_default_builder_template_slug() {

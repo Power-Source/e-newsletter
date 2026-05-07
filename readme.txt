@@ -4,7 +4,7 @@ Tags: newsletter
 Requires at least: 4.9
 Tested up to: WordPress 6.4 
 ClassicPress: 2.7.0
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 Requires PHP: 8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -33,6 +33,14 @@ Wir lieben OpenSource, wenn Du Vorschläge oder Idee hast, so teile uns diese do
 zu verbessern.
 
 == ChangeLog ==
+
+= 1.0.8 =
+* Builder V2 UI: Admin-Layout auf echte Vollbreite umgestellt (kein schmales Wrap-Layout mehr)
+* Builder V2 UI: Zusätzlicher Fullwidth-Fallback direkt am Seitencontainer ergänzt, damit Theme-/Admin-CSS die Breite nicht wieder einschränkt
+* Builder V2 UX: Linke Modul-Palette, mittlere Stage und rechter Inspector visuell klarer strukturiert
+* Builder V2 Sprache: Deutsche Texte auf saubere Umlaute korrigiert (z. B. "Rückgängig", "löschen", "Wähle", "Beiträge", "Schriftgröße")
+* Builder V2 Module: Feldlabels und Standardtexte in den neuen Modulen sprachlich vereinheitlicht
+* Builder V2 Renderer: Shortcodes aus HTML-/Beitrags-/Produkt-Modulen werden im Send-Modus jetzt korrekt aufgelöst (nicht mehr als Roh-Shortcode versendet)
 
 = 1.0.7 =
 * Builder V2: Initialisierung stabilisiert, damit Module in der Palette wieder erscheinen und das Canvas nicht leer bleibt

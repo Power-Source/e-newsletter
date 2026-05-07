@@ -2,18 +2,56 @@
 class Email_Newsletter_Builder_V2 {
 	var $plugin;
 	var $meta_key = 'builder_v2_state';
+	var $available_modules_cache = null;
+	var $user_presets_option_key = 'enews_builder_v2_user_presets';
 
 	function __construct( $plugin ) {
 		$this->plugin = $plugin;
 	}
 
 	function get_available_modules() {
+		if ( null !== $this->available_modules_cache ) {
+			return $this->available_modules_cache;
+		}
+
+		$modules = $this->get_builtin_modules();
+		$external_modules = $this->get_external_modules();
+		if ( ! empty( $external_modules ) ) {
+			$modules = array_merge( $modules, $external_modules );
+		}
+
+		$modules = apply_filters( 'enews_builder_v2_modules', $modules, $this );
+		$this->available_modules_cache = $this->normalize_registered_modules( $modules );
+
+		return $this->available_modules_cache;
+	}
+
+	function get_client_available_modules() {
+		$modules = $this->get_available_modules();
+		$client_modules = array();
+
+		foreach ( $modules as $type => $definition ) {
+			$client_modules[ $type ] = array(
+				'label' => isset( $definition['label'] ) ? $definition['label'] : ucfirst( $type ),
+				'icon' => isset( $definition['icon'] ) ? $definition['icon'] : strtoupper( substr( $type, 0, 2 ) ),
+				'defaults' => isset( $definition['defaults'] ) && is_array( $definition['defaults'] ) ? $definition['defaults'] : array(),
+			);
+
+			if ( isset( $definition['fields'] ) && is_array( $definition['fields'] ) ) {
+				$client_modules[ $type ]['fields'] = $definition['fields'];
+			}
+		}
+
+		return $client_modules;
+	}
+
+	function get_builtin_modules() {
 		return array(
 			'heading' => array(
-				'label' => __( 'Ueberschrift', 'email-newsletter' ),
+				'label' => __( 'Überschrift', 'email-newsletter' ),
 				'icon'  => 'H',
 				'defaults' => array(
-					'text' => __( 'Neue Ueberschrift', 'email-newsletter' ),
+					'text' => __( 'Neue Überschrift', 'email-newsletter' ),
 					'level' => 'h2',
 					'align' => 'left',
 					'color' => '#111827',
@@ -63,7 +101,7 @@ class Email_Newsletter_Builder_V2 {
 					'image_alt' => '',
 					'eyebrow' => __( 'Highlight', 'email-newsletter' ),
 					'title' => __( 'Hero Titel', 'email-newsletter' ),
-					'text' => __( 'Kurzer Einleitungstext fuer den Hero-Bereich.', 'email-newsletter' ),
+					'text' => __( 'Kurzer Einleitungstext für den Hero-Bereich.', 'email-newsletter' ),
 					'button_label' => __( 'Jetzt ansehen', 'email-newsletter' ),
 					'button_url' => home_url( '/' ),
 					'align' => 'center',
@@ -89,7 +127,7 @@ class Email_Newsletter_Builder_V2 {
 				'icon'  => 'CTA',
 				'defaults' => array(
 					'title' => __( 'Call to Action', 'email-newsletter' ),
-					'text' => __( 'Kurzer Hinweistext fuer den CTA-Bereich.', 'email-newsletter' ),
+					'text' => __( 'Kurzer Hinweistext für den CTA-Bereich.', 'email-newsletter' ),
 					'button_label' => __( 'Mehr erfahren', 'email-newsletter' ),
 					'button_url' => home_url( '/' ),
 					'align' => 'center',
@@ -134,7 +172,7 @@ class Email_Newsletter_Builder_V2 {
 					'lock_full_width' => '1',
 					'company' => get_bloginfo( 'name' ),
 					'address' => '',
-					'legal_text' => __( 'Du erhaeltst diese E-Mail, weil Du mit uns in Kontakt stehst.', 'email-newsletter' ),
+					'legal_text' => __( 'Du erhältst diese E-Mail, weil Du mit uns in Kontakt stehst.', 'email-newsletter' ),
 					'manage_url' => '',
 					'view_url' => '{VIEW_LINK}',
 					'unsubscribe_url' => '{UNSUBSCRIBE_URL}',
@@ -170,7 +208,7 @@ class Email_Newsletter_Builder_V2 {
 				),
 			),
 			'posts' => array(
-				'label' => __( 'Beitraege', 'email-newsletter' ),
+				'label' => __( 'Beiträge', 'email-newsletter' ),
 				'icon'  => 'A',
 				'defaults' => array(
 					'query_mode' => 'manual',
@@ -187,6 +225,179 @@ class Email_Newsletter_Builder_V2 {
 				),
 			),
 		);
+	}
+
+	function get_external_modules() {
+		$default_dir = trailingslashit( $this->plugin->plugin_dir ) . 'email-newsletter-files/builder-v2/modules';
+		$module_dirs = apply_filters( 'enews_builder_v2_module_dirs', array( $default_dir ), $this );
+		$module_dirs = is_array( $module_dirs ) ? $module_dirs : array();
+
+		$modules = array();
+		foreach ( $module_dirs as $module_dir ) {
+			$module_dir = wp_normalize_path( (string) $module_dir );
+			if ( '' === $module_dir || ! is_dir( $module_dir ) ) {
+				continue;
+			}
+
+			$children = scandir( $module_dir );
+			if ( ! is_array( $children ) ) {
+				continue;
+			}
+
+			foreach ( $children as $child ) {
+				if ( '.' === $child || '..' === $child ) {
+					continue;
+				}
+
+				$child_path = $module_dir . '/' . $child;
+				if ( ! is_dir( $child_path ) ) {
+					continue;
+				}
+
+				$module = $this->load_external_module( $child_path );
+				if ( empty( $module ) ) {
+					continue;
+				}
+
+				$module_id = isset( $module['id'] ) ? sanitize_key( $module['id'] ) : sanitize_key( $child );
+				if ( '' !== $module_id ) {
+					$modules[ $module_id ] = $module;
+				}
+			}
+		}
+
+		return $modules;
+	}
+
+	function load_external_module( $module_dir ) {
+		$module_dir = wp_normalize_path( (string) $module_dir );
+		if ( '' === $module_dir || ! is_dir( $module_dir ) ) {
+			return array();
+		}
+
+		$module_data = array();
+		$module_php = $module_dir . '/module.php';
+		if ( file_exists( $module_php ) ) {
+			$loaded = include $module_php;
+			if ( is_array( $loaded ) ) {
+				$module_data = $loaded;
+			}
+		}
+
+		$module_json = $module_dir . '/module.json';
+		if ( file_exists( $module_json ) ) {
+			$json = json_decode( file_get_contents( $module_json ), true );
+			if ( is_array( $json ) ) {
+				$module_data = array_merge( $module_data, $json );
+			}
+		}
+
+		$defaults_php = $module_dir . '/defaults.php';
+		if ( file_exists( $defaults_php ) ) {
+			$defaults = include $defaults_php;
+			if ( is_array( $defaults ) ) {
+				$module_data['defaults'] = isset( $module_data['defaults'] ) && is_array( $module_data['defaults'] )
+					? array_merge( $defaults, $module_data['defaults'] )
+					: $defaults;
+			}
+		}
+
+		return $module_data;
+	}
+
+	function normalize_registered_modules( $modules ) {
+		$modules = is_array( $modules ) ? $modules : array();
+		$normalized = array();
+
+		foreach ( $modules as $type => $definition ) {
+			if ( is_numeric( $type ) ) {
+				$type = isset( $definition['id'] ) ? $definition['id'] : '';
+			}
+			$type = sanitize_key( $type );
+			if ( '' === $type || ! is_array( $definition ) ) {
+				continue;
+			}
+
+			$normalized[ $type ] = array(
+				'label' => isset( $definition['label'] ) ? sanitize_text_field( $definition['label'] ) : ucfirst( $type ),
+				'icon' => isset( $definition['icon'] ) ? sanitize_text_field( $definition['icon'] ) : strtoupper( substr( $type, 0, 2 ) ),
+				'defaults' => isset( $definition['defaults'] ) && is_array( $definition['defaults'] ) ? $definition['defaults'] : array(),
+			);
+
+			if ( isset( $definition['fields'] ) && is_array( $definition['fields'] ) ) {
+				$normalized[ $type ]['fields'] = $definition['fields'];
+			}
+			if ( isset( $definition['render_callback'] ) && is_callable( $definition['render_callback'] ) ) {
+				$normalized[ $type ]['render_callback'] = $definition['render_callback'];
+			}
+			if ( isset( $definition['sanitize_callback'] ) && is_callable( $definition['sanitize_callback'] ) ) {
+				$normalized[ $type ]['sanitize_callback'] = $definition['sanitize_callback'];
+			}
+		}
+
+		return $normalized;
+	}
+
+	function get_user_presets() {
+		$stored = get_option( $this->user_presets_option_key, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+		$presets = array();
+
+		foreach ( $stored as $preset_id => $preset ) {
+			$preset_id = sanitize_key( $preset_id );
+			if ( '' === $preset_id || ! is_array( $preset ) ) {
+				continue;
+			}
+
+			$state = isset( $preset['state'] ) && is_array( $preset['state'] ) ? $this->sanitize_state( $preset['state'] ) : array();
+			$presets[ $preset_id ] = array(
+				'label' => isset( $preset['label'] ) ? sanitize_text_field( $preset['label'] ) : ucfirst( $preset_id ),
+				'description' => isset( $preset['description'] ) ? sanitize_text_field( $preset['description'] ) : __( 'Eigenes Preset', 'email-newsletter' ),
+				'state' => $state,
+				'is_user_preset' => true,
+			);
+		}
+
+		return $presets;
+	}
+
+	function save_user_preset( $label, $state, $description = '' ) {
+		$label = sanitize_text_field( $label );
+		if ( '' === $label ) {
+			return new WP_Error( 'missing_label', __( 'Preset-Name fehlt.', 'email-newsletter' ) );
+		}
+
+		$stored = get_option( $this->user_presets_option_key, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+		$preset_id = sanitize_key( 'user_' . $label . '_' . substr( md5( uniqid( '', true ) ), 0, 8 ) );
+		$stored[ $preset_id ] = array(
+			'label' => $label,
+			'description' => sanitize_text_field( $description ),
+			'state' => $this->sanitize_state( $state ),
+			'created_at' => time(),
+		);
+
+		update_option( $this->user_presets_option_key, $stored, false );
+
+		return $preset_id;
+	}
+
+	function delete_user_preset( $preset_id ) {
+		$preset_id = sanitize_key( $preset_id );
+		if ( '' === $preset_id ) {
+			return false;
+		}
+
+		$stored = get_option( $this->user_presets_option_key, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+		if ( ! isset( $stored[ $preset_id ] ) ) {
+			return false;
+		}
+
+		unset( $stored[ $preset_id ] );
+		update_option( $this->user_presets_option_key, $stored, false );
+
+		return true;
 	}
 
 	function get_default_state() {
@@ -270,7 +481,7 @@ class Email_Newsletter_Builder_V2 {
 	function get_template_presets() {
 		$brand_name = get_bloginfo( 'name' );
 
-		return array(
+		$presets = array(
 			'welcome' => array(
 				'label' => __( 'Willkommen', 'email-newsletter' ),
 				'description' => __( 'Hero + Begruessung + CTA + Footer', 'email-newsletter' ),
@@ -286,11 +497,11 @@ class Email_Newsletter_Builder_V2 {
 					'modules' => array(
 						$this->build_module( 'hero', array(
 							'eyebrow' => __( 'Willkommen', 'email-newsletter' ),
-							'title' => __( 'Schoen, dass Du da bist', 'email-newsletter' ),
+							'title' => __( 'Schön, dass Du da bist', 'email-newsletter' ),
 							'text' => __( 'Hier findest Du die wichtigsten Updates und Angebote auf einen Blick.', 'email-newsletter' ),
 						) ),
 						$this->build_module( 'text', array(
-							'text' => __( 'Danke fuer Dein Interesse. Wir freuen uns auf den Austausch mit Dir.', 'email-newsletter' ),
+							'text' => __( 'Danke für Dein Interesse. Wir freuen uns auf den Austausch mit Dir.', 'email-newsletter' ),
 						) ),
 						$this->build_module( 'cta_box', array(
 							'title' => __( 'Starte jetzt', 'email-newsletter' ),
@@ -329,7 +540,7 @@ class Email_Newsletter_Builder_V2 {
 							'button_label' => __( 'Zum Shop', 'email-newsletter' ),
 						) ),
 						$this->build_module( 'social', array(
-							'title' => __( 'Folge uns fuer mehr Updates', 'email-newsletter' ),
+							'title' => __( 'Folge uns für mehr Updates', 'email-newsletter' ),
 						) ),
 						$this->build_module( 'footer', array(
 							'company' => $brand_name,
@@ -339,7 +550,7 @@ class Email_Newsletter_Builder_V2 {
 			),
 			'news_digest' => array(
 				'label' => __( 'News-Digest', 'email-newsletter' ),
-				'description' => __( 'Heading + Beitraege + 2 Spalten + Footer', 'email-newsletter' ),
+				'description' => __( 'Heading + Beiträge + 2 Spalten + Footer', 'email-newsletter' ),
 				'state' => array(
 					'global' => array(
 						'content_width' => 620,
@@ -361,7 +572,7 @@ class Email_Newsletter_Builder_V2 {
 							'show_button' => '0',
 						) ),
 						$this->build_module( 'columns_2', array(
-							'left_html' => '<h3>' . esc_html__( 'Termine', 'email-newsletter' ) . '</h3><p>' . esc_html__( 'Teaser fuer kommende Events.', 'email-newsletter' ) . '</p>',
+							'left_html' => '<h3>' . esc_html__( 'Termine', 'email-newsletter' ) . '</h3><p>' . esc_html__( 'Teaser für kommende Events.', 'email-newsletter' ) . '</p>',
 							'right_html' => '<h3>' . esc_html__( 'Tipps', 'email-newsletter' ) . '</h3><p>' . esc_html__( 'Kurz und praktisch zusammengefasst.', 'email-newsletter' ) . '</p>',
 						) ),
 						$this->build_module( 'footer', array(
@@ -371,6 +582,13 @@ class Email_Newsletter_Builder_V2 {
 				),
 			),
 		);
+
+		$user_presets = $this->get_user_presets();
+		if ( ! empty( $user_presets ) ) {
+			$presets = array_merge( $presets, $user_presets );
+		}
+
+		return apply_filters( 'enews_builder_v2_presets', $presets, $this );
 	}
 
 	function get_state( $newsletter_id ) {
@@ -461,6 +679,23 @@ class Email_Newsletter_Builder_V2 {
 			$settings = array_merge( $modules_map[ $type ]['defaults'], $raw_settings );
 
 			switch ( $type ) {
+				case 'preheader':
+					$settings['text'] = sanitize_text_field( $settings['text'] );
+					$settings['view_url'] = $this->sanitize_dynamic_url( $settings['view_url'] );
+					$settings['view_label'] = sanitize_text_field( $settings['view_label'] );
+					$settings['align'] = $this->sanitize_align( $settings['align'] );
+					$settings['text_color'] = $this->sanitize_color( $settings['text_color'], '#64748b' );
+					break;
+				case 'header':
+					$settings['logo_url'] = esc_url_raw( $settings['logo_url'] );
+					$settings['logo_alt'] = sanitize_text_field( $settings['logo_alt'] );
+					$settings['logo_link'] = esc_url_raw( $settings['logo_link'] );
+					$settings['title'] = sanitize_text_field( $settings['title'] );
+					$settings['subtitle'] = sanitize_text_field( $settings['subtitle'] );
+					$settings['align'] = $this->sanitize_align( $settings['align'] );
+					$settings['background'] = $this->sanitize_color( $settings['background'], '#ffffff' );
+					$settings['text_color'] = $this->sanitize_color( $settings['text_color'], '#111827' );
+					break;
 				case 'heading':
 					$settings['text'] = sanitize_text_field( $settings['text'] );
 					$settings['level'] = in_array( $settings['level'], array( 'h1', 'h2', 'h3' ), true ) ? $settings['level'] : 'h2';
@@ -512,6 +747,7 @@ class Email_Newsletter_Builder_V2 {
 					$settings['gap'] = max( 0, min( 40, intval( $settings['gap'] ) ) );
 					break;
 				case 'cta_box':
+				case 'cta':
 					$settings['title'] = sanitize_text_field( $settings['title'] );
 					$settings['text'] = wp_kses_post( $settings['text'] );
 					$settings['button_label'] = sanitize_text_field( $settings['button_label'] );
@@ -523,6 +759,7 @@ class Email_Newsletter_Builder_V2 {
 					$settings['button_color'] = $this->sanitize_color( $settings['button_color'], '#ffffff' );
 					break;
 				case 'divider':
+				case 'separator':
 					$settings['color'] = $this->sanitize_color( $settings['color'], '#d1d5db' );
 					$settings['thickness'] = max( 1, min( 8, intval( $settings['thickness'] ) ) );
 					break;
@@ -538,6 +775,14 @@ class Email_Newsletter_Builder_V2 {
 					$settings['x'] = esc_url_raw( $settings['x'] );
 					$settings['youtube'] = esc_url_raw( $settings['youtube'] );
 					break;
+				case 'giphy':
+					$settings['gif_url'] = esc_url_raw( $settings['gif_url'] );
+					$settings['alt'] = sanitize_text_field( $settings['alt'] );
+					$settings['caption'] = wp_kses_post( $settings['caption'] );
+					$settings['link'] = esc_url_raw( $settings['link'] );
+					$settings['align'] = $this->sanitize_align( $settings['align'] );
+					$settings['width'] = max( 80, min( 1200, intval( $settings['width'] ) ) );
+					break;
 				case 'footer':
 					$settings['company'] = sanitize_text_field( $settings['company'] );
 					$settings['address'] = sanitize_textarea_field( $settings['address'] );
@@ -545,6 +790,21 @@ class Email_Newsletter_Builder_V2 {
 					$settings['manage_url'] = $this->sanitize_dynamic_url( $settings['manage_url'] );
 					$settings['view_url'] = $this->sanitize_dynamic_url( $settings['view_url'] );
 					$settings['unsubscribe_url'] = $this->sanitize_dynamic_url( $settings['unsubscribe_url'] );
+					$settings['align'] = $this->sanitize_align( $settings['align'] );
+					$settings['background'] = $this->sanitize_color( $settings['background'], '#f8fafc' );
+					$settings['text_color'] = $this->sanitize_color( $settings['text_color'], '#64748b' );
+					$settings['link_color'] = $this->sanitize_color( $settings['link_color'], '#2563eb' );
+					break;
+				case 'canspam':
+					$settings['company'] = sanitize_text_field( $settings['company'] );
+					$settings['address'] = sanitize_textarea_field( $settings['address'] );
+					$settings['legal_text'] = sanitize_textarea_field( $settings['legal_text'] );
+					$settings['manage_url'] = $this->sanitize_dynamic_url( $settings['manage_url'] );
+					$settings['manage_label'] = sanitize_text_field( $settings['manage_label'] );
+					$settings['view_url'] = $this->sanitize_dynamic_url( $settings['view_url'] );
+					$settings['view_label'] = sanitize_text_field( $settings['view_label'] );
+					$settings['unsubscribe_url'] = $this->sanitize_dynamic_url( $settings['unsubscribe_url'] );
+					$settings['unsubscribe_label'] = sanitize_text_field( $settings['unsubscribe_label'] );
 					$settings['align'] = $this->sanitize_align( $settings['align'] );
 					$settings['background'] = $this->sanitize_color( $settings['background'], '#f8fafc' );
 					$settings['text_color'] = $this->sanitize_color( $settings['text_color'], '#64748b' );
@@ -580,6 +840,11 @@ class Email_Newsletter_Builder_V2 {
 					$settings['track'] = $this->sanitize_bool_string( $settings['track'] );
 					$settings['button_text'] = sanitize_text_field( $settings['button_text'] );
 					break;
+			}
+
+			if ( isset( $modules_map[ $type ]['sanitize_callback'] ) && is_callable( $modules_map[ $type ]['sanitize_callback'] ) ) {
+				$settings = call_user_func( $modules_map[ $type ]['sanitize_callback'], $settings, $module, $state, $this );
+				$settings = is_array( $settings ) ? $settings : array_merge( $modules_map[ $type ]['defaults'], $raw_settings );
 			}
 
 			$sanitized['modules'][] = array(
@@ -1105,8 +1370,21 @@ class Email_Newsletter_Builder_V2 {
 		$type = $module['type'];
 		$settings = $module['settings'];
 		$is_preview = 'preview' === $mode;
+		$resolve_shortcodes = in_array( $mode, array( 'preview', 'send' ), true );
+		$modules_map = $this->get_available_modules();
+
+		if ( isset( $modules_map[ $type ]['render_callback'] ) && is_callable( $modules_map[ $type ]['render_callback'] ) ) {
+			$custom_html = call_user_func( $modules_map[ $type ]['render_callback'], $module, $global, $mode, $context, $this );
+			if ( is_string( $custom_html ) && '' !== $custom_html ) {
+				return apply_filters( 'enews_builder_v2_rendered_module_content', $custom_html, $module, $global, $mode, $context, $this );
+			}
+		}
 
 		switch ( $type ) {
+			case 'preheader':
+				return $this->render_preheader_row( $settings, $global );
+			case 'header':
+				return $this->render_header_row( $settings, $global );
 			case 'heading':
 				$tag = $settings['level'];
 				return '<' . $tag . ' style="margin:0;color:' . esc_attr( $settings['color'] ) . ';font-size:' . intval( $settings['font_size'] ) . 'px;line-height:1.2;font-family:' . esc_attr( $global['font_family'] ) . ';font-weight:700;text-align:' . esc_attr( $settings['align'] ) . ';">' . esc_html( $settings['text'] ) . '</' . $tag . '>';
@@ -1124,37 +1402,43 @@ class Email_Newsletter_Builder_V2 {
 				$right = $is_preview ? do_shortcode( $settings['right_html'] ) : $settings['right_html'];
 				return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td width="50%" valign="top" style="padding-right:' . intval( $settings['gap'] / 2 ) . 'px;background:' . esc_attr( $settings['left_background'] ) . ';">' . $left . '</td><td width="50%" valign="top" style="padding-left:' . intval( $settings['gap'] / 2 ) . 'px;background:' . esc_attr( $settings['right_background'] ) . ';">' . $right . '</td></tr></table>';
 			case 'cta_box':
+			case 'cta':
 				return $this->render_cta_row( $settings, $global );
 			case 'divider':
+			case 'separator':
 				return '<div style="height:' . intval( $settings['thickness'] ) . 'px;line-height:' . intval( $settings['thickness'] ) . 'px;background:' . esc_attr( $settings['color'] ) . ';font-size:0;">&nbsp;</div>';
 			case 'spacer':
 				return '<div style="font-size:0;line-height:0;height:' . intval( $settings['height'] ) . 'px;">&nbsp;</div>';
 			case 'social':
 				return $this->render_social_row( $settings, $global );
+			case 'giphy':
+				return $this->render_giphy_row( $settings, $global );
 			case 'footer':
 				return $this->render_footer_row( $settings, $global );
+			case 'canspam':
+				return $this->render_canspam_row( $settings, $global );
 			case 'html':
 				if ( '' === trim( $settings['html'] ) ) {
 					return '';
 				}
-				return $is_preview ? do_shortcode( $settings['html'] ) : $settings['html'];
+				return $resolve_shortcodes ? do_shortcode( $settings['html'] ) : $settings['html'];
 			case 'products':
 				$settings['ids'] = $this->resolve_module_item_ids( 'products', $settings, $context );
 				if ( empty( $settings['ids'] ) ) {
 					return '';
 				}
 				$shortcode = $this->build_products_shortcode( $settings );
-				return $is_preview ? do_shortcode( $shortcode ) : $shortcode;
+				return $resolve_shortcodes ? do_shortcode( $shortcode ) : $shortcode;
 			case 'posts':
 				$settings['ids'] = $this->resolve_module_item_ids( 'posts', $settings, $context );
 				if ( empty( $settings['ids'] ) ) {
 					return '';
 				}
 				$shortcode = $this->build_posts_shortcode( $settings );
-				return $is_preview ? do_shortcode( $shortcode ) : $shortcode;
+				return $resolve_shortcodes ? do_shortcode( $shortcode ) : $shortcode;
 		}
 
-		return '';
+		return apply_filters( 'enews_builder_v2_rendered_module_content', '', $module, $global, $mode, $context, $this );
 	}
 
 	function render_image_row( $settings, $global ) {
@@ -1168,6 +1452,53 @@ class Email_Newsletter_Builder_V2 {
 		}
 
 		return '<div style="text-align:' . esc_attr( $settings['align'] ) . ';">' . $img . '</div>';
+	}
+
+	function render_preheader_row( $settings, $global ) {
+		$view_link = '';
+		if ( ! empty( $settings['view_url'] ) ) {
+			$view_link = $this->render_dynamic_link(
+				$settings['view_url'],
+				! empty( $settings['view_label'] ) ? $settings['view_label'] : __( 'Im Browser ansehen', 'email-newsletter' ),
+				$settings['text_color']
+			);
+		}
+
+		$text = ! empty( $settings['text'] ) ? esc_html( $settings['text'] ) : '';
+		if ( '' === $text && '' === $view_link ) {
+			return '';
+		}
+
+		$html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>';
+		$html .= '<td style="font-family:' . esc_attr( $global['font_family'] ) . ';font-size:12px;line-height:1.4;color:' . esc_attr( $settings['text_color'] ) . ';text-align:' . esc_attr( $settings['align'] ) . ';">';
+		$html .= $text;
+		if ( '' !== $view_link ) {
+			$html .= '' !== $text ? ' &nbsp;|&nbsp; ' : '';
+			$html .= $view_link;
+		}
+		$html .= '</td></tr></table>';
+
+		return $html;
+	}
+
+	function render_header_row( $settings, $global ) {
+		$logo = '';
+		if ( ! empty( $settings['logo_url'] ) ) {
+			$logo_img = '<img src="' . esc_url( $settings['logo_url'] ) . '" alt="' . esc_attr( $settings['logo_alt'] ) . '" style="display:block;max-width:220px;width:100%;height:auto;border:0;">';
+			if ( ! empty( $settings['logo_link'] ) ) {
+				$logo_img = '<a href="' . esc_url( $settings['logo_link'] ) . '" target="_blank" rel="noopener">' . $logo_img . '</a>';
+			}
+			$logo = '<div style="margin:0 0 12px 0;">' . $logo_img . '</div>';
+		}
+
+		$title = ! empty( $settings['title'] ) ? '<div style="font-size:28px;line-height:1.2;font-weight:700;margin:0 0 6px 0;">' . esc_html( $settings['title'] ) . '</div>' : '';
+		$subtitle = ! empty( $settings['subtitle'] ) ? '<div style="font-size:15px;line-height:1.5;opacity:0.9;">' . esc_html( $settings['subtitle'] ) . '</div>' : '';
+
+		if ( '' === $logo && '' === $title && '' === $subtitle ) {
+			return '';
+		}
+
+		return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . esc_attr( $settings['background'] ) . ';"><tr><td style="padding:28px 24px;text-align:' . esc_attr( $settings['align'] ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';color:' . esc_attr( $settings['text_color'] ) . ';">' . $logo . $title . $subtitle . '</td></tr></table>';
 	}
 
 	function render_hero_row( $settings, $global ) {
@@ -1235,6 +1566,24 @@ class Email_Newsletter_Builder_V2 {
 		return '<div style="text-align:' . esc_attr( $settings['align'] ) . ';">' . $title . implode( '', $buttons ) . '</div>';
 	}
 
+	function render_giphy_row( $settings, $global ) {
+		if ( empty( $settings['gif_url'] ) ) {
+			return '';
+		}
+
+		$image = '<img src="' . esc_url( $settings['gif_url'] ) . '" alt="' . esc_attr( $settings['alt'] ) . '" width="' . intval( $settings['width'] ) . '" style="display:block;width:100%;max-width:' . intval( $settings['width'] ) . 'px;height:auto;border:0;">';
+		if ( ! empty( $settings['link'] ) ) {
+			$image = '<a href="' . esc_url( $settings['link'] ) . '" target="_blank" rel="noopener">' . $image . '</a>';
+		}
+
+		$caption = '';
+		if ( ! empty( $settings['caption'] ) ) {
+			$caption = '<div style="margin-top:10px;font-family:' . esc_attr( $global['font_family'] ) . ';font-size:14px;line-height:1.5;color:' . esc_attr( $global['text_color'] ) . ';">' . wpautop( $settings['caption'] ) . '</div>';
+		}
+
+		return '<div style="text-align:' . esc_attr( $settings['align'] ) . ';">' . $image . $caption . '</div>';
+	}
+
 	function render_footer_row( $settings, $global ) {
 		$view_url = ! empty( $settings['view_url'] ) ? $settings['view_url'] : '{VIEW_LINK}';
 		$unsubscribe_url = ! empty( $settings['unsubscribe_url'] ) ? $settings['unsubscribe_url'] : '{UNSUBSCRIBE_URL}';
@@ -1264,6 +1613,30 @@ class Email_Newsletter_Builder_V2 {
 		$html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . esc_attr( $settings['background'] ) . ';"><tr><td style="padding:22px 24px;color:' . esc_attr( $settings['text_color'] ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';font-size:13px;line-height:1.6;text-align:' . esc_attr( $settings['align'] ) . ';"><strong>' . esc_html( $settings['company'] ) . '</strong>' . $address . '<div>' . esc_html( $settings['legal_text'] ) . '</div>' . $link_line . '</td></tr></table>';
 
 		return $html;
+	}
+
+	function render_canspam_row( $settings, $global ) {
+		$links = array();
+		if ( ! empty( $settings['manage_url'] ) ) {
+			$links[] = $this->render_dynamic_link( $settings['manage_url'], ! empty( $settings['manage_label'] ) ? $settings['manage_label'] : __( 'Verwalten', 'email-newsletter' ), $settings['link_color'] );
+		}
+		if ( ! empty( $settings['view_url'] ) ) {
+			$links[] = $this->render_dynamic_link( $settings['view_url'], ! empty( $settings['view_label'] ) ? $settings['view_label'] : __( 'Ansehen', 'email-newsletter' ), $settings['link_color'] );
+		}
+		if ( ! empty( $settings['unsubscribe_url'] ) ) {
+			$links[] = $this->render_dynamic_link( $settings['unsubscribe_url'], ! empty( $settings['unsubscribe_label'] ) ? $settings['unsubscribe_label'] : __( 'Abmelden', 'email-newsletter' ), $settings['link_color'] );
+		}
+
+		$company = ! empty( $settings['company'] ) ? '<div style="font-weight:700;margin:0 0 6px 0;">' . esc_html( $settings['company'] ) . '</div>' : '';
+		$address = ! empty( $settings['address'] ) ? '<div style="margin:0 0 6px 0;white-space:pre-line;">' . esc_html( $settings['address'] ) . '</div>' : '';
+		$legal = ! empty( $settings['legal_text'] ) ? '<div style="margin:0 0 8px 0;">' . nl2br( esc_html( $settings['legal_text'] ) ) . '</div>' : '';
+		$link_line = ! empty( $links ) ? '<div>' . implode( ' &nbsp;|&nbsp; ', $links ) . '</div>' : '';
+
+		if ( '' === $company && '' === $address && '' === $legal && '' === $link_line ) {
+			return '';
+		}
+
+		return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . esc_attr( $settings['background'] ) . ';"><tr><td style="padding:18px 24px;font-family:' . esc_attr( $global['font_family'] ) . ';font-size:12px;line-height:1.6;color:' . esc_attr( $settings['text_color'] ) . ';text-align:' . esc_attr( $settings['align'] ) . ';">' . $company . $address . $legal . $link_line . '</td></tr></table>';
 	}
 
 	function render_button_markup( $label, $url, $background, $color, $radius, $align, $font_family ) {
@@ -1529,6 +1902,54 @@ class Email_Newsletter_Builder_V2 {
 		$newsletter_id = isset( $_POST['newsletter_id'] ) ? intval( $_POST['newsletter_id'] ) : 0;
 		$state = $this->sanitize_state( $decoded, $newsletter_id );
 		wp_send_json_success( array( 'html' => $this->render_state_to_preview( $state ) ) );
+	}
+
+	function ajax_save_user_preset() {
+		if ( ! current_user_can( 'save_newsletter' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Keine Berechtigung.', 'email-newsletter' ) ), 403 );
+		}
+
+		check_ajax_referer( 'enews_builder_v2_presets', 'nonce' );
+
+		$label = isset( $_POST['label'] ) ? sanitize_text_field( wp_unslash( $_POST['label'] ) ) : '';
+		$description = isset( $_POST['description'] ) ? sanitize_text_field( wp_unslash( $_POST['description'] ) ) : '';
+		$raw_state = isset( $_POST['state'] ) ? wp_unslash( $_POST['state'] ) : '';
+		$decoded = json_decode( $raw_state, true );
+
+		if ( ! is_array( $decoded ) ) {
+			wp_send_json_error( array( 'message' => __( 'Ungueltiger Builder-Status.', 'email-newsletter' ) ), 400 );
+		}
+
+		$result = $this->save_user_preset( $label, $decoded, $description );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+		}
+
+		wp_send_json_success(
+			array(
+				'presetId' => $result,
+				'presets' => $this->get_template_presets(),
+			)
+		);
+	}
+
+	function ajax_delete_user_preset() {
+		if ( ! current_user_can( 'save_newsletter' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Keine Berechtigung.', 'email-newsletter' ) ), 403 );
+		}
+
+		check_ajax_referer( 'enews_builder_v2_presets', 'nonce' );
+
+		$preset_id = isset( $_POST['presetId'] ) ? sanitize_key( wp_unslash( $_POST['presetId'] ) ) : '';
+		if ( '' === $preset_id ) {
+			wp_send_json_error( array( 'message' => __( 'Preset-ID fehlt.', 'email-newsletter' ) ), 400 );
+		}
+
+		if ( ! $this->delete_user_preset( $preset_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Preset konnte nicht gelöscht werden.', 'email-newsletter' ) ), 404 );
+		}
+
+		wp_send_json_success( array( 'presets' => $this->get_template_presets() ) );
 	}
 
 	function ajax_search_items() {

@@ -1,0 +1,43 @@
+<?php
+return array(
+	'label' => 'Hero Section',
+	'icon' => 'HR',
+	'defaults' => array(
+		'lock_full_width' => '1',
+		'image_url' => '',
+		'image_alt' => '',
+		'eyebrow' => 'Highlight',
+		'title' => 'Hero Titel',
+		'text' => 'Kurzer Einleitungstext für den Hero-Bereich.',
+		'button_label' => 'Jetzt ansehen',
+		'button_url' => home_url( '/' ),
+		'align' => 'center',
+		'background' => '#0f172a',
+		'text_color' => '#ffffff',
+		'button_background' => '#f97316',
+		'button_color' => '#ffffff',
+	),
+	'fields' => array(
+		array( 'key' => 'image_url', 'label' => 'Bild-URL', 'type' => 'text' ),
+		array( 'key' => 'image_alt', 'label' => 'Bild Alt-Text', 'type' => 'text' ),
+		array( 'key' => 'eyebrow', 'label' => 'Eyebrow', 'type' => 'text' ),
+		array( 'key' => 'title', 'label' => 'Titel', 'type' => 'text' ),
+		array( 'key' => 'text', 'label' => 'Text', 'type' => 'textarea' ),
+		array( 'key' => 'button_label', 'label' => 'Button-Text', 'type' => 'text' ),
+		array( 'key' => 'button_url', 'label' => 'Button-Link', 'type' => 'text' ),
+		array(
+			'key' => 'align',
+			'label' => 'Ausrichtung',
+			'type' => 'select',
+			'options' => array(
+				array( 'value' => 'left', 'label' => 'Links' ),
+				array( 'value' => 'center', 'label' => 'Zentriert' ),
+				array( 'value' => 'right', 'label' => 'Rechts' ),
+			),
+		),
+		array( 'key' => 'background', 'label' => 'Hintergrund', 'type' => 'color' ),
+		array( 'key' => 'text_color', 'label' => 'Textfarbe', 'type' => 'color' ),
+		array( 'key' => 'button_background', 'label' => 'Button-Hintergrund', 'type' => 'color' ),
+		array( 'key' => 'button_color', 'label' => 'Button-Farbe', 'type' => 'color' ),
+	),
+);

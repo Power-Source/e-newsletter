@@ -9,16 +9,24 @@
 	var modules = config.modules || {};
 	var presets = config.presets || {};
 	var paletteEl = document.getElementById('enews-builder-v2-palette');
+	var moduleSearchEl = document.getElementById('enews-builder-v2-module-search');
 	var canvasEl = document.getElementById('enews-builder-v2-canvas');
 	var settingsEl = document.getElementById('enews-builder-v2-settings-panel');
+	var selectionMetaEl = document.getElementById('enews-builder-v2-selection-meta');
 	var previewEl = document.getElementById('enews-builder-v2-preview');
 	var stateInputEl = document.getElementById('builder_state_json');
 	var formEl = document.getElementById('enews-builder-v2-form');
 	var subjectInputEl = document.getElementById('enews-builder-v2-subject');
 	var presetsEl = document.getElementById('enews-builder-v2-presets');
+	var savePresetButtonEl = document.getElementById('enews-builder-v2-save-preset');
+	var deletePresetButtonEl = document.getElementById('enews-builder-v2-delete-preset');
 	var sendTestButtonEl = document.getElementById('enews-builder-v2-send-test');
 	var sendTestEmailEl = document.getElementById('enews-builder-v2-preview-email');
 	var sendTestStatusEl = document.getElementById('enews-builder-v2-send-test-status');
+	var undoButtonEl = document.getElementById('enews-builder-v2-undo');
+	var redoButtonEl = document.getElementById('enews-builder-v2-redo');
+	var viewDesktopButtonEl = document.getElementById('enews-builder-v2-view-desktop');
+	var viewMobileButtonEl = document.getElementById('enews-builder-v2-view-mobile');
 	var previewTimer = null;
 	var previewRequestId = 0;
 	var activeDrag = null;
@@ -26,6 +34,11 @@
 	var idCounter = 0;
 	var previewFrame = null;
 	var previewStatusEl = null;
+	var selectedPresetId = '';
+	var history = [];
+	var historyIndex = -1;
+	var isRestoringHistory = false;
+	var previewMode = 'desktop';
 
 	var hiddenSettingKeys = {
 		lock_full_width: true,
@@ -54,7 +67,7 @@
 		right_html: 'Rechte Spalte (HTML)',
 		height: 'Abstand in Pixel',
 		color: 'Farbe',
-		thickness: 'Linienstaerke',
+		thickness: 'Linienstärke',
 		query_mode: 'Datenquelle',
 		query_scope: 'Zeitraum',
 		query_limit: 'Anzahl',
@@ -68,7 +81,7 @@
 		badge_text: 'Badge-Text',
 		button_text: 'Button-Text',
 		show_excerpt: 'Auszug anzeigen',
-		excerpt_words: 'Auszug-Woerter',
+		excerpt_words: 'Auszug-Wörter',
 		company: 'Unternehmen',
 		address: 'Adresse',
 		legal_text: 'Rechtstext',
@@ -76,8 +89,8 @@
 		view_url: 'Browser-Link',
 		unsubscribe_url: 'Abmelden-Link',
 		eyebrow: 'Vortitel',
-		font_size: 'Schriftgroesse',
-		level: 'Ueberschriften-Level'
+		font_size: 'Schriftgröße',
+		level: 'Überschriften-Level'
 	};
 
 	var fieldSelectMap = {
@@ -111,6 +124,7 @@
 	};
 
 	var state = normalizeState(config.state || {});
+	replaceHistory(state);
 
 	function uid(prefix) {
 		idCounter += 1;
@@ -119,6 +133,49 @@
 
 	function clone(value) {
 		return JSON.parse(JSON.stringify(value));
+	}
+
+	function pushHistorySnapshot() {
+		if (isRestoringHistory) {
+			return;
+		}
+		var snapshot = JSON.stringify(state);
+		if (historyIndex >= 0 && history[historyIndex] === snapshot) {
+			return;
+		}
+		history = history.slice(0, historyIndex + 1);
+		history.push(snapshot);
+		if (history.length > 50) {
+			history.shift();
+		}
+		historyIndex = history.length - 1;
+		updateHistoryButtons();
+	}
+
+	function replaceHistory(nextState) {
+		history = [JSON.stringify(normalizeState(clone(nextState)))];
+		historyIndex = 0;
+		updateHistoryButtons();
+	}
+
+	function restoreHistory(direction) {
+		var nextIndex = historyIndex + direction;
+		if (nextIndex < 0 || nextIndex >= history.length) {
+			return;
+		}
+		isRestoringHistory = true;
+		historyIndex = nextIndex;
+		state = normalizeState(JSON.parse(history[historyIndex]));
+		isRestoringHistory = false;
+		renderAll();
+		saveStateToInput();
+		schedulePreview();
+		updateHistoryButtons();
+	}
+
+	function updateHistoryButtons() {
+		if (undoButtonEl) undoButtonEl.disabled = historyIndex <= 0;
+		if (redoButtonEl) redoButtonEl.disabled = historyIndex >= history.length - 1;
 	}
 
 	function escapeHtml(value) {
@@ -534,6 +591,7 @@
 	function afterStateChange() {
 		syncSubjectIntoState();
 		saveStateToInput();
+		pushHistorySnapshot();
 		renderAll();
 		schedulePreview();
 	}
@@ -586,36 +644,155 @@
 		return dz;
 	}
 
+	function getModuleMeta(type) {
+		var categoryMap = {
+			preheader: 'Struktur',
+			header: 'Struktur',
+			hero: 'Struktur',
+			separator: 'Struktur',
+			spacer: 'Struktur',
+			footer: 'Struktur',
+			canspam: 'Struktur',
+			heading: 'Inhalt',
+			text: 'Inhalt',
+			html: 'Inhalt',
+			posts: 'Inhalt',
+			columns_2: 'Layout',
+			image: 'Medien',
+			giphy: 'Medien',
+			social: 'Medien',
+			button: 'Aktion',
+			cta: 'Aktion',
+			products: 'Aktion'
+		};
+
+		var descriptionMap = {
+			preheader: 'Kurztext vor dem eigentlichen Inhalt mit Browser-Link.',
+			header: 'Logo, Titel und visueller Einstieg für die Mail.',
+			hero: 'Großer Aufmacher mit Bild, Copy und CTA.',
+			separator: 'Trenner für klare visuelle Abschnitte.',
+			spacer: 'Erzeugt bewusst Luft zwischen Blöcken.',
+			footer: 'Footer mit Firma, Adresse und Service-Links.',
+			canspam: 'Rechtlicher Footer mit Manage- und Unsubscribe-Links.',
+			heading: 'Größere Überschrift für Inhaltsabschnitte.',
+			text: 'Freier Textblock für Copy und Einleitungen.',
+			html: 'Freier HTML- oder Shortcode-Bereich.',
+			posts: 'Automatisierte oder manuelle Blogpost-Auswahl.',
+			columns_2: 'Zweispaltiger Inhalt in einer Zeile.',
+			image: 'Einzelbild mit Link und Alt-Text.',
+			giphy: 'Animiertes GIF oder Giphy-Einsatz.',
+			social: 'Social Links mit Titel und Kanal-URLs.',
+			button: 'Einzelner Button für klare Aktionen.',
+			cta: 'Kompletter Call-to-Action-Bereich mit Copy.',
+			products: 'Produktblock mit Layout und Sichtbarkeitsoptionen.'
+		};
+
+		return {
+			category: categoryMap[type] || 'Weitere',
+			description: descriptionMap[type] || 'Modul für den Newsletter-Canvas.'
+		};
+	}
+
+	function getFilteredModuleTypes() {
+		var term = moduleSearchEl ? String(moduleSearchEl.value || '').trim().toLowerCase() : '';
+		return Object.keys(modules).filter(function (type) {
+			var meta = getModuleMeta(type);
+			var label = String(modules[type].label || type).toLowerCase();
+			var haystack = [type, label, meta.category, meta.description].join(' ').toLowerCase();
+			return !term || haystack.indexOf(term) !== -1;
+		}).sort(function (left, right) {
+			return String(modules[left].label || left).localeCompare(String(modules[right].label || right), 'de');
+		});
+	}
+
+	function groupModuleTypes(types) {
+		var categoryOrder = ['Struktur', 'Inhalt', 'Medien', 'Aktion', 'Layout', 'Weitere'];
+		var groups = {};
+		types.forEach(function (type) {
+			var category = getModuleMeta(type).category;
+			if (!groups[category]) {
+				groups[category] = [];
+			}
+			groups[category].push(type);
+		});
+		return categoryOrder.filter(function (category) {
+			return Array.isArray(groups[category]) && groups[category].length;
+		}).map(function (category) {
+			return { category: category, items: groups[category] };
+		});
+	}
+
+	function applyPresetState(presetId) {
+		if (!presetId || !presets[presetId] || !presets[presetId].state) return;
+		if (!window.confirm(t('applyPresetConfirm', 'Aktuelles Layout ersetzen?'))) return;
+		selectedPresetId = presetId;
+		state = normalizeState(clone(presets[presetId].state));
+		selected = null;
+		replaceHistory(state);
+		afterStateChange();
+		renderPresets();
+	}
+
 	function renderPalette() {
 		if (!paletteEl) {
 			return;
 		}
 		paletteEl.innerHTML = '';
-		Object.keys(modules).forEach(function (type) {
-			var item = document.createElement('button');
-			item.type = 'button';
-			item.className = 'enews-builder-v2-palette-item';
-			item.dataset.moduleType = type;
-			item.draggable = true;
-			item.innerHTML = '<span class="enews-builder-v2-palette-icon">' + escapeHtml(modules[type].icon || type.substring(0, 2).toUpperCase()) + '</span><span class="enews-builder-v2-palette-label">' + escapeHtml(modules[type].label || type) + '</span>';
+		var types = getFilteredModuleTypes();
+		if (!types.length) {
+			var empty = document.createElement('div');
+			empty.className = 'enews-builder-v2-palette-empty';
+			empty.textContent = 'Keine Module für diesen Filter gefunden.';
+			paletteEl.appendChild(empty);
+			return;
+		}
 
-			item.addEventListener('click', function () {
-				addBlock(type);
+		groupModuleTypes(types).forEach(function (group) {
+			var groupEl = document.createElement('div');
+			groupEl.className = 'enews-builder-v2-palette-group';
+			var titleEl = document.createElement('h4');
+			titleEl.className = 'enews-builder-v2-palette-group-title';
+			titleEl.textContent = group.category;
+			groupEl.appendChild(titleEl);
+
+			var gridEl = document.createElement('div');
+			gridEl.className = 'enews-builder-v2-palette-grid';
+
+			group.items.forEach(function (type) {
+				var meta = getModuleMeta(type);
+				var item = document.createElement('button');
+				item.type = 'button';
+				item.className = 'enews-builder-v2-palette-item';
+				item.dataset.moduleType = type;
+				item.draggable = true;
+				item.innerHTML = '' +
+					'<span class="enews-builder-v2-palette-icon">' + escapeHtml(modules[type].icon || type.substring(0, 2).toUpperCase()) + '</span>' +
+					'<span>' +
+						'<span class="enews-builder-v2-palette-label">' + escapeHtml(modules[type].label || type) + '</span>' +
+						'<span class="enews-builder-v2-palette-copy">' + escapeHtml(meta.description) + '</span>' +
+					'</span>';
+
+				item.addEventListener('click', function () {
+					addBlock(type);
+				});
+
+				item.addEventListener('dragstart', function (event) {
+					activeDrag = { kind: 'palette', type: type };
+					event.dataTransfer.setData('text/enews-module-type', type);
+					event.dataTransfer.effectAllowed = 'copy';
+				});
+
+				item.addEventListener('dragend', function () {
+					if (activeDrag && activeDrag.kind === 'palette') {
+						activeDrag = null;
+					}
+				});
+
+				gridEl.appendChild(item);
 			});
 
-			item.addEventListener('dragstart', function (event) {
-				activeDrag = { kind: 'palette', type: type };
-				event.dataTransfer.setData('text/enews-module-type', type);
-				event.dataTransfer.effectAllowed = 'copy';
-			});
-
-			item.addEventListener('dragend', function () {
-				if (activeDrag && activeDrag.kind === 'palette') {
-					activeDrag = null;
-				}
-			});
-
-			paletteEl.appendChild(item);
+			groupEl.appendChild(gridEl);
+			paletteEl.appendChild(groupEl);
 		});
 	}
 
@@ -630,10 +807,10 @@
 			sectionCard.className = 'enews-builder-v2-section';
 			sectionCard.innerHTML = '' +
 				'<div class="enews-builder-v2-section-head">' +
-				'<strong>Section ' + (sectionIndex + 1) + '</strong>' +
+				'<div class="enews-builder-v2-section-title"><strong>Section ' + (sectionIndex + 1) + '</strong><span class="enews-builder-v2-settings-box-copy">Container für ein oder mehrere Rows</span></div>' +
 				'<div class="enews-builder-v2-inline-actions">' +
 				'<button type="button" data-act="add-row" class="button button-small">+ Row</button>' +
-				'<button type="button" data-act="delete-section" class="button button-small">Section loeschen</button>' +
+				'<button type="button" data-act="delete-section" class="button button-small">Section löschen</button>' +
 				'</div>' +
 				'</div>';
 
@@ -650,7 +827,7 @@
 				var preset = getRowPresetValue(row.columns);
 				rowEl.innerHTML = '' +
 					'<div class="enews-builder-v2-row-head">' +
-					'<span>Row ' + (rowIndex + 1) + '</span>' +
+					'<div class="enews-builder-v2-row-title"><span>Row ' + (rowIndex + 1) + '</span><span class="enews-builder-v2-settings-box-copy">Wähle das Spaltenlayout für diesen Abschnitt.</span></div>' +
 					'<div class="enews-builder-v2-inline-actions">' +
 					'<label>Layout</label>' +
 					'<select data-act="row-layout">' +
@@ -660,7 +837,7 @@
 					'<option value="37"' + (preset === '37' ? ' selected' : '') + '>30/70</option>' +
 					'<option value="73"' + (preset === '73' ? ' selected' : '') + '>70/30</option>' +
 					'</select>' +
-					'<button type="button" data-act="delete-row" class="button button-small">Row loeschen</button>' +
+					'<button type="button" data-act="delete-row" class="button button-small">Row löschen</button>' +
 					'</div>' +
 					'</div>';
 
@@ -694,7 +871,7 @@
 							'<button type="button" data-act="up" class="button button-small">' + escapeHtml(t('moveUp', 'Hoch')) + '</button>' +
 							'<button type="button" data-act="down" class="button button-small">' + escapeHtml(t('moveDown', 'Runter')) + '</button>' +
 							'<button type="button" data-act="duplicate" class="button button-small">' + escapeHtml(t('duplicate', 'Duplizieren')) + '</button>' +
-							'<button type="button" data-act="delete" class="button button-small">' + escapeHtml(t('remove', 'Loeschen')) + '</button>' +
+							'<button type="button" data-act="delete" class="button button-small">' + escapeHtml(t('remove', 'Löschen')) + '</button>' +
 							'</div>' +
 							'</div>' +
 							'<div class="enews-builder-v2-block-body">' + escapeHtml(buildSummary(block)) + '</div>';
@@ -747,7 +924,7 @@
 					var addHintButton = document.createElement('button');
 					addHintButton.type = 'button';
 					addHintButton.className = 'button button-small';
-					addHintButton.textContent = '+ Block hinzufuegen';
+					addHintButton.textContent = '+ Block hinzufügen';
 					addHintButton.addEventListener('click', function () {
 						addBlock(moduleSelect.value || 'text', columnPath);
 					});
@@ -817,8 +994,8 @@
 		if (!block || !block.settings) return '';
 		if (block.type === 'hero') return block.settings.title || 'Hero ohne Titel';
 		if (block.type === 'products') return 'Produkte: ' + humanQueryMode(block.settings.query_mode) + ', Layout: ' + humanLayout(block.settings.layout);
-		if (block.type === 'posts') return 'Beitraege: ' + humanQueryMode(block.settings.query_mode) + ', Layout: ' + humanLayout(block.settings.layout);
-		if (block.type === 'footer') return block.settings.company ? ('Footer fuer ' + block.settings.company) : 'Footer';
+		if (block.type === 'posts') return 'Beiträge: ' + humanQueryMode(block.settings.query_mode) + ', Layout: ' + humanLayout(block.settings.layout);
+		if (block.type === 'footer') return block.settings.company ? ('Footer für ' + block.settings.company) : 'Footer';
 		if (block.type === 'social') return block.settings.title || 'Social-Links';
 		if (block.type === 'heading' && block.settings.text) return block.settings.text;
 		if (block.type === 'text' && block.settings.text) return stripTags(block.settings.text).slice(0, 90);
@@ -840,50 +1017,93 @@
 		if (!presetsEl) return;
 		presetsEl.innerHTML = '';
 		var keys = Object.keys(presets);
-		if (!keys.length) return;
+		if (!keys.length) {
+			var empty = document.createElement('div');
+			empty.className = 'enews-builder-v2-empty-state';
+			empty.textContent = 'Noch keine Presets vorhanden.';
+			presetsEl.appendChild(empty);
+			return;
+		}
 
-		var row = document.createElement('div');
-		row.className = 'enews-builder-v2-presets-row';
-		var select = document.createElement('select');
-		var placeholder = document.createElement('option');
-		placeholder.value = '';
-		placeholder.textContent = t('selectPreset', 'Preset auswaehlen');
-		select.appendChild(placeholder);
-		keys.forEach(function (key) {
-			var option = document.createElement('option');
-			option.value = key;
-			option.textContent = presets[key].label || key;
-			select.appendChild(option);
-		});
-		var button = document.createElement('button');
-		button.type = 'button';
-		button.className = 'button button-secondary';
-		button.textContent = t('applyPreset', 'Preset anwenden');
-		button.addEventListener('click', function () {
-			if (!select.value || !presets[select.value] || !presets[select.value].state) return;
-			if (!window.confirm(t('applyPresetConfirm', 'Aktuelles Layout ersetzen?'))) return;
-			state = normalizeState(clone(presets[select.value].state));
-			selected = null;
-			afterStateChange();
-		});
-		row.appendChild(select);
-		row.appendChild(button);
-		presetsEl.appendChild(row);
+		var groups = [
+			{ key: 'user', title: 'Eigene Presets', filter: function (preset) { return !!preset.is_user_preset; } },
+			{ key: 'default', title: 'Standard-Presets', filter: function (preset) { return !preset.is_user_preset; } }
+		];
 
-		var detail = document.createElement('p');
-		detail.className = 'description enews-builder-v2-preset-detail';
-		select.addEventListener('change', function () {
-			detail.textContent = (select.value && presets[select.value]) ? (presets[select.value].description || '') : '';
+		groups.forEach(function (group) {
+			var matching = keys.filter(function (key) {
+				return group.filter(presets[key] || {});
+			});
+			if (!matching.length) return;
+
+			var groupEl = document.createElement('div');
+			groupEl.className = 'enews-builder-v2-preset-group';
+			groupEl.innerHTML = '<h4 class="enews-builder-v2-preset-group-title">' + escapeHtml(group.title) + '</h4>';
+			var gridEl = document.createElement('div');
+			gridEl.className = 'enews-builder-v2-preset-grid';
+
+			matching.forEach(function (key) {
+				var preset = presets[key] || {};
+				var card = document.createElement('div');
+				card.className = 'enews-builder-v2-preset-card' + (selectedPresetId === key ? ' is-selected' : '');
+				card.innerHTML = '' +
+					'<div class="enews-builder-v2-preset-card-head">' +
+						'<span class="enews-builder-v2-preset-badge">' + escapeHtml(group.key === 'user' ? 'User' : 'Default') + '</span>' +
+						'<div>' +
+							'<p class="enews-builder-v2-preset-card-title">' + escapeHtml(preset.label || key) + '</p>' +
+							'<p class="enews-builder-v2-preset-card-copy">' + escapeHtml(preset.description || 'Vordefinierter Startpunkt für den Builder.') + '</p>' +
+						'</div>' +
+					'</div>';
+
+				var actions = document.createElement('div');
+				actions.className = 'enews-builder-v2-preset-card-actions';
+
+				var applyButton = document.createElement('button');
+				applyButton.type = 'button';
+				applyButton.className = 'button button-secondary';
+				applyButton.textContent = t('applyPreset', 'Preset anwenden');
+				applyButton.addEventListener('click', function () {
+					applyPresetState(key);
+				});
+				actions.appendChild(applyButton);
+
+				if (preset.is_user_preset) {
+					var selectButton = document.createElement('button');
+					selectButton.type = 'button';
+					selectButton.className = 'button';
+					selectButton.textContent = selectedPresetId === key ? 'Ausgewählt' : 'Zum Löschen markieren';
+					selectButton.addEventListener('click', function () {
+						selectedPresetId = key;
+						if (deletePresetButtonEl) {
+							deletePresetButtonEl.disabled = false;
+						}
+						renderPresets();
+					});
+					actions.appendChild(selectButton);
+				}
+
+				card.appendChild(actions);
+				gridEl.appendChild(card);
+			});
+
+			groupEl.appendChild(gridEl);
+			presetsEl.appendChild(groupEl);
 		});
-		presetsEl.appendChild(detail);
+
+		if (deletePresetButtonEl) {
+			deletePresetButtonEl.disabled = !(selectedPresetId && presets[selectedPresetId] && presets[selectedPresetId].is_user_preset);
+		}
 	}
 
 	function renderSettings() {
 		settingsEl.innerHTML = '';
+		if (selectionMetaEl) {
+			selectionMetaEl.textContent = 'Wähle einen Block im Canvas aus, um ihn zu bearbeiten.';
+		}
 
 		var globalWrap = document.createElement('div');
 		globalWrap.className = 'enews-builder-v2-settings-box';
-		globalWrap.innerHTML = '<h3>' + escapeHtml(t('globalSettings', 'Mail-Rahmen & Branding')) + '</h3>';
+		globalWrap.innerHTML = '<h3>' + escapeHtml(t('globalSettings', 'Mail-Rahmen & Branding')) + '</h3><p class="enews-builder-v2-settings-box-copy">Globale Breite, Farben und Typografie für die komplette Mail.</p>';
 		appendField(globalWrap, 'subject', 'Betreff', state.global.subject, function (value) {
 			state.global.subject = value;
 			if (subjectInputEl && subjectInputEl.value !== value) subjectInputEl.value = value;
@@ -895,7 +1115,7 @@
 		appendToggleField(globalWrap, 'full_width', t('fullWidth', 'Fullwidth-Inhalt'), state.global.full_width === '1', function (checked) {
 			updateGlobalSetting('full_width', checked ? '1' : '0');
 		});
-		appendColorField(globalWrap, 'background_color', t('backgroundColor', 'Hintergrundfarbe aussen'), state.global.background_color, function (value) {
+		appendColorField(globalWrap, 'background_color', t('backgroundColor', 'Hintergrundfarbe außen'), state.global.background_color, function (value) {
 			updateGlobalSetting('background_color', value);
 		});
 		appendColorField(globalWrap, 'content_background', t('contentBackground', 'Hintergrundfarbe innen'), state.global.content_background, function (value) {
@@ -914,16 +1134,21 @@
 
 		var block = getSelectedBlock();
 		if (!block) {
-			var hint = document.createElement('p');
-			hint.className = 'description';
-			hint.textContent = 'Waehle einen Block im Canvas aus, um ihn zu bearbeiten.';
+			var hint = document.createElement('div');
+			hint.className = 'enews-builder-v2-empty-state';
+			hint.textContent = 'Noch kein Block aktiv. Klicke im Canvas auf ein Modul, damit hier dessen Einstellungen erscheinen.';
 			settingsEl.appendChild(hint);
 			return;
 		}
 
+		var path = getBlockPathById(block.id);
+		if (selectionMetaEl && path) {
+			selectionMetaEl.textContent = (modules[block.type] ? modules[block.type].label : block.type) + ' aktiv in Section ' + (path.section + 1) + ', Row ' + (path.row + 1) + ', Spalte ' + (path.column + 1) + '.';
+		}
+
 		var blockWrap = document.createElement('div');
 		blockWrap.className = 'enews-builder-v2-settings-box';
-		blockWrap.innerHTML = '<h3>' + escapeHtml((modules[block.type] ? modules[block.type].label : block.type) + ' - Einstellungen') + '</h3>';
+		blockWrap.innerHTML = '<h3>' + escapeHtml((modules[block.type] ? modules[block.type].label : block.type) + ' - Einstellungen') + '</h3><p class="enews-builder-v2-settings-box-copy">Direkte Konfiguration des aktuell selektierten Blocks.</p>';
 		Object.keys(block.settings || {}).forEach(function (key) {
 			if (key.indexOf('__') === 0) return;
 			renderSmartField(blockWrap, key, block.settings[key], function (next) {
@@ -935,6 +1160,16 @@
 
 	function renderSmartField(parent, key, value, onChange) {
 		if (hiddenSettingKeys[key]) return;
+		var block = getSelectedBlock();
+		if (block && modules[block.type] && Array.isArray(modules[block.type].fields)) {
+			var matchingField = modules[block.type].fields.filter(function (field) {
+				return field && field.key === key;
+			})[0];
+			if (matchingField) {
+				renderFieldFromDefinition(parent, matchingField, value, onChange);
+				return;
+			}
+		}
 		var label = fieldLabelMap[key] || key.replace(/_/g, ' ');
 		if (fieldSelectMap[key]) {
 			appendSelectField(parent, key, label, String(value == null ? '' : value), fieldSelectMap[key], onChange);
@@ -959,6 +1194,34 @@
 			return;
 		}
 		appendField(parent, key, label, String(value == null ? '' : value), onChange);
+	}
+
+	function renderFieldFromDefinition(parent, field, value, onChange) {
+		var type = field.type || 'text';
+		var label = field.label || field.key;
+		if (type === 'select' && Array.isArray(field.options)) {
+			appendSelectField(parent, field.key, label, String(value == null ? '' : value), field.options, onChange);
+			return;
+		}
+		if (type === 'textarea') {
+			appendTextAreaField(parent, field.key, label, String(value || ''), onChange);
+			return;
+		}
+		if (type === 'number') {
+			appendNumberField(parent, field.key, label, Number(value || 0), Number(field.min || 0), Number(field.max || 2000), onChange);
+			return;
+		}
+		if (type === 'toggle') {
+			appendToggleField(parent, field.key, label, String(value) === '1' || value === true, function (checked) {
+				onChange(checked ? '1' : '0');
+			});
+			return;
+		}
+		if (type === 'color') {
+			appendColorField(parent, field.key, label, value, onChange);
+			return;
+		}
+		appendField(parent, field.key, label, String(value == null ? '' : value), onChange);
 	}
 
 	function appendSelectField(parent, key, label, value, options, onChange) {
@@ -1154,6 +1417,75 @@
 			previewEl.appendChild(previewFrame);
 		}
 		previewFrame.srcdoc = html;
+		applyPreviewMode();
+	}
+
+	function applyPreviewMode() {
+		if (!previewEl) return;
+		previewEl.classList.toggle('enews-builder-v2-preview-mobile', previewMode === 'mobile');
+		previewEl.classList.toggle('enews-builder-v2-preview-desktop', previewMode !== 'mobile');
+		if (viewDesktopButtonEl) viewDesktopButtonEl.classList.toggle('is-active', previewMode === 'desktop');
+		if (viewMobileButtonEl) viewMobileButtonEl.classList.toggle('is-active', previewMode === 'mobile');
+	}
+
+	function saveCurrentPreset() {
+		var label = window.prompt(t('presetNamePrompt', 'Name für das Preset'), state.global.subject || 'Mein Preset');
+		if (!label) {
+			return;
+		}
+		var payload = new URLSearchParams();
+		payload.append('action', 'enews_builder_v2_save_preset');
+		payload.append('nonce', config.presetsNonce || '');
+		payload.append('label', label);
+		payload.append('state', JSON.stringify(state));
+		fetch(config.ajaxUrl, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+			body: payload.toString(),
+			credentials: 'same-origin'
+		})
+			.then(function (response) { return response.json(); })
+			.then(function (json) {
+				if (!json || !json.success || !json.data) {
+					throw new Error((json && json.data && json.data.message) || t('presetSaveError', 'Preset konnte nicht gespeichert werden.'));
+				}
+				presets = json.data.presets || presets;
+				selectedPresetId = json.data.presetId || '';
+				renderPresets();
+				window.alert(t('presetSaved', 'Preset gespeichert.'));
+			})
+			.catch(function (err) {
+				window.alert((err && err.message) || t('presetSaveError', 'Preset konnte nicht gespeichert werden.'));
+			});
+	}
+
+	function deleteCurrentPreset() {
+		if (!selectedPresetId || !presets[selectedPresetId] || !presets[selectedPresetId].is_user_preset) {
+			return;
+		}
+		var payload = new URLSearchParams();
+		payload.append('action', 'enews_builder_v2_delete_preset');
+		payload.append('nonce', config.presetsNonce || '');
+		payload.append('presetId', selectedPresetId);
+		fetch(config.ajaxUrl, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+			body: payload.toString(),
+			credentials: 'same-origin'
+		})
+			.then(function (response) { return response.json(); })
+			.then(function (json) {
+				if (!json || !json.success || !json.data) {
+					throw new Error((json && json.data && json.data.message) || t('presetDeleteError', 'Preset konnte nicht geloescht werden.'));
+				}
+				presets = json.data.presets || presets;
+				selectedPresetId = '';
+				renderPresets();
+				window.alert(t('presetDeleted', 'Preset geloescht.'));
+			})
+			.catch(function (err) {
+				window.alert((err && err.message) || t('presetDeleteError', 'Preset konnte nicht geloescht werden.'));
+			});
 	}
 
 	function sendTestMail() {
@@ -1211,6 +1543,9 @@
 	}
 
 	function bindEvents() {
+		if (moduleSearchEl) {
+			moduleSearchEl.addEventListener('input', renderPalette);
+		}
 		if (subjectInputEl) {
 			subjectInputEl.value = state.global.subject || subjectInputEl.value || '';
 			subjectInputEl.addEventListener('input', function () {
@@ -1220,6 +1555,15 @@
 			});
 		}
 		if (sendTestButtonEl) sendTestButtonEl.addEventListener('click', sendTestMail);
+		if (savePresetButtonEl) savePresetButtonEl.addEventListener('click', saveCurrentPreset);
+		if (deletePresetButtonEl) {
+			deletePresetButtonEl.disabled = true;
+			deletePresetButtonEl.addEventListener('click', deleteCurrentPreset);
+		}
+		if (undoButtonEl) undoButtonEl.addEventListener('click', function () { restoreHistory(-1); });
+		if (redoButtonEl) redoButtonEl.addEventListener('click', function () { restoreHistory(1); });
+		if (viewDesktopButtonEl) viewDesktopButtonEl.addEventListener('click', function () { previewMode = 'desktop'; applyPreviewMode(); });
+		if (viewMobileButtonEl) viewMobileButtonEl.addEventListener('click', function () { previewMode = 'mobile'; applyPreviewMode(); });
 		if (formEl) {
 			formEl.addEventListener('submit', function () {
 				syncSubjectIntoState();
@@ -1233,9 +1577,10 @@
 
 	renderPresets();
 	renderPalette();
-	initAccordions();
 	bindEvents();
 	saveStateToInput();
 	renderAll();
+	applyPreviewMode();
+	updateHistoryButtons();
 	schedulePreview();
 })();
