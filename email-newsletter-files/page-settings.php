@@ -13,10 +13,12 @@
 	$tips = new PSOURCE_HelpTooltips();
 	$tips->set_icon_url($email_newsletter->plugin_url.'/email-newsletter-files/images/information.png');
 
+    $cp_defender_status = $this->enews_cp_defender_get_status_snapshot();
+
 
     //Display status message
     if ( isset( $_GET['updated'] ) ) {
-        ?><div id="message" class="updated fade"><p><?php echo urldecode( $_GET['message'] ); ?></p></div><?php
+        ?><div id="message" class="updated fade"><p><?php echo esc_html( urldecode( isset( $_GET['message'] ) ? wp_unslash( $_GET['message'] ) : '' ) ); ?></p></div><?php
     }
 ?>
 
@@ -183,6 +185,106 @@
 
                            <tr valign="top">
                                 <th scope="row">
+                                    <?php _e( 'CP Defender Delegation:', 'email-newsletter' ) ?>
+                                </th>
+                                <td>
+                                    <label>
+                                        <input type="checkbox" name="settings[cp_defender_delegate_enabled]" value="1" <?php checked( '1', isset( $this->settings['cp_defender_delegate_enabled'] ) ? (string) $this->settings['cp_defender_delegate_enabled'] : '0' ); ?> />
+                                        <?php _e( 'Anmeldeschutz an PS Security delegieren', 'email-newsletter' ) ?>
+                                    </label>
+                                    <p class="description">
+                                        <?php _e( 'Nutzt, wenn verfügbar, IP-Lockout, Wegwerf-E-Mail-Prüfung, Pattern-Block und IP-Reputation aus PS Security.', 'email-newsletter' ) ?>
+                                    </p>
+
+                                    <div class="enews-cpdefender-status <?php echo $cp_defender_status['available'] ? 'is-ready' : 'is-missing'; ?>">
+                                        <div class="enews-cpdefender-status-head">
+                                            <strong><?php _e( 'Schutzstatus', 'email-newsletter' ) ?>:</strong>
+                                            <?php if ( ! $cp_defender_status['available'] ) : ?>
+                                                <span class="enews-pill enews-pill-danger"><?php _e( 'PS Security nicht aktiv/erreichbar', 'email-newsletter' ) ?></span>
+                                            <?php elseif ( ! $cp_defender_status['enabled'] ) : ?>
+                                                <span class="enews-pill enews-pill-muted"><?php _e( 'Delegation deaktiviert', 'email-newsletter' ) ?></span>
+                                            <?php else : ?>
+                                                <span class="enews-pill enews-pill-ok"><?php _e( 'Delegation aktiv', 'email-newsletter' ) ?></span>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <div class="enews-cpdefender-grid">
+                                            <div class="enews-cpdefender-card">
+                                                <span class="enews-cpdefender-label"><?php _e( 'Prüfungen gesamt', 'email-newsletter' ) ?></span>
+                                                <span class="enews-cpdefender-value"><?php echo number_format_i18n( $cp_defender_status['checks_total'] ); ?></span>
+                                            </div>
+                                            <div class="enews-cpdefender-card">
+                                                <span class="enews-cpdefender-label"><?php _e( 'Geblockt', 'email-newsletter' ) ?></span>
+                                                <span class="enews-cpdefender-value"><?php echo number_format_i18n( $cp_defender_status['checks_blocked'] ); ?></span>
+                                            </div>
+                                            <div class="enews-cpdefender-card">
+                                                <span class="enews-cpdefender-label"><?php _e( 'Erfolgsquote Schutz', 'email-newsletter' ) ?></span>
+                                                <span class="enews-cpdefender-value"><?php echo esc_html( $cp_defender_status['success_rate'] ); ?>%</span>
+                                            </div>
+                                            <div class="enews-cpdefender-card enews-cpdefender-card-wide">
+                                                <span class="enews-cpdefender-label"><?php _e( 'Letzter Block', 'email-newsletter' ) ?></span>
+                                                <span class="enews-cpdefender-value-small">
+                                                    <?php
+                                                    if ( ! empty( $cp_defender_status['last_blocked_at'] ) ) {
+                                                        echo esc_html( wp_date( 'd.m.Y H:i', $cp_defender_status['last_blocked_at'] ) );
+                                                        if ( ! empty( $cp_defender_status['last_block_reason'] ) ) {
+                                                            echo ' · ' . esc_html( $cp_defender_status['last_block_reason'] );
+                                                        }
+                                                        if ( ! empty( $cp_defender_status['last_block_ip'] ) ) {
+                                                            echo ' · IP ' . esc_html( $cp_defender_status['last_block_ip'] );
+                                                        }
+                                                    } else {
+                                                        _e( 'Noch kein Block-Ereignis', 'email-newsletter' );
+                                                    }
+                                                    ?>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div class="enews-cpdefender-timeline-wrap">
+                                            <div class="enews-cpdefender-label" style="margin-bottom:6px;"><?php _e( 'Verlauf letzte 7 Tage (geblockt / erlaubt)', 'email-newsletter' ) ?></div>
+                                            <div class="enews-cpdefender-timeline">
+                                                <?php foreach ( (array) $cp_defender_status['history_last_7'] as $day_row ) : ?>
+                                                    <?php
+                                                    $allowed = isset( $day_row['allowed'] ) ? max( 0, intval( $day_row['allowed'] ) ) : 0;
+                                                    $blocked = isset( $day_row['blocked'] ) ? max( 0, intval( $day_row['blocked'] ) ) : 0;
+                                                    $total = $allowed + $blocked;
+                                                    $blocked_pct = $total > 0 ? round( ( $blocked / $total ) * 100 ) : 0;
+                                                    ?>
+                                                    <div class="enews-cpdefender-day">
+                                                        <span class="enews-cpdefender-day-label"><?php echo esc_html( isset( $day_row['label'] ) ? $day_row['label'] : '' ); ?></span>
+                                                        <span class="enews-cpdefender-day-bar" role="img" aria-label="<?php echo esc_attr( sprintf( __( '%1$s: %2$d geblockt, %3$d erlaubt', 'email-newsletter' ), isset( $day_row['label'] ) ? $day_row['label'] : '', $blocked, $allowed ) ); ?>">
+                                                            <span class="enews-cpdefender-day-bar-blocked" style="height:<?php echo esc_attr( $blocked_pct ); ?>%;"></span>
+                                                        </span>
+                                                        <span class="enews-cpdefender-day-meta"><?php echo esc_html( $blocked ); ?> / <?php echo esc_html( $allowed ); ?></span>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+
+                                        <p class="description enews-cpdefender-features">
+                                            <?php _e( 'Verfügbare Schutzmodule:', 'email-newsletter' ) ?>
+                                            <?php echo $cp_defender_status['features']['ip_lockout'] ? 'IP-Lockout' : ''; ?>
+                                            <?php echo $cp_defender_status['features']['disposable_email'] ? ( $cp_defender_status['features']['ip_lockout'] ? ', ' : '' ) . 'Wegwerf-Mail' : ''; ?>
+                                            <?php echo $cp_defender_status['features']['pattern_blocking'] ? ( ( $cp_defender_status['features']['ip_lockout'] || $cp_defender_status['features']['disposable_email'] ) ? ', ' : '' ) . 'Pattern-Block' : ''; ?>
+                                            <?php echo $cp_defender_status['features']['ip_reputation'] ? ( ( $cp_defender_status['features']['ip_lockout'] || $cp_defender_status['features']['disposable_email'] || $cp_defender_status['features']['pattern_blocking'] ) ? ', ' : '' ) . 'IP-Reputation' : ''; ?>
+                                        </p>
+
+                                        <p style="margin-top:10px;">
+                                            <a
+                                                class="button button-secondary enews-danger"
+                                                href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'page' => 'newsletters-settings', 'newsletter_action' => 'reset_cp_defender_metrics' ), admin_url( 'admin.php' ) ), 'enewsletter_admin_action' ) ); ?>"
+                                                onclick="return confirm('<?php echo esc_js( __( 'Möchtest Du die CP Defender Schutzmetriken wirklich zurücksetzen?', 'email-newsletter' ) ); ?>');"
+                                            >
+                                                <?php _e( 'Schutzmetriken zurücksetzen', 'email-newsletter' ) ?>
+                                            </a>
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+
+                           <tr valign="top">
+                                <th scope="row">
                                     <?php _e( 'ID der Abonnierseite:', 'email-newsletter' ) ?>
                                 </th>
                                 <td>
@@ -240,6 +342,24 @@
                                         <span class="description"><?php _e( 'Standardmäßige Absender-E-Mail-Adresse beim Versenden von Newslettern.', 'email-newsletter' ) ?></span><br/>
                                         <span class="red description"><?php _e( 'Hinweis: Für die SMTP-Methode - in "Absender-E-Mail" solltest Du nur E-Mails verwenden, die mit Deinem SMTP-Server verbunden sind!', 'email-newsletter' ) ?></span><br/>
                                         <span class="red description"><?php _e( 'Hinweis2: Für die PHP-Mail-Methode - in "Absender-E-Mail" solltest Du nur E-Mails mit einer Domain verwenden, die für Deinen Server konfiguriert ist!', 'email-newsletter' ) ?></span>
+                                    </td>
+                                </tr>
+                                <tr valign="top">
+                                    <th scope="row">
+                                        <?php _e( 'Return-Path (optional):', 'email-newsletter' ) ?>
+                                    </th>
+                                    <td>
+                                        <input type="email" id="return_path" class="regular-text" name="settings[return_path]" value="<?php echo isset($this->settings['return_path']) ? esc_attr($this->settings['return_path']) : ''; ?>" />
+                                        <span class="description"><?php _e( 'Optionaler Envelope-Sender für Zustellung/Bounces. Leer lassen für Standardverhalten.', 'email-newsletter' ) ?></span>
+                                    </td>
+                                </tr>
+                                <tr valign="top">
+                                    <th scope="row">
+                                        <?php _e( 'Reply-To (optional):', 'email-newsletter' ) ?>
+                                    </th>
+                                    <td>
+                                        <input type="email" id="reply_to" class="regular-text" name="settings[reply_to]" value="<?php echo isset($this->settings['reply_to']) ? esc_attr($this->settings['reply_to']) : ''; ?>" />
+                                        <span class="description"><?php _e( 'Antwortadresse für Empfänger-Antworten. Leer lassen, um die Absenderadresse zu nutzen.', 'email-newsletter' ) ?></span>
                                     </td>
                                 </tr>
                             </tbody>
@@ -324,7 +444,7 @@
                                         <?php _e( 'Sende', 'email-newsletter' ) ?>
                                         <input class="small-text" type="number" name="settings[send_limit]" value="<?php echo isset($this->settings['send_limit']) ? esc_attr($this->settings['send_limit']) : '';?>" />
                                         <small class="description"><?php _e( '(0 oder leer für unbegrenzt)', 'email-newsletter' ) ?></small>
-                                        <?php _e( 'E-Mails pro', 'email-newsletter' ) ?>
+                                        <?php _e( 'E-Mails pro Rate-Limit-Zeitraum', 'email-newsletter' ) ?>
                                         <?php
                                         if(!isset($this->settings['cron_time']))
                                             $this->settings['cron_time'] = 1;
@@ -334,9 +454,37 @@
                                             <option value="2" <?php echo ( 2 == $this->settings['cron_time'] ) ? 'selected="selected"' : ''; ?> ><?php _e( 'Tag', 'email-newsletter' ) ?></option>
                                             <option value="3" <?php echo ( 3 == $this->settings['cron_time'] ) ? 'selected="selected"' : ''; ?> ><?php _e( 'Monat', 'email-newsletter' ) ?></option>
                                         </select>
+                                        <small class="description"><?php _e( ' (Steuert die Versandbegrenzung, nicht die CRON-Ausführungsfrequenz)', 'email-newsletter' ) ?></small>
                                         <?php _e( 'und warte', 'email-newsletter' ) ?>
                                         <input class="small-text" type="number" name="settings[cron_wait]" value="<?php echo isset($this->settings['cron_wait']) ? esc_attr($this->settings['cron_wait']) : 1;?>" />
                                         <?php _e( 'Sekunde(n) zwischen jeder E-Mail', 'email-newsletter' ) ?>.
+                                    </td>
+                                </tr>
+                                <tr valign="top">
+                                    <th scope="row"><?php _e( 'Versandfenster:', 'email-newsletter' ); ?></th>
+                                    <td>
+                                        <?php if ( ! isset( $this->settings['send_window_enabled'] ) ) { $this->settings['send_window_enabled'] = 0; } ?>
+                                        <?php if ( ! isset( $this->settings['send_window_start'] ) ) { $this->settings['send_window_start'] = 0; } ?>
+                                        <?php if ( ! isset( $this->settings['send_window_end'] ) ) { $this->settings['send_window_end'] = 0; } ?>
+
+                                        <label>
+                                            <input type="checkbox" name="settings[send_window_enabled]" value="1" <?php checked( '1', (string) $this->settings['send_window_enabled'] ); ?> />
+                                            <?php _e( 'Nur in Zeitfenster senden', 'email-newsletter' ); ?>
+                                        </label>
+                                        <br />
+                                        <span><?php _e( 'Von', 'email-newsletter' ); ?></span>
+                                        <select name="settings[send_window_start]">
+                                            <?php for ( $hour = 0; $hour <= 23; $hour++ ) : ?>
+                                                <option value="<?php echo $hour; ?>" <?php selected( intval( $this->settings['send_window_start'] ), $hour ); ?>><?php echo sprintf( '%02d:00', $hour ); ?></option>
+                                            <?php endfor; ?>
+                                        </select>
+                                        <span><?php _e( 'bis', 'email-newsletter' ); ?></span>
+                                        <select name="settings[send_window_end]">
+                                            <?php for ( $hour = 0; $hour <= 23; $hour++ ) : ?>
+                                                <option value="<?php echo $hour; ?>" <?php selected( intval( $this->settings['send_window_end'] ), $hour ); ?>><?php echo sprintf( '%02d:00', $hour ); ?></option>
+                                            <?php endfor; ?>
+                                        </select>
+                                        <span class="description"><?php _e( 'Wenn Start und Ende identisch sind, ist Versand jederzeit erlaubt. Auch Zeitfenster über Mitternacht werden unterstützt.', 'email-newsletter' ); ?></span>
                                     </td>
                                 </tr>
                                 <tr valign="top">

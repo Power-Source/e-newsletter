@@ -2,6 +2,8 @@
 class Email_Newsletter_Builder_V2 {
 	var $plugin;
 	var $meta_key = 'builder_v2_state';
+	var $versions_meta_key = 'builder_v2_versions';
+	var $versions_limit = 30;
 	var $available_modules_cache = null;
 	var $user_presets_option_key = 'enews_builder_v2_user_presets';
 
@@ -21,9 +23,47 @@ class Email_Newsletter_Builder_V2 {
 		}
 
 		$modules = apply_filters( 'enews_builder_v2_modules', $modules, $this );
-		$this->available_modules_cache = $this->normalize_registered_modules( $modules );
+		$registered_modules = $this->normalize_registered_modules( $modules );
+
+		// Keep only the unified footer module in the palette and map legacy types by alias.
+		if ( isset( $registered_modules['canspam'] ) ) {
+			unset( $registered_modules['canspam'] );
+		}
+
+		$this->available_modules_cache = $registered_modules;
 
 		return $this->available_modules_cache;
+	}
+
+	function normalize_module_type( $type ) {
+		$type = sanitize_key( $type );
+		if ( 'product' === $type ) {
+			return 'products';
+		}
+		if ( 'post' === $type ) {
+			return 'posts';
+		}
+		if ( 'canspam' === $type ) {
+			return 'footer';
+		}
+
+		return $type;
+	}
+
+	function migrate_legacy_module_settings( $module_type, $type, $settings ) {
+		if ( 'canspam' === $module_type && 'footer' === $type ) {
+			if ( ! isset( $settings['manage_label'] ) || '' === trim( (string) $settings['manage_label'] ) ) {
+				$settings['manage_label'] = __( 'Verwalten', 'email-newsletter' );
+			}
+			if ( ! isset( $settings['view_label'] ) || '' === trim( (string) $settings['view_label'] ) ) {
+				$settings['view_label'] = __( 'Ansehen', 'email-newsletter' );
+			}
+			if ( ! isset( $settings['unsubscribe_label'] ) || '' === trim( (string) $settings['unsubscribe_label'] ) ) {
+				$settings['unsubscribe_label'] = __( 'Abmelden', 'email-newsletter' );
+			}
+		}
+
+		return $settings;
 	}
 
 	function get_client_available_modules() {
@@ -664,11 +704,7 @@ class Email_Newsletter_Builder_V2 {
 
 		foreach ( $state['modules'] as $module ) {
 			$module_type = isset( $module['type'] ) ? sanitize_key( $module['type'] ) : '';
-			if ( 'product' === $module_type ) {
-				$module_type = 'products';
-			} elseif ( 'post' === $module_type ) {
-				$module_type = 'posts';
-			}
+			$module_type = $this->normalize_module_type( $module_type );
 
 			if ( empty( $module_type ) || ! isset( $modules_map[ $module_type ] ) ) {
 				continue;
@@ -677,6 +713,7 @@ class Email_Newsletter_Builder_V2 {
 			$type = $module_type;
 			$raw_settings = isset( $module['settings'] ) && is_array( $module['settings'] ) ? $module['settings'] : array();
 			$settings = array_merge( $modules_map[ $type ]['defaults'], $raw_settings );
+			$settings = $this->migrate_legacy_module_settings( isset( $module['type'] ) ? sanitize_key( $module['type'] ) : '', $type, $settings );
 
 			switch ( $type ) {
 				case 'preheader':
@@ -788,23 +825,11 @@ class Email_Newsletter_Builder_V2 {
 					$settings['address'] = sanitize_textarea_field( $settings['address'] );
 					$settings['legal_text'] = sanitize_textarea_field( $settings['legal_text'] );
 					$settings['manage_url'] = $this->sanitize_dynamic_url( $settings['manage_url'] );
+					$settings['manage_label'] = sanitize_text_field( $this->get_array_value( $settings, 'manage_label', __( 'Profil verwalten', 'email-newsletter' ) ) );
 					$settings['view_url'] = $this->sanitize_dynamic_url( $settings['view_url'] );
+					$settings['view_label'] = sanitize_text_field( $this->get_array_value( $settings, 'view_label', __( 'Im Browser ansehen', 'email-newsletter' ) ) );
 					$settings['unsubscribe_url'] = $this->sanitize_dynamic_url( $settings['unsubscribe_url'] );
-					$settings['align'] = $this->sanitize_align( $settings['align'] );
-					$settings['background'] = $this->sanitize_color( $settings['background'], '#f8fafc' );
-					$settings['text_color'] = $this->sanitize_color( $settings['text_color'], '#64748b' );
-					$settings['link_color'] = $this->sanitize_color( $settings['link_color'], '#2563eb' );
-					break;
-				case 'canspam':
-					$settings['company'] = sanitize_text_field( $settings['company'] );
-					$settings['address'] = sanitize_textarea_field( $settings['address'] );
-					$settings['legal_text'] = sanitize_textarea_field( $settings['legal_text'] );
-					$settings['manage_url'] = $this->sanitize_dynamic_url( $settings['manage_url'] );
-					$settings['manage_label'] = sanitize_text_field( $settings['manage_label'] );
-					$settings['view_url'] = $this->sanitize_dynamic_url( $settings['view_url'] );
-					$settings['view_label'] = sanitize_text_field( $settings['view_label'] );
-					$settings['unsubscribe_url'] = $this->sanitize_dynamic_url( $settings['unsubscribe_url'] );
-					$settings['unsubscribe_label'] = sanitize_text_field( $settings['unsubscribe_label'] );
+					$settings['unsubscribe_label'] = sanitize_text_field( $this->get_array_value( $settings, 'unsubscribe_label', __( 'Abmelden', 'email-newsletter' ) ) );
 					$settings['align'] = $this->sanitize_align( $settings['align'] );
 					$settings['background'] = $this->sanitize_color( $settings['background'], '#f8fafc' );
 					$settings['text_color'] = $this->sanitize_color( $settings['text_color'], '#64748b' );
@@ -976,6 +1001,24 @@ class Email_Newsletter_Builder_V2 {
 	function save_state( $newsletter_id, $state ) {
 		global $wpdb;
 
+		$options = array();
+		if ( func_num_args() >= 3 ) {
+			$raw_options = func_get_arg( 2 );
+			if ( is_array( $raw_options ) ) {
+				$options = $raw_options;
+			}
+		}
+
+		$capture_version = ! isset( $options['capture_version'] ) || (bool) $options['capture_version'];
+		$version_reason = isset( $options['version_reason'] ) ? sanitize_key( $options['version_reason'] ) : 'save';
+		if ( '' === $version_reason ) {
+			$version_reason = 'save';
+		}
+
+		if ( $capture_version ) {
+			$this->snapshot_current_version( $newsletter_id, $version_reason );
+		}
+
 		$sanitized = $this->sanitize_state( $state, $newsletter_id );
 		if ( '' === $sanitized['global']['email_title'] && '' !== $sanitized['global']['subject'] ) {
 			$sanitized['global']['email_title'] = $sanitized['global']['subject'];
@@ -1001,6 +1044,134 @@ class Email_Newsletter_Builder_V2 {
 			'state' => $sanitized,
 			'content' => $content,
 		);
+	}
+
+	function get_newsletter_versions( $newsletter_id ) {
+		$newsletter_id = intval( $newsletter_id );
+		if ( $newsletter_id <= 0 ) {
+			return array();
+		}
+
+		$raw = $this->plugin->get_newsletter_meta( $newsletter_id, $this->versions_meta_key );
+		if ( empty( $raw ) ) {
+			return array();
+		}
+
+		$decoded = json_decode( $raw, true );
+		if ( ! is_array( $decoded ) ) {
+			return array();
+		}
+
+		$versions = array();
+		foreach ( $decoded as $entry ) {
+			if ( ! is_array( $entry ) || empty( $entry['id'] ) || empty( $entry['state'] ) || ! is_array( $entry['state'] ) ) {
+				continue;
+			}
+
+			$id = sanitize_key( $entry['id'] );
+			if ( '' === $id ) {
+				continue;
+			}
+
+			$versions[] = array(
+				'id' => $id,
+				'created_at' => isset( $entry['created_at'] ) ? intval( $entry['created_at'] ) : 0,
+				'user_id' => isset( $entry['user_id'] ) ? intval( $entry['user_id'] ) : 0,
+				'reason' => isset( $entry['reason'] ) ? sanitize_key( $entry['reason'] ) : 'save',
+				'subject' => isset( $entry['subject'] ) ? sanitize_text_field( $entry['subject'] ) : '',
+				'state_hash' => isset( $entry['state_hash'] ) ? sanitize_text_field( $entry['state_hash'] ) : '',
+				'state' => $entry['state'],
+			);
+		}
+
+		if ( count( $versions ) > intval( $this->versions_limit ) ) {
+			$versions = array_slice( $versions, 0, intval( $this->versions_limit ) );
+		}
+
+		return $versions;
+	}
+
+	function get_newsletter_version( $newsletter_id, $version_id ) {
+		$version_id = sanitize_key( $version_id );
+		if ( '' === $version_id ) {
+			return false;
+		}
+
+		$versions = $this->get_newsletter_versions( $newsletter_id );
+		foreach ( $versions as $entry ) {
+			if ( isset( $entry['id'] ) && $entry['id'] === $version_id ) {
+				return $entry;
+			}
+		}
+
+		return false;
+	}
+
+	function snapshot_current_version( $newsletter_id, $reason = 'save' ) {
+		$newsletter_id = intval( $newsletter_id );
+		if ( $newsletter_id <= 0 || ! $this->has_saved_state( $newsletter_id ) ) {
+			return false;
+		}
+
+		$state = $this->get_state( $newsletter_id );
+		if ( ! is_array( $state ) || empty( $state ) ) {
+			return false;
+		}
+
+		$newsletter = $this->plugin->get_newsletter_data( $newsletter_id );
+		$subject = is_array( $newsletter ) && isset( $newsletter['subject'] ) ? sanitize_text_field( $newsletter['subject'] ) : '';
+		$state_hash = md5( wp_json_encode( $state ) . '|' . $subject );
+
+		$versions = $this->get_newsletter_versions( $newsletter_id );
+		if ( ! empty( $versions ) && isset( $versions[0]['state_hash'] ) && $versions[0]['state_hash'] === $state_hash ) {
+			return false;
+		}
+
+		$reason = sanitize_key( $reason );
+		if ( '' === $reason ) {
+			$reason = 'save';
+		}
+
+		$entry = array(
+			'id' => sanitize_key( 'v' . time() . wp_rand( 1000, 9999 ) ),
+			'created_at' => time(),
+			'user_id' => get_current_user_id(),
+			'reason' => $reason,
+			'subject' => $subject,
+			'state_hash' => $state_hash,
+			'state' => $state,
+		);
+
+		array_unshift( $versions, $entry );
+		if ( count( $versions ) > intval( $this->versions_limit ) ) {
+			$versions = array_slice( $versions, 0, intval( $this->versions_limit ) );
+		}
+
+		$this->plugin->update_newsletter_meta( $newsletter_id, $this->versions_meta_key, wp_json_encode( $versions ) );
+
+		return $entry['id'];
+	}
+
+	function restore_newsletter_version( $newsletter_id, $version_id ) {
+		$entry = $this->get_newsletter_version( $newsletter_id, $version_id );
+		if ( ! $entry ) {
+			return new WP_Error( 'version_not_found', __( 'Version nicht gefunden.', 'email-newsletter' ) );
+		}
+
+		if ( empty( $entry['state'] ) || ! is_array( $entry['state'] ) ) {
+			return new WP_Error( 'version_invalid', __( 'Version enthält keinen gültigen Builder-Status.', 'email-newsletter' ) );
+		}
+
+		$this->save_state(
+			$newsletter_id,
+			$entry['state'],
+			array(
+				'capture_version' => true,
+				'version_reason' => 'restore',
+			)
+		);
+
+		return true;
 	}
 
 	function render_state_to_content( $state ) {
@@ -1367,7 +1538,7 @@ class Email_Newsletter_Builder_V2 {
 	}
 
 	function render_module_content( $module, $global, $mode = 'storage', $context = array() ) {
-		$type = $module['type'];
+		$type = isset( $module['type'] ) ? $this->normalize_module_type( $module['type'] ) : '';
 		$settings = $module['settings'];
 		$is_preview = 'preview' === $mode;
 		$resolve_shortcodes = in_array( $mode, array( 'preview', 'send' ), true );
@@ -1415,8 +1586,6 @@ class Email_Newsletter_Builder_V2 {
 				return $this->render_giphy_row( $settings, $global );
 			case 'footer':
 				return $this->render_footer_row( $settings, $global );
-			case 'canspam':
-				return $this->render_canspam_row( $settings, $global );
 			case 'html':
 				if ( '' === trim( $settings['html'] ) ) {
 					return '';
@@ -1588,16 +1757,19 @@ class Email_Newsletter_Builder_V2 {
 		$view_url = ! empty( $settings['view_url'] ) ? $settings['view_url'] : '{VIEW_LINK}';
 		$unsubscribe_url = ! empty( $settings['unsubscribe_url'] ) ? $settings['unsubscribe_url'] : '{UNSUBSCRIBE_URL}';
 		$manage_url = ! empty( $settings['manage_url'] ) ? $settings['manage_url'] : '';
+		$manage_label = ! empty( $settings['manage_label'] ) ? $settings['manage_label'] : __( 'Profil verwalten', 'email-newsletter' );
+		$view_label = ! empty( $settings['view_label'] ) ? $settings['view_label'] : __( 'Im Browser ansehen', 'email-newsletter' );
+		$unsubscribe_label = ! empty( $settings['unsubscribe_label'] ) ? $settings['unsubscribe_label'] : __( 'Abmelden', 'email-newsletter' );
 
 		$links = array();
 		if ( ! empty( $manage_url ) ) {
-			$links[] = $this->render_dynamic_link( $manage_url, __( 'Profil verwalten', 'email-newsletter' ), $settings['link_color'] );
+			$links[] = $this->render_dynamic_link( $manage_url, $manage_label, $settings['link_color'] );
 		}
 		if ( ! empty( $view_url ) ) {
-			$links[] = $this->render_dynamic_link( $view_url, __( 'Im Browser ansehen', 'email-newsletter' ), $settings['link_color'] );
+			$links[] = $this->render_dynamic_link( $view_url, $view_label, $settings['link_color'] );
 		}
 		if ( ! empty( $unsubscribe_url ) ) {
-			$links[] = $this->render_dynamic_link( $unsubscribe_url, __( 'Abmelden', 'email-newsletter' ), $settings['link_color'] );
+			$links[] = $this->render_dynamic_link( $unsubscribe_url, $unsubscribe_label, $settings['link_color'] );
 		}
 
 		$address = '';
@@ -1613,30 +1785,6 @@ class Email_Newsletter_Builder_V2 {
 		$html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . esc_attr( $settings['background'] ) . ';"><tr><td style="padding:22px 24px;color:' . esc_attr( $settings['text_color'] ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';font-size:13px;line-height:1.6;text-align:' . esc_attr( $settings['align'] ) . ';"><strong>' . esc_html( $settings['company'] ) . '</strong>' . $address . '<div>' . esc_html( $settings['legal_text'] ) . '</div>' . $link_line . '</td></tr></table>';
 
 		return $html;
-	}
-
-	function render_canspam_row( $settings, $global ) {
-		$links = array();
-		if ( ! empty( $settings['manage_url'] ) ) {
-			$links[] = $this->render_dynamic_link( $settings['manage_url'], ! empty( $settings['manage_label'] ) ? $settings['manage_label'] : __( 'Verwalten', 'email-newsletter' ), $settings['link_color'] );
-		}
-		if ( ! empty( $settings['view_url'] ) ) {
-			$links[] = $this->render_dynamic_link( $settings['view_url'], ! empty( $settings['view_label'] ) ? $settings['view_label'] : __( 'Ansehen', 'email-newsletter' ), $settings['link_color'] );
-		}
-		if ( ! empty( $settings['unsubscribe_url'] ) ) {
-			$links[] = $this->render_dynamic_link( $settings['unsubscribe_url'], ! empty( $settings['unsubscribe_label'] ) ? $settings['unsubscribe_label'] : __( 'Abmelden', 'email-newsletter' ), $settings['link_color'] );
-		}
-
-		$company = ! empty( $settings['company'] ) ? '<div style="font-weight:700;margin:0 0 6px 0;">' . esc_html( $settings['company'] ) . '</div>' : '';
-		$address = ! empty( $settings['address'] ) ? '<div style="margin:0 0 6px 0;white-space:pre-line;">' . esc_html( $settings['address'] ) . '</div>' : '';
-		$legal = ! empty( $settings['legal_text'] ) ? '<div style="margin:0 0 8px 0;">' . nl2br( esc_html( $settings['legal_text'] ) ) . '</div>' : '';
-		$link_line = ! empty( $links ) ? '<div>' . implode( ' &nbsp;|&nbsp; ', $links ) . '</div>' : '';
-
-		if ( '' === $company && '' === $address && '' === $legal && '' === $link_line ) {
-			return '';
-		}
-
-		return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . esc_attr( $settings['background'] ) . ';"><tr><td style="padding:18px 24px;font-family:' . esc_attr( $global['font_family'] ) . ';font-size:12px;line-height:1.6;color:' . esc_attr( $settings['text_color'] ) . ';text-align:' . esc_attr( $settings['align'] ) . ';">' . $company . $address . $legal . $link_line . '</td></tr></table>';
 	}
 
 	function render_button_markup( $label, $url, $background, $color, $radius, $align, $font_family ) {

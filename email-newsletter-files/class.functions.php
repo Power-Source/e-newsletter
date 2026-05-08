@@ -1118,6 +1118,28 @@ class Email_Newsletter_functions {
     function send_email( $email_from_name, $email_from, $email_to, $email_subject, $email_contents, $options=array() ) {
     	global $enewsletter_send_options;
 
+        $reply_to = isset( $options['reply_to'] ) ? sanitize_email( $options['reply_to'] ) : '';
+        if ( empty( $reply_to ) && isset( $this->settings['reply_to'] ) ) {
+            $reply_to = sanitize_email( $this->settings['reply_to'] );
+        }
+        if ( ! empty( $reply_to ) && is_email( $reply_to ) ) {
+            $options['resolved_reply_to'] = $reply_to;
+        }
+
+        $return_path = isset( $options['return_path'] ) ? sanitize_email( $options['return_path'] ) : '';
+        if ( empty( $return_path ) && isset( $this->settings['return_path'] ) ) {
+            $return_path = sanitize_email( $this->settings['return_path'] );
+        }
+        if ( empty( $return_path ) && isset( $options['bounce_email'] ) ) {
+            $return_path = sanitize_email( $options['bounce_email'] );
+        }
+        if ( empty( $return_path ) ) {
+            $return_path = sanitize_email( $email_from );
+        }
+        if ( ! empty( $return_path ) && is_email( $return_path ) ) {
+            $options['resolved_return_path'] = $return_path;
+        }
+
     	$enewsletter_send_options = $options;
 
         $email_contents = wordwrap($email_contents, 50);
@@ -1140,9 +1162,11 @@ class Email_Newsletter_functions {
 
     		$headers = array();
     		$headers[] = $email_from_name ? 'From: '.$email_from_name.' <'.$email_from.'>' : 'From: <'.$email_from.'>';
+        	if( isset($options['resolved_reply_to']) )
+        		$headers[] = 'Reply-To: <'.$options['resolved_reply_to'].'>';
         	$headers = array_merge( $headers, $this->get_list_unsubscribe_headers( $options, $email_to ) );
-    		if( isset($options['bounce_email']) )
-    			$headers[] = 'Return-Path: <'.$options['bounce_email'].'>';
+        	if( isset($options['resolved_return_path']) )
+        		$headers[] = 'Return-Path: <'.$options['resolved_return_path'].'>';
     		if( isset($options['message_id']) ) {
     			$headers[] = 'X-Mailer: '.$options['message_id'];
     			$headers[] = 'Message-ID: '.$options['message_id'];
@@ -1208,10 +1232,14 @@ class Email_Newsletter_functions {
 	        $mail->MsgHTML( $email_contents );
 	        $mail->AddAddress( $email_to );
 
-	        if( isset($options['bounce_email']) )
-	            $mail->Sender = $options['bounce_email'];
-	        else
-	            $mail->Sender = $email_from;
+            if( isset($options['resolved_return_path']) )
+                $mail->Sender = $options['resolved_return_path'];
+            else
+                $mail->Sender = $email_from;
+
+            if ( isset( $options['resolved_reply_to'] ) ) {
+                $mail->AddReplyTo( $options['resolved_reply_to'] );
+            }
 
 	        if( isset($options['message_id']) ) {
 	            $mail->XMailer = $options['message_id'];
@@ -1261,10 +1289,17 @@ class Email_Newsletter_functions {
     function wp_mail_phpmailer_init($phpmailer) {
     	$options = $this->send_options;
 
-        if( isset($options['bounce_email']) )
+        if( isset($options['resolved_return_path']) )
+            $phpmailer->Sender = $options['resolved_return_path'];
+        elseif( isset($options['bounce_email']) )
             $phpmailer->Sender = $options['bounce_email'];
-        else
-            $phpmailer->Sender = $email_from;
+        elseif( isset( $this->settings['from_email'] ) )
+            $phpmailer->Sender = $this->settings['from_email'];
+
+        if ( isset( $options['resolved_reply_to'] ) ) {
+            $phpmailer->ClearReplyTos();
+            $phpmailer->AddReplyTo( $options['resolved_reply_to'] );
+        }
 
         if( isset($options['message_id']) ) {
             $phpmailer->XMailer = $options['message_id'];
@@ -2068,6 +2103,93 @@ class Email_Newsletter_functions {
         }
         $settings['debug_enabled'] = ( intval( $settings['debug_enabled'] ) === 1 ) ? 1 : 0;
 
+        if ( ! isset( $settings['cp_defender_delegate_enabled'] ) ) {
+            $settings['cp_defender_delegate_enabled'] = 0;
+        }
+        $settings['cp_defender_delegate_enabled'] = ( intval( $settings['cp_defender_delegate_enabled'] ) === 1 ) ? 1 : 0;
+
+        // Normalize and validate incoming settings before persisting.
+        $default_domain = wp_parse_url( home_url(), PHP_URL_HOST );
+        $default_domain = ! empty( $default_domain ) ? $default_domain : 'localhost';
+
+        $settings['from_name'] = isset( $settings['from_name'] ) ? sanitize_text_field( $settings['from_name'] ) : get_option( 'blogname' );
+        $settings['from_email'] = isset( $settings['from_email'] ) ? sanitize_email( $settings['from_email'] ) : '';
+        if ( empty( $settings['from_email'] ) || ! is_email( $settings['from_email'] ) ) {
+            $settings['from_email'] = 'newsletter@' . $default_domain;
+        }
+
+        $settings['preview_email'] = isset( $settings['preview_email'] ) ? sanitize_email( $settings['preview_email'] ) : '';
+        if ( ! empty( $settings['preview_email'] ) && ! is_email( $settings['preview_email'] ) ) {
+            $settings['preview_email'] = '';
+        }
+
+        $settings['reply_to'] = isset( $settings['reply_to'] ) ? sanitize_email( $settings['reply_to'] ) : '';
+        if ( ! empty( $settings['reply_to'] ) && ! is_email( $settings['reply_to'] ) ) {
+            $settings['reply_to'] = '';
+        }
+
+        $settings['return_path'] = isset( $settings['return_path'] ) ? sanitize_email( $settings['return_path'] ) : '';
+        if ( ! empty( $settings['return_path'] ) && ! is_email( $settings['return_path'] ) ) {
+            $settings['return_path'] = '';
+        }
+
+        $settings['branding_html'] = isset( $settings['branding_html'] ) ? wp_kses_post( $settings['branding_html'] ) : '';
+        $settings['contact_info'] = isset( $settings['contact_info'] ) ? wp_kses_post( $settings['contact_info'] ) : '';
+        $settings['view_browser'] = isset( $settings['view_browser'] ) ? wp_kses_post( $settings['view_browser'] ) : '';
+
+        $settings['double_opt_in'] = isset( $settings['double_opt_in'] ) ? 1 : 0;
+        $settings['double_opt_in_subject'] = isset( $settings['double_opt_in_subject'] ) ? sanitize_text_field( $settings['double_opt_in_subject'] ) : '';
+        $settings['subscribe_newsletter'] = isset( $settings['subscribe_newsletter'] ) ? max( 0, intval( $settings['subscribe_newsletter'] ) ) : 0;
+        $settings['wp_user_register_subscribe'] = ( isset( $settings['wp_user_register_subscribe'] ) && intval( $settings['wp_user_register_subscribe'] ) === 0 ) ? 0 : 1;
+        $settings['subscribe_page_id'] = isset( $settings['subscribe_page_id'] ) ? max( 0, intval( $settings['subscribe_page_id'] ) ) : 0;
+        $settings['unsubscribe_page_id'] = isset( $settings['unsubscribe_page_id'] ) ? max( 0, intval( $settings['unsubscribe_page_id'] ) ) : 0;
+
+        $allowed_outbound = array( 'smtp', 'mail', 'wpmail' );
+        $settings['outbound_type'] = isset( $settings['outbound_type'] ) ? sanitize_key( $settings['outbound_type'] ) : 'smtp';
+        if ( ! in_array( $settings['outbound_type'], $allowed_outbound, true ) ) {
+            $settings['outbound_type'] = 'smtp';
+        }
+
+        $settings['smtp_host'] = isset( $settings['smtp_host'] ) ? sanitize_text_field( $settings['smtp_host'] ) : '';
+        $settings['smtp_user'] = isset( $settings['smtp_user'] ) ? sanitize_text_field( $settings['smtp_user'] ) : '';
+        $settings['smtp_port'] = isset( $settings['smtp_port'] ) ? intval( $settings['smtp_port'] ) : 0;
+        if ( $settings['smtp_port'] < 0 || $settings['smtp_port'] > 65535 ) {
+            $settings['smtp_port'] = 0;
+        }
+        $settings['smtp_secure_method'] = isset( $settings['smtp_secure_method'] ) ? sanitize_key( $settings['smtp_secure_method'] ) : '0';
+        if ( ! in_array( $settings['smtp_secure_method'], array( '0', 'ssl', 'tls' ), true ) ) {
+            $settings['smtp_secure_method'] = '0';
+        }
+
+        $settings['cron_enable'] = ( isset( $settings['cron_enable'] ) && intval( $settings['cron_enable'] ) === 2 ) ? 2 : 1;
+        $settings['send_limit'] = isset( $settings['send_limit'] ) ? max( 0, intval( $settings['send_limit'] ) ) : 0;
+        $settings['cron_time'] = isset( $settings['cron_time'] ) ? intval( $settings['cron_time'] ) : 1;
+        if ( ! in_array( $settings['cron_time'], array( 1, 2, 3 ), true ) ) {
+            $settings['cron_time'] = 1;
+        }
+        $settings['cron_wait'] = isset( $settings['cron_wait'] ) ? max( 0, min( 60, intval( $settings['cron_wait'] ) ) ) : 1;
+
+        $settings['send_window_enabled'] = isset( $settings['send_window_enabled'] ) ? 1 : 0;
+        $settings['send_window_start'] = isset( $settings['send_window_start'] ) ? max( 0, min( 23, intval( $settings['send_window_start'] ) ) ) : 0;
+        $settings['send_window_end'] = isset( $settings['send_window_end'] ) ? max( 0, min( 23, intval( $settings['send_window_end'] ) ) ) : 0;
+
+        $settings['non_public_group_access'] = isset( $settings['non_public_group_access'] ) ? sanitize_key( $settings['non_public_group_access'] ) : 'registered';
+        if ( ! in_array( $settings['non_public_group_access'], array( 'registered', 'nobody' ), true ) ) {
+            $settings['non_public_group_access'] = 'registered';
+        }
+
+        $settings['bounce_email'] = isset( $settings['bounce_email'] ) ? sanitize_email( $settings['bounce_email'] ) : '';
+        if ( ! empty( $settings['bounce_email'] ) && ! is_email( $settings['bounce_email'] ) ) {
+            $settings['bounce_email'] = '';
+        }
+        $settings['bounce_host'] = isset( $settings['bounce_host'] ) ? sanitize_text_field( $settings['bounce_host'] ) : '';
+        $settings['bounce_port'] = isset( $settings['bounce_port'] ) ? max( 0, min( 65535, intval( $settings['bounce_port'] ) ) ) : 110;
+        $settings['bounce_username'] = isset( $settings['bounce_username'] ) ? sanitize_text_field( $settings['bounce_username'] ) : '';
+        $settings['bounce_security'] = isset( $settings['bounce_security'] ) ? sanitize_text_field( $settings['bounce_security'] ) : '';
+        if ( ! in_array( $settings['bounce_security'], array( '', '/ssl' ), true ) ) {
+            $settings['bounce_security'] = '';
+        }
+
         if(isset($settings['email_caps'])) {
             $caps = $settings['email_caps'];
             unset($settings['email_caps']);
@@ -2099,9 +2221,6 @@ class Email_Newsletter_functions {
                 wp_clear_scheduled_hook( $this->cron_send_name );
         }
 
-        if ( isset($settings['send_limit']) )
-            $settings['send_limit'] = (int) trim( $settings['send_limit'] );
-
         //Encrypt SMTP password
         if ( isset( $settings['smtp_pass'] ) && '********' == $settings['smtp_pass'] )
             unset( $settings['smtp_pass'] );
@@ -2125,8 +2244,13 @@ class Email_Newsletter_functions {
         }
 
 
-        foreach( $settings as $key => $item )
-             $result = $wpdb->query( $wpdb->prepare( "REPLACE INTO {$tb_prefix}enewsletter_settings SET `key` = %s, `value` = %s", $key, stripslashes( $item ) ) );
+        foreach( $settings as $key => $item ) {
+            if ( is_array( $item ) || is_object( $item ) ) {
+                $item = wp_json_encode( $item );
+            }
+            $item = is_string( $item ) ? wp_unslash( $item ) : strval( $item );
+            $result = $wpdb->query( $wpdb->prepare( "REPLACE INTO {$tb_prefix}enewsletter_settings SET `key` = %s, `value` = %s", $key, $item ) );
+        }
 
         // Clear settings cache
         $cache_key = 'enewsletter_settings_' . md5($tb_prefix);

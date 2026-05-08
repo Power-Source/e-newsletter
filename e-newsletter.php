@@ -231,6 +231,301 @@ class Email_Newsletter extends Email_Newsletter_functions {
     }
 
     /**
+     * Resolve client IP address with basic proxy header support.
+     */
+    function enews_cp_defender_get_client_ip() {
+        $candidates = array();
+
+        if ( isset( $_SERVER['HTTP_X_FORWARDED_FOR'] ) && ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+            $parts = explode( ',', wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) );
+            foreach ( $parts as $part ) {
+                $candidates[] = trim( $part );
+            }
+        }
+
+        if ( isset( $_SERVER['HTTP_CLIENT_IP'] ) && ! empty( $_SERVER['HTTP_CLIENT_IP'] ) ) {
+            $candidates[] = trim( wp_unslash( $_SERVER['HTTP_CLIENT_IP'] ) );
+        }
+
+        if ( isset( $_SERVER['REMOTE_ADDR'] ) && ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
+            $candidates[] = trim( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
+        }
+
+        foreach ( $candidates as $candidate ) {
+            if ( filter_var( $candidate, FILTER_VALIDATE_IP ) ) {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Returns true when cp-defender can be used from this runtime.
+     */
+    function enews_cp_defender_is_available() {
+        if ( ! function_exists( 'cp_defender' ) ) {
+            return false;
+        }
+
+        return class_exists( 'CP_Defender\\Module\\IP_Lockout\\Model\\Settings' )
+            || class_exists( 'CP_Defender\\Module\\Anti_Spam\\Behavior\\Disposable_Email' )
+            || class_exists( 'CP_Defender\\Module\\Anti_Spam\\Model\\Pattern' )
+            || class_exists( 'CP_Defender\\Module\\Anti_Spam\\Model\\IP_Reputation' );
+    }
+
+    /**
+     * Returns whether cp-defender delegation is enabled in settings.
+     */
+    function enews_cp_defender_delegation_enabled() {
+        if ( ! isset( $this->settings['cp_defender_delegate_enabled'] ) ) {
+            return 0;
+        }
+
+        return intval( $this->settings['cp_defender_delegate_enabled'] ) === 1 ? 1 : 0;
+    }
+
+    /**
+     * Build a lightweight status payload for the settings page.
+     */
+    function enews_cp_defender_get_status_snapshot() {
+        $checks_total = isset( $this->settings['cp_defender_checks_total'] ) ? max( 0, intval( $this->settings['cp_defender_checks_total'] ) ) : 0;
+        $checks_blocked = isset( $this->settings['cp_defender_checks_blocked'] ) ? max( 0, intval( $this->settings['cp_defender_checks_blocked'] ) ) : 0;
+        $checks_allowed = isset( $this->settings['cp_defender_checks_allowed'] ) ? max( 0, intval( $this->settings['cp_defender_checks_allowed'] ) ) : 0;
+        $history = $this->enews_cp_defender_get_history();
+
+        $last_7 = array();
+        $today_start = strtotime( wp_date( 'Y-m-d 00:00:00' ) );
+        for ( $i = 6; $i >= 0; $i-- ) {
+            $day_start = $today_start - ( $i * DAY_IN_SECONDS );
+            $day_key = wp_date( 'Y-m-d', $day_start );
+            $row = isset( $history[ $day_key ] ) && is_array( $history[ $day_key ] ) ? $history[ $day_key ] : array();
+
+            $last_7[] = array(
+                'day_key' => $day_key,
+                'label' => wp_date( 'd.m.', $day_start ),
+                'allowed' => isset( $row['allowed'] ) ? intval( $row['allowed'] ) : 0,
+                'blocked' => isset( $row['blocked'] ) ? intval( $row['blocked'] ) : 0,
+            );
+        }
+
+        $success_rate = 0;
+        if ( $checks_total > 0 ) {
+            $success_rate = round( ( $checks_blocked / $checks_total ) * 100, 1 );
+        }
+
+        return array(
+            'available' => $this->enews_cp_defender_is_available() ? 1 : 0,
+            'enabled' => $this->enews_cp_defender_delegation_enabled() ? 1 : 0,
+            'checks_total' => $checks_total,
+            'checks_blocked' => $checks_blocked,
+            'checks_allowed' => $checks_allowed,
+            'success_rate' => $success_rate,
+            'last_check_at' => isset( $this->settings['cp_defender_last_check_at'] ) ? intval( $this->settings['cp_defender_last_check_at'] ) : 0,
+            'last_blocked_at' => isset( $this->settings['cp_defender_last_blocked_at'] ) ? intval( $this->settings['cp_defender_last_blocked_at'] ) : 0,
+            'last_block_reason' => isset( $this->settings['cp_defender_last_block_reason'] ) ? sanitize_text_field( $this->settings['cp_defender_last_block_reason'] ) : '',
+            'last_block_ip' => isset( $this->settings['cp_defender_last_block_ip'] ) ? sanitize_text_field( $this->settings['cp_defender_last_block_ip'] ) : '',
+            'history_last_7' => $last_7,
+            'features' => array(
+                'ip_lockout' => class_exists( 'CP_Defender\\Module\\IP_Lockout\\Model\\Settings' ) ? 1 : 0,
+                'disposable_email' => class_exists( 'CP_Defender\\Module\\Anti_Spam\\Behavior\\Disposable_Email' ) ? 1 : 0,
+                'pattern_blocking' => class_exists( 'CP_Defender\\Module\\Anti_Spam\\Model\\Pattern' ) ? 1 : 0,
+                'ip_reputation' => class_exists( 'CP_Defender\\Module\\Anti_Spam\\Model\\IP_Reputation' ) ? 1 : 0,
+            ),
+        );
+    }
+
+    /**
+     * Load and sanitize daily cp-defender metrics history.
+     */
+    function enews_cp_defender_get_history() {
+        $raw = isset( $this->settings['cp_defender_history'] ) ? $this->settings['cp_defender_history'] : '';
+        if ( '' === $raw ) {
+            return array();
+        }
+
+        $decoded = json_decode( $raw, true );
+        if ( ! is_array( $decoded ) ) {
+            return array();
+        }
+
+        $history = array();
+        foreach ( $decoded as $day_key => $row ) {
+            if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $day_key ) ) {
+                continue;
+            }
+            if ( ! is_array( $row ) ) {
+                continue;
+            }
+
+            $history[ $day_key ] = array(
+                'allowed' => isset( $row['allowed'] ) ? max( 0, intval( $row['allowed'] ) ) : 0,
+                'blocked' => isset( $row['blocked'] ) ? max( 0, intval( $row['blocked'] ) ) : 0,
+            );
+        }
+
+        return $history;
+    }
+
+    /**
+     * Persist cp-defender check metrics to settings and in-memory cache.
+     */
+    function enews_cp_defender_record_metrics( $blocked, $reason = '', $ip = '' ) {
+        $now = time();
+
+        $checks_total = isset( $this->settings['cp_defender_checks_total'] ) ? max( 0, intval( $this->settings['cp_defender_checks_total'] ) ) : 0;
+        $checks_blocked = isset( $this->settings['cp_defender_checks_blocked'] ) ? max( 0, intval( $this->settings['cp_defender_checks_blocked'] ) ) : 0;
+        $checks_allowed = isset( $this->settings['cp_defender_checks_allowed'] ) ? max( 0, intval( $this->settings['cp_defender_checks_allowed'] ) ) : 0;
+
+        $checks_total++;
+        if ( $blocked ) {
+            $checks_blocked++;
+        } else {
+            $checks_allowed++;
+        }
+
+        $history = $this->enews_cp_defender_get_history();
+        $today_key = wp_date( 'Y-m-d', $now );
+        if ( ! isset( $history[ $today_key ] ) || ! is_array( $history[ $today_key ] ) ) {
+            $history[ $today_key ] = array(
+                'allowed' => 0,
+                'blocked' => 0,
+            );
+        }
+        if ( $blocked ) {
+            $history[ $today_key ]['blocked']++;
+        } else {
+            $history[ $today_key ]['allowed']++;
+        }
+
+        // Keep the history small and cheap to store.
+        ksort( $history );
+        if ( count( $history ) > 35 ) {
+            $history = array_slice( $history, -35, null, true );
+        }
+
+        $save_data = array(
+            'cp_defender_checks_total' => $checks_total,
+            'cp_defender_checks_blocked' => $checks_blocked,
+            'cp_defender_checks_allowed' => $checks_allowed,
+            'cp_defender_last_check_at' => $now,
+            'cp_defender_history' => wp_json_encode( $history ),
+        );
+
+        if ( $blocked ) {
+            $save_data['cp_defender_last_blocked_at'] = $now;
+            $save_data['cp_defender_last_block_reason'] = sanitize_text_field( $reason );
+            $save_data['cp_defender_last_block_ip'] = sanitize_text_field( $ip );
+        }
+
+        $this->save_settings_array( $save_data );
+
+        foreach ( $save_data as $k => $v ) {
+            $this->settings[ $k ] = $v;
+        }
+    }
+
+    /**
+     * Reset cp-defender metrics counters and timeline.
+     */
+    function enews_cp_defender_reset_metrics() {
+        $save_data = array(
+            'cp_defender_checks_total' => 0,
+            'cp_defender_checks_blocked' => 0,
+            'cp_defender_checks_allowed' => 0,
+            'cp_defender_last_check_at' => 0,
+            'cp_defender_last_blocked_at' => 0,
+            'cp_defender_last_block_reason' => '',
+            'cp_defender_last_block_ip' => '',
+            'cp_defender_history' => wp_json_encode( array() ),
+        );
+
+        $this->save_settings_array( $save_data );
+
+        foreach ( $save_data as $k => $v ) {
+            $this->settings[ $k ] = $v;
+        }
+    }
+
+    /**
+     * Validate a newsletter subscription against cp-defender checks.
+     */
+    function enews_cp_defender_validate_subscription_request( $email = '' ) {
+        $response = array(
+            'blocked' => false,
+            'reason' => '',
+            'message' => '',
+            'ip' => $this->enews_cp_defender_get_client_ip(),
+        );
+
+        if ( ! $this->enews_cp_defender_is_available() || ! $this->enews_cp_defender_delegation_enabled() ) {
+            return $response;
+        }
+
+        $email = sanitize_email( $email );
+        $ip = $response['ip'];
+
+        if ( ! empty( $ip ) && class_exists( 'CP_Defender\\Module\\IP_Lockout\\Model\\Settings' ) ) {
+            $lockout_settings = \CP_Defender\Module\IP_Lockout\Model\Settings::instance();
+
+            if ( method_exists( $lockout_settings, 'isBlacklist' ) && $lockout_settings->isBlacklist( $ip ) ) {
+                $response['blocked'] = true;
+                $response['reason'] = 'ip_blacklist';
+                $response['message'] = __( 'Anmeldung derzeit nicht moeglich. Bitte versuche es spaeter erneut.', 'email-newsletter' );
+            }
+
+            if ( ! $response['blocked'] && class_exists( 'CP_Defender\\Module\\IP_Lockout\\Model\\IP_Model' ) ) {
+                $ip_model = \CP_Defender\Module\IP_Lockout\Model\IP_Model::findOne( array( 'ip' => $ip ) );
+                if ( is_object( $ip_model ) && method_exists( $ip_model, 'is_locked' ) && $ip_model->is_locked() ) {
+                    $response['blocked'] = true;
+                    $response['reason'] = 'ip_locked';
+                    $response['message'] = __( 'Anmeldung derzeit nicht moeglich. Bitte versuche es spaeter erneut.', 'email-newsletter' );
+                }
+            }
+        }
+
+        if ( ! $response['blocked'] && ! empty( $ip ) && class_exists( 'CP_Defender\\Module\\Anti_Spam\\Model\\IP_Reputation' ) ) {
+            if ( \CP_Defender\Module\Anti_Spam\Model\IP_Reputation::is_blocked( $ip ) ) {
+                $response['blocked'] = true;
+                $response['reason'] = 'ip_reputation';
+                $response['message'] = __( 'Anmeldung derzeit nicht moeglich. Bitte versuche es spaeter erneut.', 'email-newsletter' );
+            }
+        }
+
+        if ( ! $response['blocked'] && ! empty( $email ) && class_exists( 'CP_Defender\\Module\\Anti_Spam\\Behavior\\Disposable_Email' ) ) {
+            if ( \CP_Defender\Module\Anti_Spam\Behavior\Disposable_Email::is_disposable( $email ) ) {
+                $response['blocked'] = true;
+                $response['reason'] = 'disposable_email';
+                $response['message'] = __( 'Bitte verwende eine dauerhafte E-Mail-Adresse.', 'email-newsletter' );
+            }
+        }
+
+        if ( ! $response['blocked'] && ! empty( $email ) && class_exists( 'CP_Defender\\Module\\Anti_Spam\\Model\\Pattern' ) ) {
+            $pattern_result = \CP_Defender\Module\Anti_Spam\Model\Pattern::check(
+                $email,
+                \CP_Defender\Module\Anti_Spam\Model\Pattern::TYPE_EMAIL,
+                \CP_Defender\Module\Anti_Spam\Model\Pattern::ACTION_BLOCK
+            );
+
+            if ( $pattern_result ) {
+                $response['blocked'] = true;
+                $response['reason'] = 'pattern_block_email';
+                $response['message'] = __( 'Diese E-Mail-Adresse ist fuer die Anmeldung nicht erlaubt.', 'email-newsletter' );
+            }
+        }
+
+        $this->enews_cp_defender_record_metrics( $response['blocked'], $response['reason'], $ip );
+
+        if ( $response['blocked'] ) {
+            do_action( 'enewsletter_cp_defender_blocked', $response, $email );
+        } else {
+            do_action( 'enewsletter_cp_defender_allowed', $response, $email );
+        }
+
+        return $response;
+    }
+
+    /**
      * Do the stuff on activation
      *
      */
@@ -1076,6 +1371,26 @@ class Email_Newsletter extends Email_Newsletter_functions {
                     $this->save_settings( $_REQUEST['settings'] );
                 break;
 
+                case "reset_cp_defender_metrics":
+
+                    if(! (current_user_can('save_newsletter_settings') || current_user_can($mu_cap)) )
+                        wp_die('Du hast keine Erlaubnis das zu tun');
+
+                    $this->enews_cp_defender_reset_metrics();
+
+                    $redirect = add_query_arg(
+                        array(
+                            'page' => 'newsletters-settings',
+                            'tab' => '#tabs-1',
+                            'updated' => 'true',
+                            'message' => urlencode( __( 'CP Defender Metriken wurden zurückgesetzt.', 'email-newsletter' ) ),
+                        ),
+                        'admin.php'
+                    );
+                    wp_redirect( $redirect );
+                    exit();
+                break;
+
                 case "clear_logs":
                     if(! (current_user_can('save_newsletter_settings') || current_user_can($mu_cap)) )
                         wp_die('Du hast keine Erlaubnis das zu tun');
@@ -1194,6 +1509,75 @@ class Email_Newsletter extends Email_Newsletter_functions {
                             'page' => 'newsletters-campaigns',
                             'updated' => 'true',
                             'message' => urlencode( __( 'Kampagne/Automation gelöscht.', 'email-newsletter' ) ),
+                        ),
+                        'admin.php'
+                    );
+                    wp_redirect( $redirect );
+                    exit();
+                break;
+
+                case "campaign_add_clickers_to_group":
+                    if(! (current_user_can('add_members_group') || current_user_can('save_newsletter') || current_user_can($mu_cap)) )
+                        wp_die('Du hast keine Erlaubnis das zu tun');
+
+                    $campaign_id = isset( $_REQUEST['campaign_id'] ) ? intval( $_REQUEST['campaign_id'] ) : 0;
+                    $run_id = isset( $_REQUEST['run_id'] ) ? intval( $_REQUEST['run_id'] ) : 0;
+                    $group_id = isset( $_REQUEST['group_id'] ) ? intval( $_REQUEST['group_id'] ) : 0;
+                    $target_hash = isset( $_REQUEST['target_hash'] ) ? preg_replace( '/[^a-f0-9]/', '', strtolower( sanitize_text_field( wp_unslash( $_REQUEST['target_hash'] ) ) ) ) : '';
+
+                    $updated = 'false';
+                    $message = __( 'Keine Klicker gefunden.', 'email-newsletter' );
+
+                    if ( $group_id > 0 && '' !== $target_hash ) {
+                        $member_ids = $this->get_campaign_clicker_member_ids( $campaign_id, $run_id, $target_hash, 5000 );
+                        if ( ! empty( $member_ids ) ) {
+                            $this->add_members_to_groups( $member_ids, $group_id );
+                            $updated = 'true';
+                            $message = sprintf( __( '%d Klicker wurden der Gruppe hinzugefügt.', 'email-newsletter' ), count( $member_ids ) );
+                        }
+                    }
+
+                    $redirect = add_query_arg(
+                        array(
+                            'page' => 'newsletters-campaign-stats',
+                            'campaign_id' => $campaign_id,
+                            'run_id' => $run_id,
+                            'target_hash' => $target_hash,
+                            'updated' => $updated,
+                            'message' => urlencode( $message ),
+                        ),
+                        'admin.php'
+                    );
+                    wp_redirect( $redirect );
+                    exit();
+                break;
+
+                case "restore_newsletter_version":
+                    if(! (current_user_can('save_newsletter') || current_user_can($mu_cap)) )
+                        wp_die('Du hast keine Erlaubnis das zu tun');
+
+                    $newsletter_id = isset( $_REQUEST['newsletter_id'] ) ? intval( $_REQUEST['newsletter_id'] ) : 0;
+                    $version_id = isset( $_REQUEST['version_id'] ) ? sanitize_key( wp_unslash( $_REQUEST['version_id'] ) ) : '';
+
+                    $updated = 'false';
+                    $message = __( 'Version konnte nicht wiederhergestellt werden.', 'email-newsletter' );
+
+                    if ( $newsletter_id > 0 && '' !== $version_id && isset( $this->builder_v2 ) && $this->builder_v2 ) {
+                        $result = $this->builder_v2->restore_newsletter_version( $newsletter_id, $version_id );
+                        if ( ! is_wp_error( $result ) ) {
+                            $updated = 'true';
+                            $message = __( 'Version wurde wiederhergestellt.', 'email-newsletter' );
+                        } else {
+                            $message = $result->get_error_message();
+                        }
+                    }
+
+                    $redirect = add_query_arg(
+                        array(
+                            'page' => 'newsletters-versions',
+                            'newsletter_id' => $newsletter_id,
+                            'updated' => $updated,
+                            'message' => urlencode( $message ),
                         ),
                         'admin.php'
                     );
@@ -1423,6 +1807,25 @@ class Email_Newsletter extends Email_Newsletter_functions {
         global $wpdb;
 
         do_action( 'enewsletter_before_user_add', $member_data );
+
+        $should_apply_cp_defender = true;
+        if ( is_user_logged_in() && ( current_user_can( 'add_newsletter_member' ) || current_user_can( 'manage_options' ) ) ) {
+            $should_apply_cp_defender = false;
+        }
+
+        if ( $should_apply_cp_defender ) {
+            $cp_defender_check = $this->enews_cp_defender_validate_subscription_request( isset( $member_data['email'] ) ? $member_data['email'] : '' );
+            if ( isset( $cp_defender_check['blocked'] ) && $cp_defender_check['blocked'] ) {
+                return array(
+                    'action' => 'blocked_by_security',
+                    'error' => true,
+                    'message' => ! empty( $cp_defender_check['message'] ) ? $cp_defender_check['message'] : __( 'Anmeldung derzeit nicht moeglich. Bitte versuche es spaeter erneut.', 'email-newsletter' ),
+                    'data' => array(
+                        'protection' => $cp_defender_check,
+                    ),
+                );
+            }
+        }
 
         //first lets check if email exists somewhere
         if ( email_exists( $member_data['email'] ) !== false ) {
@@ -2091,6 +2494,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
             }
 
             $target_url = rawurlencode( base64_encode( $url ) );
+            $signature = $this->build_click_tracking_signature( $send_id, $member_id, $wp_only_user_id, $target_url );
             $track_url = add_query_arg(
                 array(
                     'action' => 'check_email_clicked',
@@ -2098,6 +2502,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
                     'member_id' => $member_id,
                     'wp_only_user_id' => $wp_only_user_id,
                     'target' => $target_url,
+                    'sig' => $signature,
                 ),
                 admin_url( 'admin-ajax.php' )
             );
@@ -2113,6 +2518,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
         $member_id = isset( $_REQUEST['member_id'] ) ? intval( $_REQUEST['member_id'] ) : 0;
         $wp_only_user_id = isset( $_REQUEST['wp_only_user_id'] ) ? intval( $_REQUEST['wp_only_user_id'] ) : 0;
         $target = isset( $_REQUEST['target'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['target'] ) ) : '';
+        $signature = isset( $_REQUEST['sig'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['sig'] ) ) : '';
 
         $target_url = '';
         if ( '' !== $target ) {
@@ -2130,6 +2536,10 @@ class Email_Newsletter extends Email_Newsletter_functions {
             $target_url = home_url();
         }
 
+        if ( '' !== $signature && ! $this->verify_click_tracking_signature( $send_id, $member_id, $wp_only_user_id, $target, $signature ) ) {
+            $target_url = home_url();
+        }
+
         $run = $this->get_campaign_run_by_send_id( $send_id );
         if ( $run ) {
             $this->campaign_record_click( $run, $member_id, $wp_only_user_id, $target_url );
@@ -2137,6 +2547,37 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
         wp_redirect( $target_url );
         exit;
+    }
+
+    function get_click_tracking_secret_key() {
+        if ( defined( 'NEWSLETTER_RELINK_KEY' ) && NEWSLETTER_RELINK_KEY ) {
+            return (string) NEWSLETTER_RELINK_KEY;
+        }
+
+        return (string) wp_salt( 'nonce' );
+    }
+
+    function build_click_tracking_signature( $send_id, $member_id, $wp_only_user_id, $target ) {
+        $payload = implode(
+            '|',
+            array(
+                intval( $send_id ),
+                intval( $member_id ),
+                intval( $wp_only_user_id ),
+                (string) $target,
+            )
+        );
+
+        return hash_hmac( 'sha256', $payload, $this->get_click_tracking_secret_key() );
+    }
+
+    function verify_click_tracking_signature( $send_id, $member_id, $wp_only_user_id, $target, $signature ) {
+        $expected = $this->build_click_tracking_signature( $send_id, $member_id, $wp_only_user_id, $target );
+        if ( '' === $signature || '' === $expected ) {
+            return false;
+        }
+
+        return hash_equals( $expected, $signature );
     }
 
     /**
@@ -2406,6 +2847,28 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
             //writing some information in the plugin log file
             $this->write_log( $process_id . " 03 - set enewsletter_cron_send_run 1" );
+
+            // Optional send window guard: skip deliveries outside configured hours.
+            $window_enabled = isset( $this->settings['send_window_enabled'] ) && intval( $this->settings['send_window_enabled'] ) === 1;
+            if ( $window_enabled ) {
+                $window_start = isset( $this->settings['send_window_start'] ) ? max( 0, min( 23, intval( $this->settings['send_window_start'] ) ) ) : 0;
+                $window_end = isset( $this->settings['send_window_end'] ) ? max( 0, min( 23, intval( $this->settings['send_window_end'] ) ) ) : 0;
+                $current_hour = intval( current_time( 'G' ) );
+
+                if ( $window_start === $window_end ) {
+                    $inside_window = true;
+                } elseif ( $window_start < $window_end ) {
+                    $inside_window = ( $current_hour >= $window_start && $current_hour < $window_end );
+                } else {
+                    $inside_window = ( $current_hour >= $window_start || $current_hour < $window_end );
+                }
+
+                if ( ! $inside_window ) {
+                    $this->write_log( $process_id . " 03-1 - outside send window: current=" . $current_hour . " start=" . $window_start . " end=" . $window_end );
+                    delete_option( 'enewsletter_cron_send_run' );
+                    return false;
+                }
+            }
 
 
             if ( 0 < $this->settings['send_limit'] ) {
@@ -2980,6 +3443,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
             add_submenu_page( $slug, __( 'Neuer Newsletter', 'email-newsletter' ), __( 'Neuer Newsletter', 'email-newsletter' ), 'create_newsletter', 'newsletters-new', array( &$this, 'newsletters_new_page' ) );
             // Hidden page: keep direct links (Edit/Create flow) without cluttering the sidebar menu.
             add_submenu_page( null, __( 'Newsletter Builder', 'email-newsletter' ), __( 'Newsletter Builder', 'email-newsletter' ), 'save_newsletter', 'newsletters-builder-v2', array( &$this, 'newsletters_builder_v2_page' ) );
+            add_submenu_page( null, __( 'Newsletter-Versionen', 'email-newsletter' ), __( 'Newsletter-Versionen', 'email-newsletter' ), 'save_newsletter', 'newsletters-versions', array( &$this, 'newsletters_versions_page' ) );
             add_submenu_page( $slug, __( 'Gruppen', 'email-newsletter' ), __( 'Gruppen', 'email-newsletter' ), 'edit_newsletter_group', 'newsletters-groups', array( &$this, 'member_groups_page' ) );
             add_submenu_page( $slug, __( 'Abonnenten', 'email-newsletter' ), __( 'Abonnenten', 'email-newsletter' ), 'view_newsletter_members', 'newsletters-members',  array( &$this, 'members_page' ) );
             add_submenu_page( $slug, __( 'Kampagnen & Automationen', 'email-newsletter' ), __( 'Kampagnen & Automationen', 'email-newsletter' ), 'save_newsletter', 'newsletters-campaigns',  array( &$this, 'campaigns_page' ) );
@@ -3084,6 +3548,8 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 `campaign_id` int(11) NOT NULL,
                 `send_id` int(11) NOT NULL,
                 `member_key` varchar(32) NOT NULL,
+                `member_id` int(11) DEFAULT '0',
+                `wp_only_user_id` int(11) DEFAULT '0',
                 `target_url` text,
                 `target_hash` char(32) NOT NULL,
                 `click_count` int(11) DEFAULT '1',
@@ -3095,6 +3561,14 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 KEY `campaign_id` (`campaign_id`),
                 KEY `send_id` (`send_id`)
             ) DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;" );
+        }
+
+        if ( ! $wpdb->get_var( "SHOW COLUMNS FROM `{$clicks_table}` LIKE 'member_id'" ) ) {
+            $wpdb->query( "ALTER TABLE `{$clicks_table}` ADD `member_id` int(11) DEFAULT '0' AFTER `member_key`" );
+        }
+
+        if ( ! $wpdb->get_var( "SHOW COLUMNS FROM `{$clicks_table}` LIKE 'wp_only_user_id'" ) ) {
+            $wpdb->query( "ALTER TABLE `{$clicks_table}` ADD `wp_only_user_id` int(11) DEFAULT '0' AFTER `member_id`" );
         }
     }
 
@@ -3242,6 +3716,82 @@ class Email_Newsletter extends Email_Newsletter_functions {
         return is_array( $rows ) ? $rows : array();
     }
 
+    function get_campaign_clickers( $campaign_id = 0, $run_id = 0, $target_hash = '', $limit = 200 ) {
+        global $wpdb;
+
+        $target_hash = preg_replace( '/[^a-f0-9]/', '', strtolower( (string) $target_hash ) );
+        if ( '' === $target_hash ) {
+            return array();
+        }
+
+        $limit = max( 1, min( 2000, intval( $limit ) ) );
+        $where = array( $wpdb->prepare( 'c.target_hash = %s', $target_hash ) );
+
+        if ( intval( $campaign_id ) > 0 ) {
+            $where[] = $wpdb->prepare( 'c.campaign_id = %d', intval( $campaign_id ) );
+        }
+
+        if ( intval( $run_id ) > 0 ) {
+            $where[] = $wpdb->prepare( 'c.run_id = %d', intval( $run_id ) );
+        }
+
+        $query = "SELECT
+            c.member_id,
+            c.wp_only_user_id,
+            MAX(c.last_clicked) AS last_clicked,
+            SUM(c.click_count) AS click_count,
+            MAX(m.member_email) AS member_email,
+            MAX(CONCAT_WS(' ', m.member_fname, m.member_lname)) AS member_name
+            FROM {$this->get_campaign_clicks_table_name()} c
+            LEFT JOIN {$this->tb_prefix}enewsletter_members m ON m.member_id = c.member_id
+            WHERE " . implode( ' AND ', $where ) . "
+            GROUP BY c.member_key
+            ORDER BY last_clicked DESC, click_count DESC
+            LIMIT " . intval( $limit );
+
+        $rows = $wpdb->get_results( $query, 'ARRAY_A' );
+        return is_array( $rows ) ? $rows : array();
+    }
+
+    function get_campaign_clicker_member_ids( $campaign_id = 0, $run_id = 0, $target_hash = '', $limit = 2000 ) {
+        $rows = $this->get_campaign_clickers( $campaign_id, $run_id, $target_hash, $limit );
+        $ids = array();
+
+        foreach ( (array) $rows as $row ) {
+            $member_id = isset( $row['member_id'] ) ? intval( $row['member_id'] ) : 0;
+            if ( $member_id > 0 ) {
+                $ids[] = $member_id;
+            }
+        }
+
+        return array_values( array_unique( $ids ) );
+    }
+
+    function get_campaign_kpi_series( $campaign_id = 0, $limit = 20 ) {
+        $runs = $this->get_campaign_runs( $campaign_id, $limit );
+        if ( empty( $runs ) ) {
+            return array();
+        }
+
+        $runs = array_reverse( $runs );
+        $series = array();
+
+        foreach ( $runs as $run ) {
+            $sent = intval( isset( $run['sent'] ) ? $run['sent'] : 0 );
+            $opened = intval( isset( $run['opened'] ) ? $run['opened'] : 0 );
+            $clicked = intval( isset( $run['clicked'] ) ? $run['clicked'] : 0 );
+
+            $series[] = array(
+                'run_id' => intval( $run['run_id'] ),
+                'open_rate' => $sent > 0 ? round( ( $opened / $sent ) * 100, 2 ) : 0,
+                'click_rate' => $sent > 0 ? round( ( $clicked / $sent ) * 100, 2 ) : 0,
+                'reactivity' => $opened > 0 ? round( ( $clicked / $opened ) * 100, 2 ) : 0,
+            );
+        }
+
+        return $series;
+    }
+
     function campaign_build_click_member_key( $member_id, $wp_only_user_id ) {
         $member_id = intval( $member_id );
         $wp_only_user_id = intval( $wp_only_user_id );
@@ -3294,6 +3844,8 @@ class Email_Newsletter extends Email_Newsletter_functions {
         $run_id = intval( $run['run_id'] );
         $campaign_id = intval( $run['campaign_id'] );
         $send_id = $this->get_campaign_run_send_id( $run );
+        $member_id = intval( $member_id );
+        $wp_only_user_id = intval( $wp_only_user_id );
         $member_key = $this->campaign_build_click_member_key( $member_id, $wp_only_user_id );
         $target_hash = md5( $target_url );
         $now = current_time( 'timestamp' );
@@ -3301,13 +3853,15 @@ class Email_Newsletter extends Email_Newsletter_functions {
         $wpdb->query(
             $wpdb->prepare(
                 "INSERT INTO {$this->get_campaign_clicks_table_name()}
-                (run_id, campaign_id, send_id, member_key, target_url, target_hash, click_count, first_clicked, last_clicked)
-                VALUES (%d, %d, %d, %s, %s, %s, 1, %d, %d)
-                ON DUPLICATE KEY UPDATE click_count = click_count + 1, last_clicked = VALUES(last_clicked)",
+                (run_id, campaign_id, send_id, member_key, member_id, wp_only_user_id, target_url, target_hash, click_count, first_clicked, last_clicked)
+                VALUES (%d, %d, %d, %s, %d, %d, %s, %s, 1, %d, %d)
+                ON DUPLICATE KEY UPDATE click_count = click_count + 1, last_clicked = VALUES(last_clicked), member_id = VALUES(member_id), wp_only_user_id = VALUES(wp_only_user_id)",
                 $run_id,
                 $campaign_id,
                 $send_id,
                 $member_key,
+                $member_id,
+                $wp_only_user_id,
                 $target_url,
                 $target_hash,
                 $now,
@@ -3994,6 +4548,14 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
         wp_redirect( $target );
         exit();
+    }
+
+    function newsletters_versions_page() {
+        if ( ! current_user_can( 'save_newsletter' ) ) {
+            wp_die( __( 'Dazu hast Du keine Berechtigung.', 'email-newsletter' ) );
+        }
+
+        require_once( $this->plugin_dir . 'email-newsletter-files/page-newsletters-versions.php' );
     }
 
     function builder_v2_preview_ajax() {

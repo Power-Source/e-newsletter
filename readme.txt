@@ -41,6 +41,12 @@ zu verbessern.
 * Builder V2 Sprache: Deutsche Texte auf saubere Umlaute korrigiert (z. B. "Rückgängig", "löschen", "Wähle", "Beiträge", "Schriftgröße")
 * Builder V2 Module: Feldlabels und Standardtexte in den neuen Modulen sprachlich vereinheitlicht
 * Builder V2 Renderer: Shortcodes aus HTML-/Beitrags-/Produkt-Modulen werden im Send-Modus jetzt korrekt aufgelöst (nicht mehr als Roh-Shortcode versendet)
+* Builder V2: Versionshistorie pro Newsletter ergänzt (inkl. Wiederherstellung)
+* Builder V2: Versionsvorschau mit aktuellem-vs-Version Vergleich vor der Wiederherstellung ergänzt
+* Kampagnen-Metriken: KPI-Karten für Open Rate, Click Rate und Reaktivität ergänzt
+* Kampagnen-Metriken: KPI-Verlauf als Charts (Open/Click Rate) ergänzt
+* Kampagnen-Metriken: Klick-Drilldown "Wer hat geklickt" inkl. Direktaktion "zur Gruppe hinzufügen" ergänzt
+* Click-Tracking: Signierte Tracking-Links für manipulationssicherere Redirects ergänzt
 
 = 1.0.7 =
 * Builder V2: Initialisierung stabilisiert, damit Module in der Palette wieder erscheinen und das Canvas nicht leer bleibt

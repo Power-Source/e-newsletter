@@ -203,6 +203,9 @@
                         <a class="button button-secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=newsletters-builder-v2&newsletter_id=' . intval( $newsletter['newsletter_id'] ) ) ); ?>">
                             <?php _e( 'Bearbeiten', 'email-newsletter' ) ?>
                         </a>
+                        <a class="button button-secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=newsletters-versions&newsletter_id=' . intval( $newsletter['newsletter_id'] ) ) ); ?>">
+                            <?php _e( 'Versionen', 'email-newsletter' ) ?>
+                        </a>
                         <?php } ?>
                         <?php if(current_user_can('send_newsletter')) { 
                             $send_url = wp_nonce_url(
