@@ -4,7 +4,7 @@ Tags: newsletter
 Requires at least: 4.9
 Tested up to: WordPress 6.4 
 ClassicPress: 2.7.0
-Stable tag: 1.0.8
+Stable tag: 1.0.9
 Requires PHP: 8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -33,6 +33,17 @@ Wir lieben OpenSource, wenn Du Vorschläge oder Idee hast, so teile uns diese do
 zu verbessern.
 
 == ChangeLog ==
+
+= 1.0.9 =
+* Versand-Fix: Mail-Transport-Kompatibilitaet fuer den klassischen mail()-Pfad wiederhergestellt
+* SMTP-Fix: Verbindungsdaten (Host/Port/Sicherheit) werden normalisiert und mit sinnvoller Timeout-Logik verarbeitet
+* SMTP-Test: Test-Endpoint auf dieselbe Normalisierung wie der echte Versandpfad gebracht
+* Security: Sensible AJAX-Endpunkte nicht mehr oeffentlich (nopriv) registriert
+* Security: change_groups AJAX mit Login-, Capability- und Nonce-Pruefung abgesichert
+* Security: redirect_to Eingaben serverseitig via wp_validate_redirect gehaertet
+* Security: XSS-Fix in Subscribe-/Unsubscribe-Message-Shortcodes (sanitize + escape)
+* Privacy: WP-Exporter um Status sowie Sent/Opened/Bounced Werte erweitert
+* Privacy: WP-Eraser entfernt zusaetzlich Tracking-Reste aus send_members und campaign_clicks
 
 = 1.0.8 =
 * Builder V2 UI: Admin-Layout auf echte Vollbreite umgestellt (kein schmales Wrap-Layout mehr)

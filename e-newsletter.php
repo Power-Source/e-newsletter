@@ -3,7 +3,7 @@
 Plugin Name: PS-eNewsletter
 Plugin URI: https://psource.eimen.net/wiki/ps-enewsletter-dokumentation/
 Description: Das ultimative Newsletter Plugin für ClassicPress. Keine Drittanbieterdienste oder Abo-Kosten, Newsletter direkt aus dem ClassicPress-Dashboard managen und versenden.
-Version: 1.0.8
+Version: 1.0.9
 Text Domain: email-newsletter
 Author: PSOURCE
 Author URI: https://psource.eimen.net/
@@ -49,7 +49,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
         global $wpdb;
 
 
-        $this->plugin_ver = '1.0.8';
+        $this->plugin_ver = '1.0.9';
 
         // Debug flag is resolved after plugin settings are loaded.
         $this->debug = 0;
@@ -184,7 +184,6 @@ class Email_Newsletter extends Email_Newsletter_functions {
         add_action( 'wp_ajax_enews_builder_v2_delete_preset', array( &$this, 'builder_v2_delete_preset_ajax' ) );
 
         //ajax action for change member's group on members page
-        add_action( 'wp_ajax_nopriv_change_groups', array( &$this, 'change_groups_ajax' ) );
         add_action( 'wp_ajax_change_groups', array( &$this, 'change_groups_ajax' ) );
 
         //ajax action for show transparent image 1x1 for check that email was opened
@@ -196,15 +195,12 @@ class Email_Newsletter extends Email_Newsletter_functions {
         add_action( 'wp_ajax_check_email_clicked', array( &$this, 'check_email_clicked_ajax' ) );
 
         //ajax action for test connection to bounces email
-        add_action( 'wp_ajax_nopriv_test_bounces', array( &$this, 'test_bounces_ajax' ) );
         add_action( 'wp_ajax_test_bounces', array( &$this, 'test_bounces_ajax' ) );
 
         //ajax action for test connection to smtp server
-        add_action( 'wp_ajax_nopriv_test_smtp', array( &$this, 'test_smtp_ajax' ) );
         add_action( 'wp_ajax_test_smtp', array( &$this, 'test_smtp_ajax' ) );
 
         //ajax action for sand email to member
-        add_action( 'wp_ajax_nopriv_send_email_to_member', array( &$this, 'send_email_to_member' ) );
         add_action( 'wp_ajax_send_email_to_member', array( &$this, 'send_email_to_member' ) );
 
         //ajax action for subscribing
@@ -884,6 +880,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 'select_members' => __( 'Wähle Abonnenten aus.', 'email-newsletter' ),
                 'settings_tab' => (isset($_GET['tab'])) ? $_GET['tab'] : (!$this->settings ? 'tabs-2' : 'tabs-1'),
                 'smtp_warning' => __( 'Bitte schreibe SMTP Outgoing Server oder wähle eine andere Sendemethode!', 'email-newsletter' ),
+                'change_groups_nonce' => wp_create_nonce( 'enews_change_groups' ),
                 'smtp_test_nonce' => wp_create_nonce( 'enews_test_smtp' ),
                 'bounce_test_nonce' => wp_create_nonce( 'enews_test_bounces' ),
                 'send_preview_nonce' => wp_create_nonce( 'enews_send_preview' )
@@ -1125,8 +1122,9 @@ class Email_Newsletter extends Email_Newsletter_functions {
             }
 
             //handle custom redirects
-            if(isset($_REQUEST['redirect_to']))
-                $redirect = esc_url_raw($_REQUEST['redirect_to']);
+            if(isset($_REQUEST['redirect_to'])) {
+                $redirect = wp_validate_redirect( wp_unslash( $_REQUEST['redirect_to'] ), admin_url( 'admin.php?page=newsletters-dashboard' ) );
+            }
 
             switch( $_REQUEST[ 'newsletter_action' ] ) {
 
@@ -1653,8 +1651,9 @@ class Email_Newsletter extends Email_Newsletter_functions {
         //public actions of the plugin
         if ( isset( $_REQUEST['newsletter_action'] ) && !defined('DOING_AJAX') ) {
             //handle custom redirects
-            if(isset($_REQUEST['redirect_to']))
-                $redirect = $_REQUEST['redirect_to'];
+            if(isset($_REQUEST['redirect_to'])) {
+                $redirect = wp_validate_redirect( wp_unslash( $_REQUEST['redirect_to'] ), home_url() );
+            }
 
             switch( $_REQUEST['newsletter_action'] ) {
                 //action for subscribe
@@ -4653,14 +4652,28 @@ class Email_Newsletter extends Email_Newsletter_functions {
      * Change group on the Memebers page
      **/
     function change_groups_ajax() {
-        $users_group = $this->get_memeber_groups( $_REQUEST['member_id'] );
+        if ( ! is_user_logged_in() || ! current_user_can( 'edit_newsletter_member' ) ) {
+            wp_die( __( 'Keine Berechtigung.', 'email-newsletter' ) );
+        }
+
+        $nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+        if ( empty( $nonce ) || ! wp_verify_nonce( $nonce, 'enews_change_groups' ) ) {
+            wp_die( __( 'Sicherheitspruefung fehlgeschlagen.', 'email-newsletter' ) );
+        }
+
+        $member_id = isset( $_REQUEST['member_id'] ) ? intval( $_REQUEST['member_id'] ) : 0;
+        if ( $member_id <= 0 ) {
+            wp_die( __( 'Ungueltige Mitglied-ID.', 'email-newsletter' ) );
+        }
+
+        $users_group = $this->get_memeber_groups( $member_id );
         if ( ! is_array( $users_group ) )
             $users_group = array();
 
         $groups = $this->get_groups();
             $content = "<p>".__( 'Gruppe für diesen Benutzer wählen:', 'email-newsletter' ) . "</p>";
 
-            $member_data = $this->get_member( $_REQUEST['member_id'] );
+            $member_data = $this->get_member( $member_id );
             $subscribed = (!empty($member_data['unsubscribe_code'])) ? 'checked="checked"' : '';
 
             $content .= '<p><label><strong><input type="checkbox" name="groups_id[]" value="subscribed" ' . $subscribed . ' /> ' .__( 'Abonniert', 'email-newsletter' ). '</strong></label></p>';
@@ -4678,7 +4691,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
             else
                 $content = "<p>".__( 'Bitte erstelle einige Gruppen.', 'email-newsletter' ) . "</p>";
 
-        die($content);
+        die( $content );
     }
 
     /**
@@ -5400,17 +5413,19 @@ class Email_Newsletter extends Email_Newsletter_functions {
     }
 
     function unsubscribe_message_shortcode( $atts ) {
-        if(isset($_REQUEST['enewsletter_unsubscribed']) && isset($_REQUEST['message']))
-            return $_REQUEST['message'];
-        else
-            return '';
+        if ( isset( $_REQUEST['enewsletter_unsubscribed'] ) && isset( $_REQUEST['message'] ) ) {
+            return esc_html( sanitize_text_field( wp_unslash( $_REQUEST['message'] ) ) );
+        }
+
+        return '';
     }
 
     function subscribe_message_shortcode( $atts ) {
-        if(isset($_REQUEST['enewsletter_subscribed']) && isset($_REQUEST['message']))
-            return $_REQUEST['message'];
-        else
-            return '';
+        if ( isset( $_REQUEST['enewsletter_subscribed'] ) && isset( $_REQUEST['message'] ) ) {
+            return esc_html( sanitize_text_field( wp_unslash( $_REQUEST['message'] ) ) );
+        }
+
+        return '';
     }
 
 
@@ -5439,24 +5454,40 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 'item_id' => 'user',
                 'data' => array(
                     array(
-                        'name' => __( 'First Name', 'appointments' ),
+                        'name' => __( 'First Name', 'email-newsletter' ),
                         'value' => $member['member_fname'],
                     ),
                     array(
-                        'name' => __( 'Last Name', 'appointments' ),
+                        'name' => __( 'Last Name', 'email-newsletter' ),
                         'value' => $member['member_lname'],
                     ),
                     array(
-                        'name' => __( 'Email', 'appointments' ),
+                        'name' => __( 'Email', 'email-newsletter' ),
                         'value' => $member['member_email'],
                     ),
                     array(
-                        'name' => __( 'Join Date', 'appointments' ),
+                        'name' => __( 'Join Date', 'email-newsletter' ),
                         'value' => get_date_from_gmt(date('d.m.Y H:i:s', $member['join_date'])),
                     ),
                     array(
-                        'name' => __( 'Groups', 'appointments' ),
+                        'name' => __( 'Groups', 'email-newsletter' ),
                         'value' => implode(', ', $member_groups),
+                    ),
+                    array(
+                        'name' => __( 'Status', 'email-newsletter' ),
+                        'value' => ! empty( $member['unsubscribe_code'] ) ? __( 'Subscribed', 'email-newsletter' ) : __( 'Unsubscribed', 'email-newsletter' ),
+                    ),
+                    array(
+                        'name' => __( 'Sent Emails', 'email-newsletter' ),
+                        'value' => isset( $member['sent'] ) ? intval( $member['sent'] ) : 0,
+                    ),
+                    array(
+                        'name' => __( 'Opened Emails', 'email-newsletter' ),
+                        'value' => isset( $member['opened'] ) ? intval( $member['opened'] ) : 0,
+                    ),
+                    array(
+                        'name' => __( 'Bounced Emails', 'email-newsletter' ),
+                        'value' => isset( $member['bounced'] ) ? intval( $member['bounced'] ) : 0,
                     ),
                 ),
             );
@@ -5466,9 +5497,11 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 'done' => true,
             );
         }
-        else {
-            return;
-        }
+
+        return array(
+            'data' => array(),
+            'done' => true,
+        );
     }
 
     function register_plugin_eraser($erasers) {
@@ -5479,9 +5512,28 @@ class Email_Newsletter extends Email_Newsletter_functions {
 		return $erasers;
     }
     function plugin_eraser($email) {
+        global $wpdb;
+
         $member = $this->get_member_by_email($email);
         if($member) {
-            $result = $this->delete_members(array($member['member_id']));
+            $member_id = intval( $member['member_id'] );
+            $this->delete_members(array($member_id));
+
+            // Remove residual per-recipient send history rows for this member.
+            $wpdb->query(
+                $wpdb->prepare(
+                    "DELETE FROM {$this->tb_prefix}enewsletter_send_members WHERE member_id = %d",
+                    $member_id
+                )
+            );
+
+            // Remove tracked campaign clicks for this member.
+            $wpdb->query(
+                $wpdb->prepare(
+                    "DELETE FROM {$this->tb_prefix}enewsletter_campaign_clicks WHERE member_id = %d",
+                    $member_id
+                )
+            );
 
             return array(
                 'items_removed' => 1,
@@ -5490,9 +5542,13 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 'done' => true,
             );
         }
-        else {
-            return;
-        }
+
+        return array(
+            'items_removed' => 0,
+            'items_retained' => 0,
+            'messages' => array(),
+            'done' => true,
+        );
     }
 
 

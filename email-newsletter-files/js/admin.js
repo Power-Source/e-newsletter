@@ -286,7 +286,7 @@ jQuery( document ).ready( function() {
         jQuery.ajax({
             type: "POST",
             url: ajaxurl,
-            data: "action=change_groups&member_id=" + id,
+            data: "action=change_groups&nonce=" + encodeURIComponent(enewsletter.change_groups_nonce || '') + "&member_id=" + id,
             success: function(html){
                 jQuery( "#change_group_block_" + id ).empty().append( sanitizeAjaxHtml( html ) );
 
