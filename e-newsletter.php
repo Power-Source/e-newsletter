@@ -2973,8 +2973,8 @@ class Email_Newsletter extends Email_Newsletter_functions {
                             }
 
                             $from_domain = explode('@',$newsletter_data['from_email']);
-                            $from_domain = isset($from_domain[1]) ? '@'.$from_domain : '';
-                            $options['message_id'] = 'Newsletters-' . $bounce_id . '-' . $send_member['send_id'] . '-'. $bounce_hash;
+                            $from_domain = isset($from_domain[1]) ? '@'.$from_domain[1] : '';
+                            $options['message_id'] = 'Newsletters-' . $bounce_id . '-' . $send_member['send_id'] . '-'. $bounce_hash . $from_domain;
 
                             $sent_status = $this->send_email( $newsletter_data['from_name'], $newsletter_data['from_email'], $member_data["member_email"], $newsletter_data["subject"], $contents, $options );
                             if( $sent_status === true ) {
@@ -3234,6 +3234,10 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
         $server_port = $_REQUEST['smtp_port'];
         $server_security = $_REQUEST['smtp_security'];
+        $smtp = $this->normalize_smtp_connection_settings( $server_host, $server_port, $server_security );
+        $server_host = $smtp['host'];
+        $server_port = $smtp['port'];
+        $server_security = $smtp['security'];
 
         if ( !class_exists( 'ePHPMailer' ) )
             require_once( $this->plugin_dir . "email-newsletter-files/phpmailer/class.phpmailer.php" );
@@ -3248,6 +3252,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
             $mail->SMTPSecure = $server_security;
         if(!empty($server_port))
             $mail->Port = $server_port;
+        $mail->Timeout = 20;
 
         $mail->SMTPAuth = ( strlen( $server_username ) > 0 );
 
@@ -3561,6 +3566,10 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 KEY `campaign_id` (`campaign_id`),
                 KEY `send_id` (`send_id`)
             ) DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;" );
+        }
+
+        if ( ! $wpdb->get_var( "SHOW COLUMNS FROM `{$campaigns_table}` LIKE 'status'" ) ) {
+            $wpdb->query( "ALTER TABLE `{$campaigns_table}` ADD `status` varchar(20) NOT NULL DEFAULT 'active' AFTER `title`" );
         }
 
         if ( ! $wpdb->get_var( "SHOW COLUMNS FROM `{$clicks_table}` LIKE 'member_id'" ) ) {

@@ -1115,6 +1115,44 @@ class Email_Newsletter_functions {
         return $headers;
     }
 
+    function normalize_smtp_connection_settings( $host, $port = 0, $security = '0' ) {
+        $host = trim( (string) $host );
+        $security = sanitize_key( (string) $security );
+        if ( ! in_array( $security, array( '0', 'ssl', 'tls' ), true ) ) {
+            $security = '0';
+        }
+
+        // Accept host values copied with URI scheme and strip it safely.
+        $host = preg_replace( '#^(smtp|smtps|ssl|tls)://#i', '', $host );
+
+        // Ignore accidental path fragments.
+        if ( false !== strpos( $host, '/' ) ) {
+            $host = strtok( $host, '/' );
+        }
+
+        $port = intval( $port );
+        if ( $port <= 0 && preg_match( '/^\[?([^\]]+)\]?:([0-9]{1,5})$/', $host, $matches ) ) {
+            $host = $matches[1];
+            $port = intval( $matches[2] );
+        }
+
+        if ( $port <= 0 ) {
+            if ( 'tls' === $security ) {
+                $port = 587;
+            } elseif ( 'ssl' === $security ) {
+                $port = 465;
+            } else {
+                $port = 25;
+            }
+        }
+
+        return array(
+            'host' => $host,
+            'port' => $port,
+            'security' => $security,
+        );
+    }
+
     function send_email( $email_from_name, $email_from, $email_to, $email_subject, $email_contents, $options=array() ) {
     	global $enewsletter_send_options;
 
@@ -1140,9 +1178,7 @@ class Email_Newsletter_functions {
             $options['resolved_return_path'] = $return_path;
         }
 
-    	$enewsletter_send_options = $options;
-
-        $email_contents = wordwrap($email_contents, 50);
+        $enewsletter_send_options = $options;
 
 		if($this->settings['outbound_type'] == 'wpmail') {
 			add_filter('wp_mail_content_type', function() {
@@ -1199,13 +1235,19 @@ class Email_Newsletter_functions {
 	        //Set Sending Method
 	        switch( $this->settings['outbound_type'] ) {
 	            case 'smtp':
+                    $smtp = $this->normalize_smtp_connection_settings(
+                        isset( $this->settings['smtp_host'] ) ? $this->settings['smtp_host'] : '',
+                        isset( $this->settings['smtp_port'] ) ? $this->settings['smtp_port'] : 0,
+                        isset( $this->settings['smtp_secure_method'] ) ? $this->settings['smtp_secure_method'] : '0'
+                    );
 	                $mail->IsSMTP();
-	                $mail->Host = $this->settings['smtp_host'];
+                    $mail->Host = $smtp['host'];
 
-	                if($this->settings['smtp_secure_method'] == 'tls' || $this->settings['smtp_secure_method'] == 'ssl')
-	                    $mail->SMTPSecure = $this->settings['smtp_secure_method'];
-	                if(!empty($this->settings['smtp_port']))
-	                    $mail->Port = $this->settings['smtp_port'];
+                    if($smtp['security'] == 'tls' || $smtp['security'] == 'ssl')
+                        $mail->SMTPSecure = $smtp['security'];
+                    if(!empty($smtp['port']))
+                        $mail->Port = $smtp['port'];
+                    $mail->Timeout = 20;
 
 	                $mail->SMTPAuth = ( strlen( $this->settings['smtp_user'] ) > 0 );
 
@@ -1227,9 +1269,16 @@ class Email_Newsletter_functions {
 	        if( $email_from_name ) {
 	            $mail->FromName = $email_from_name;
 	        }
-	        $mail->Subject = $email_subject;
-	        $mail->isHTML( true );
-	        $mail->MsgHTML( $email_contents );
+            $mail->Subject = $email_subject;
+            $mail->isHTML( true );
+            $mail_body = (string) $email_contents;
+            if ( isset( $this->settings['outbound_type'] ) && 'mail' === $this->settings['outbound_type'] ) {
+                // Legacy mail() transport is sensitive to raw UTF-8 in 7bit-only MTAs.
+                $mail->Encoding = '7bit';
+                $mail_body = $this->encode_html_for_mail_transport( $mail_body );
+            }
+            $mail->Body = $mail_body;
+            $mail->AltBody = '';
 	        $mail->AddAddress( $email_to );
 
             if( isset($options['resolved_return_path']) )
@@ -1284,6 +1333,70 @@ class Email_Newsletter_functions {
         $wait_time = isset($options['cron_wait']) ? $options['cron_wait'] : 1;
         sleep( $wait_time );
         return true;
+    }
+
+    function strip_unresolved_template_tokens( $contents ) {
+        $contents = (string) $contents;
+        $contents = preg_replace( '/\{[A-Z][A-Z0-9_]*\}/', '', $contents );
+        $contents = preg_replace( '/%7B[A-Z][A-Z0-9_]*%7D/i', '', $contents );
+        return is_string( $contents ) ? $contents : '';
+    }
+
+    function encode_html_for_mail_transport( $contents ) {
+        $contents = (string) $contents;
+        return preg_replace_callback(
+            '/[^\x00-\x7F]/u',
+            array( $this, 'encode_mail_utf8_char_to_entity' ),
+            $contents
+        );
+    }
+
+    function encode_mail_utf8_char_to_entity( $match ) {
+        if ( ! isset( $match[0] ) ) {
+            return '';
+        }
+
+        $char = (string) $match[0];
+        $codepoint = $this->utf8_ord( $char );
+        if ( ! is_numeric( $codepoint ) || $codepoint < 0 ) {
+            return '';
+        }
+
+        return '&#' . $codepoint . ';';
+    }
+
+    function utf8_ord( $char ) {
+        if ( '' === $char ) {
+            return -1;
+        }
+
+        if ( function_exists( 'mb_ord' ) ) {
+            return mb_ord( $char, 'UTF-8' );
+        }
+
+        $bytes = unpack( 'C*', $char );
+        if ( ! is_array( $bytes ) || empty( $bytes ) ) {
+            return -1;
+        }
+
+        $b1 = (int) $bytes[1];
+        if ( $b1 < 0x80 ) {
+            return $b1;
+        }
+
+        if ( isset( $bytes[2] ) && ( $b1 & 0xE0 ) === 0xC0 ) {
+            return ( ( $b1 & 0x1F ) << 6 ) | ( (int) $bytes[2] & 0x3F );
+        }
+
+        if ( isset( $bytes[3] ) && ( $b1 & 0xF0 ) === 0xE0 ) {
+            return ( ( $b1 & 0x0F ) << 12 ) | ( ( (int) $bytes[2] & 0x3F ) << 6 ) | ( (int) $bytes[3] & 0x3F );
+        }
+
+        if ( isset( $bytes[4] ) && ( $b1 & 0xF8 ) === 0xF0 ) {
+            return ( ( $b1 & 0x07 ) << 18 ) | ( ( (int) $bytes[2] & 0x3F ) << 12 ) | ( ( (int) $bytes[3] & 0x3F ) << 6 ) | ( (int) $bytes[4] & 0x3F );
+        }
+
+        return -1;
     }
 
     function wp_mail_phpmailer_init($phpmailer) {
@@ -1344,11 +1457,6 @@ class Email_Newsletter_functions {
         foreach ($default_texts as $text => $translation) {
             $contents = str_replace( $text, $translation, $contents );
         }
-
-        if(strpos($contents,'{VIEW_LINK_TEXT}') === false)
-			add_filter( 'email_newsletter_make_email_content_header', function( $a, $b ) {
-				return "{VIEW_LINK_TEXT}" . $a;
-			}, 10, 2 );
 
         $date_format = (isset($settings['date_format']) ? $settings['date_format'] : "F j, Y");
 
@@ -1531,6 +1639,9 @@ class Email_Newsletter_functions {
             }
         }
 
+        // Remove stale placeholder tokens from older builder/template states.
+        $contents = $this->strip_unresolved_template_tokens( $contents );
+
         if ( method_exists( $this, 'wrap_email_click_links' ) ) {
             $contents = $this->wrap_email_click_links( $contents, $send_id, $member_id, $wp_only_user_id );
         }
@@ -1640,14 +1751,7 @@ class Email_Newsletter_functions {
                 // Security: Only create img tag for images if value is not empty
                 // Fix: Check if URL is already absolute (starts with http:// or https://)
                 if($type == 'images' && !empty($value)) {
-                    // If URL is already absolute, use it as-is
-                    // This prevents double-pathing when images from media library are used
-                    if (preg_match('/^https?:\/\//i', $value)) {
-                        $value = '<img src="'.$value.'"/>';
-                    } else {
-                        // Relative URL - will be handled by template_url replacement
-                        $value = '<img src="'.$value.'"/>';
-                    }
+                    $value = '<img src="'.$value.'"/>';
                 }
 
                 $contents = str_replace( "{".$name_big."}", $value, $contents );
