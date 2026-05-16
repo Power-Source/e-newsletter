@@ -1096,6 +1096,7 @@
 	}
 
 	function renderSettings() {
+		var focusState = captureSettingsFocusState();
 		settingsEl.innerHTML = '';
 		if (selectionMetaEl) {
 			selectionMetaEl.textContent = 'Wähle einen Block im Canvas aus, um ihn zu bearbeiten.';
@@ -1156,6 +1157,39 @@
 			});
 		});
 		settingsEl.appendChild(blockWrap);
+		restoreSettingsFocusState(focusState);
+	}
+
+	function captureSettingsFocusState() {
+		if (!settingsEl) {
+			return null;
+		}
+		var active = document.activeElement;
+		if (!active || !settingsEl.contains(active) || !active.id) {
+			return null;
+		}
+		return {
+			id: active.id,
+			selectionStart: typeof active.selectionStart === 'number' ? active.selectionStart : null,
+			selectionEnd: typeof active.selectionEnd === 'number' ? active.selectionEnd : null
+		};
+	}
+
+	function restoreSettingsFocusState(focusState) {
+		if (!focusState || !focusState.id || !settingsEl) {
+			return;
+		}
+		var target = document.getElementById(focusState.id);
+		if (target && !settingsEl.contains(target)) {
+			target = null;
+		}
+		if (!target || typeof target.focus !== 'function') {
+			return;
+		}
+		target.focus();
+		if (typeof target.setSelectionRange === 'function' && focusState.selectionStart !== null && focusState.selectionEnd !== null) {
+			target.setSelectionRange(focusState.selectionStart, focusState.selectionEnd);
+		}
 	}
 
 	function renderSmartField(parent, key, value, onChange) {

@@ -4,7 +4,7 @@ Tags: newsletter
 Requires at least: 4.9
 Tested up to: WordPress 6.4 
 ClassicPress: 2.7.0
-Stable tag: 1.0.9
+Stable tag: 1.1.0
 Requires PHP: 8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -33,6 +33,9 @@ Wir lieben OpenSource, wenn Du Vorschläge oder Idee hast, so teile uns diese do
 zu verbessern.
 
 == ChangeLog ==
+
+= 1.1.0 =
+* Multisite-Fix: PS-eNewsletter-Menue erscheint im Netzwerk-Admin nur noch bei echter Netzwerkaktivierung
 
 = 1.0.9 =
 * Versand-Fix: Mail-Transport-Kompatibilitaet fuer den klassischen mail()-Pfad wiederhergestellt
