@@ -4,7 +4,7 @@ Tags: newsletter
 Requires at least: 4.9
 Tested up to: WordPress 6.4 
 ClassicPress: 2.7.0
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 Requires PHP: 8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -33,6 +33,11 @@ Wir lieben OpenSource, wenn Du Vorschläge oder Idee hast, so teile uns diese do
 zu verbessern.
 
 == ChangeLog ==
+
+= 1.1.1 =
+* DB-Migration-Fix: Kampagnen-Tabellenmigration bricht nicht mehr ab, wenn in Altschemata die Spalte title fehlt
+* DB-Migration-Fix: status-Spalte wird robust ohne positionsabhaengiges AFTER hinzugefuegt
+* DB-Migration-Fix: Fehlende last_run/next_run-Spalten in bestehenden Kampagnen-Tabellen werden automatisch nachgezogen
 
 = 1.1.0 =
 * Multisite-Fix: PS-eNewsletter-Menue erscheint im Netzwerk-Admin nur noch bei echter Netzwerkaktivierung

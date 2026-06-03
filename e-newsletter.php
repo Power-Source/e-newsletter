@@ -3,7 +3,7 @@
 Plugin Name: PS-eNewsletter
 Plugin URI: https://psource.eimen.net/wiki/ps-enewsletter-dokumentation/
 Description: Das ultimative Newsletter Plugin für ClassicPress. Keine Drittanbieterdienste oder Abo-Kosten, Newsletter direkt aus dem ClassicPress-Dashboard managen und versenden.
-Version: 1.1.0
+Version: 1.1.1
 Text Domain: email-newsletter
 Author: PSOURCE
 Author URI: https://psource.eimen.net/
@@ -49,7 +49,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
         global $wpdb;
 
 
-        $this->plugin_ver = '1.1.0';
+        $this->plugin_ver = '1.1.1';
 
         // Debug flag is resolved after plugin settings are loaded.
         $this->debug = 0;
@@ -3569,8 +3569,20 @@ class Email_Newsletter extends Email_Newsletter_functions {
             ) DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;" );
         }
 
+        if ( ! $wpdb->get_var( "SHOW COLUMNS FROM `{$campaigns_table}` LIKE 'title'" ) ) {
+            $wpdb->query( "ALTER TABLE `{$campaigns_table}` ADD `title` varchar(255) NOT NULL DEFAULT ''" );
+        }
+
         if ( ! $wpdb->get_var( "SHOW COLUMNS FROM `{$campaigns_table}` LIKE 'status'" ) ) {
-            $wpdb->query( "ALTER TABLE `{$campaigns_table}` ADD `status` varchar(20) NOT NULL DEFAULT 'active' AFTER `title`" );
+            $wpdb->query( "ALTER TABLE `{$campaigns_table}` ADD `status` varchar(20) NOT NULL DEFAULT 'active'" );
+        }
+
+        if ( ! $wpdb->get_var( "SHOW COLUMNS FROM `{$campaigns_table}` LIKE 'last_run'" ) ) {
+            $wpdb->query( "ALTER TABLE `{$campaigns_table}` ADD `last_run` int(11) DEFAULT '0'" );
+        }
+
+        if ( ! $wpdb->get_var( "SHOW COLUMNS FROM `{$campaigns_table}` LIKE 'next_run'" ) ) {
+            $wpdb->query( "ALTER TABLE `{$campaigns_table}` ADD `next_run` int(11) DEFAULT '0'" );
         }
 
         if ( ! $wpdb->get_var( "SHOW COLUMNS FROM `{$clicks_table}` LIKE 'member_id'" ) ) {
