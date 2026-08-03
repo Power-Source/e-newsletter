@@ -1,6 +1,7 @@
 <?php
     $siteurl = get_option( 'siteurl' );
     $check_key = wp_create_nonce('newsletter_send');
+    $admin_action_nonce = wp_create_nonce( 'enewsletter_admin_action' );
 
     $newsletter_data = $this->get_newsletter_data( $_REQUEST['newsletter_id'] );
 
@@ -36,6 +37,7 @@
                     </div>
                 </div>
                 <form method="post" action="" id="sending_form" >
+                    <input type="hidden" name="_wpnonce" value="<?php echo esc_attr( $admin_action_nonce ); ?>">
                     <input type="hidden" name="newsletter_id" value="<?php echo $newsletter_id; ?>">
                     <input type="hidden" name="send_id" value="<?php echo $send_id; ?>">
                     <input type="hidden" name="action" value="send_newsletter">
@@ -64,7 +66,7 @@
 
                     jQuery( '#send_cancel' ).on('click', function () {
                         pause = 1;
-                        window.location.href = "?page=<?php echo $_REQUEST['page']; ?>&newsletter_action=send_newsletter&newsletter_id=<?php echo $newsletter_id; ?>";
+                        window.location.href = <?php echo wp_json_encode( wp_nonce_url( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'check_key' => $check_key ), admin_url( 'admin.php' ) ), 'enewsletter_admin_action' ) ); ?>;
                     });
 
                     jQuery( '#send_pause' ).on('click', function () {
@@ -90,7 +92,7 @@
                         jQuery.ajax({
                             type: 'POST',
                             url: ajaxurl,
-                            data: 'action=send_email_to_member&send_id=<?php echo $send_id ; ?>&check_key=<?php echo $_REQUEST["check_key"] ; ?>',
+                            data: 'action=send_email_to_member&send_id=<?php echo $send_id ; ?>&check_key=<?php echo rawurlencode( isset( $_REQUEST["check_key"] ) ? $_REQUEST["check_key"] : '' ); ?>',
                             success: function( html ){
                                 if ( 'ok' == html.trim() ) {
 
@@ -130,6 +132,7 @@
         ?>
 
         <form action="" method="post" id="send_form">
+            <input type="hidden" name="_wpnonce" value="<?php echo esc_attr( $admin_action_nonce ); ?>">
             <input type="hidden" name="newsletter_id" value="<?php echo $newsletter_data["newsletter_id"];?>">
             <input type="hidden" name="cron" id="cron" value="">
             <input type="hidden" name="cron_time" id="cron_time" value="" />
@@ -308,7 +311,7 @@
                 <?php
                     if ( 0 < $send['count_send_cron'] ) :
                 ?>
-                        <a href="?page=<?php echo $_REQUEST['page']; ?>&newsletter_action=send_newsletter&cron=remove_from_cron&newsletter_id=<?php echo $newsletter_data["newsletter_id"];?>&send_id=<?php echo $send['send_id'];?>">
+                        <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'cron' => 'remove_from_cron', 'newsletter_id' => $newsletter_data["newsletter_id"], 'send_id' => $send['send_id'] ), admin_url( 'admin.php' ) ), 'enewsletter_admin_action' ) ); ?>">
                             <input class="button button-secondary" type="button" value="<?php echo _e( "Aus der CRON-Liste entfernen", 'email-newsletter' ) ?>" />
                         </a>
                 <?php
@@ -316,10 +319,10 @@
 
                     if ( 0 < $send['count_send_members'] ) :
                 ?>
-                        <a href="?page=<?php echo $_REQUEST['page']; ?>&newsletter_action=send_newsletter&cron=add_to_cron&newsletter_id=<?php echo $newsletter_data["newsletter_id"];?>&send_id=<?php echo $send['send_id'];?>">
+                        <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'cron' => 'add_to_cron', 'newsletter_id' => $newsletter_data["newsletter_id"], 'send_id' => $send['send_id'] ), admin_url( 'admin.php' ) ), 'enewsletter_admin_action' ) ); ?>">
                             <input class="button button-secondary" type="button" value="<?php echo _e( "Zur CRON-Liste hinzufügen", 'email-newsletter' ) ?>" />
                         </a>
-                        <a href="?page=<?php echo $_REQUEST['page']; ?>&newsletter_action=send_newsletter&newsletter_id=<?php echo $newsletter_data["newsletter_id"];?>&send_id=<?php echo $send['send_id'];?>&check_key=<?php echo $check_key; ?>">
+                        <a href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_data["newsletter_id"], 'send_id' => $send['send_id'], 'check_key' => $check_key ), admin_url( 'admin.php' ) ), 'enewsletter_admin_action' ) ); ?>">
                             <input class="button button-primary" type="button" value="<?php _e( 'Weiter mit dem Versand', 'email-newsletter' ) ?>" />
                         </a>
                 <?php

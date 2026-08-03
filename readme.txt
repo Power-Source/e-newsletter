@@ -4,7 +4,7 @@ Tags: newsletter
 Requires at least: 4.9
 Tested up to: WordPress 6.4 
 ClassicPress: 2.7.0
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 Requires PHP: 8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -33,6 +33,9 @@ Wir lieben OpenSource, wenn Du Vorschläge oder Idee hast, so teile uns diese do
 zu verbessern.
 
 == ChangeLog ==
+
+= 1.1.2 =
+* Nonce-Verarbeitung für Newsletter-Aktionen hinzufügen und Links für bessere Sicherheit aktualisieren
 
 = 1.1.1 =
 * DB-Migration-Fix: Kampagnen-Tabellenmigration bricht nicht mehr ab, wenn in Altschemata die Spalte title fehlt

@@ -3,7 +3,7 @@
 Plugin Name: PS-eNewsletter
 Plugin URI: https://psource.eimen.net/wiki/ps-enewsletter-dokumentation/
 Description: Das ultimative Newsletter Plugin für ClassicPress. Keine Drittanbieterdienste oder Abo-Kosten, Newsletter direkt aus dem ClassicPress-Dashboard managen und versenden.
-Version: 1.1.1
+Version: 1.1.2
 Text Domain: email-newsletter
 Author: PSOURCE
 Author URI: https://psource.eimen.net/
@@ -43,13 +43,13 @@ class Email_Newsletter extends Email_Newsletter_functions {
     var $debug;
 
     /**
-     * PHP 5 constructor
+     * PHP 8 constructor
      **/
     function __construct() {
         global $wpdb;
 
 
-        $this->plugin_ver = '1.1.1';
+        $this->plugin_ver = '1.1.2';
 
         // Debug flag is resolved after plugin settings are loaded.
         $this->debug = 0;
@@ -2586,6 +2586,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
      **/
     function send_newsletter( $newsletter_id ) {
         global $wpdb;
+        $action_nonce = isset( $_REQUEST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['_wpnonce'] ) ) : '';
 
         do_action( 'enewsletter_before_send', $newsletter_id );
 
@@ -2661,12 +2662,12 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
         $result = $this->add_send_email_info( $newsletter_id, $members_id, $wp_only_users_id, $status, $dont_send_duplicate, $send_to_bounced );
         if ( !$result['count'] )
-            wp_redirect( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'updated' => 'true', 'message' => urlencode( __( 'Alle Abonnenten haben es bereits erhalten oder es ist kein Benutzer abonniert!', 'email-newsletter' ) ) ), 'admin.php' ) );
+            wp_redirect( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'updated' => 'true', 'message' => urlencode( __( 'Alle Abonnenten haben es bereits erhalten oder es ist kein Benutzer abonniert!', 'email-newsletter' ) ), '_wpnonce' => $action_nonce ), 'admin.php' ) );
         else
             if ( 'cron' == $_REQUEST["cron"] )
-                wp_redirect( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'updated' => 'true', 'message' => urlencode( $result['count'] . ' ' . __( 'Abonnenten werden zur CRON-Liste hinzugefügt', 'email-newsletter' ) ) ), 'admin.php' ) );
+                wp_redirect( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'updated' => 'true', 'message' => urlencode( $result['count'] . ' ' . __( 'Abonnenten werden zur CRON-Liste hinzugefügt', 'email-newsletter' ) ), '_wpnonce' => $action_nonce ), 'admin.php' ) );
             else
-                wp_redirect( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'send_id' => $result['send_id'], 'check_key' => $_REQUEST['check_key'] ), 'admin.php' ) );
+                wp_redirect( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'send_id' => $result['send_id'], 'check_key' => $_REQUEST['check_key'], '_wpnonce' => $action_nonce ), 'admin.php' ) );
 
         exit();
     }
@@ -2676,10 +2677,11 @@ class Email_Newsletter extends Email_Newsletter_functions {
      **/
     function add_to_cron( $newsletter_id, $send_id ) {
         global $wpdb;
+        $action_nonce = isset( $_REQUEST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['_wpnonce'] ) ) : '';
 
         $result = $wpdb->query( $wpdb->prepare( "UPDATE {$this->tb_prefix}enewsletter_send_members SET status = 'by_cron' WHERE send_id = %d AND status = 'waiting_send'", $send_id ) );
 
-        wp_redirect( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'updated' => 'true', 'message' => urlencode( __( 'Abonnenten werden zur CRON-Liste hinzugefügt', 'email-newsletter' ) ) ), 'admin.php' ) );
+        wp_redirect( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'updated' => 'true', 'message' => urlencode( __( 'Abonnenten werden zur CRON-Liste hinzugefügt', 'email-newsletter' ) ), '_wpnonce' => $action_nonce ), 'admin.php' ) );
 
         exit;
     }
@@ -2689,10 +2691,11 @@ class Email_Newsletter extends Email_Newsletter_functions {
      **/
     function remove_from_cron( $newsletter_id, $send_id ) {
         global $wpdb;
+        $action_nonce = isset( $_REQUEST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['_wpnonce'] ) ) : '';
 
         $result = $wpdb->query( $wpdb->prepare( "UPDATE {$this->tb_prefix}enewsletter_send_members SET status = 'waiting_send' WHERE send_id = %d AND status != 'waiting_send'", $send_id ) );
 
-        wp_redirect( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'updated' => 'true', 'message' => urlencode( __( 'Abonnenten werden aus der CRON-Liste entfernt', 'email-newsletter' ) ) ), 'admin.php' ) );
+        wp_redirect( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'updated' => 'true', 'message' => urlencode( __( 'Abonnenten werden aus der CRON-Liste entfernt', 'email-newsletter' ) ), '_wpnonce' => $action_nonce ), 'admin.php' ) );
 
         exit;
     }
