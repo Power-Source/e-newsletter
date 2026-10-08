@@ -795,9 +795,22 @@ class ePHPMailer {
         throw new ephpmailerException($this->Lang('provide_address'), self::STOP_CRITICAL);
       }
 
-      // Set whether the message is multipart/alternative
-      if(!empty($this->AltBody)) {
+      // Prefer a direct HTML message when the body is already HTML and no
+      // alternative text body is required. This avoids client-side fallback to
+      // the stripped/plain-text rendering path.
+      if (empty($this->AltBody) && 'text/html' === $this->ContentType) {
+        $this->ContentType = 'text/html';
+      } elseif (!empty($this->AltBody)) {
         $this->ContentType = 'multipart/alternative';
+      }
+
+      // Classic mail() and sendmail transports are more forgiving when MIME parts
+      // are emitted with CRLF line endings and quoted-printable content encoding.
+      if (in_array($this->Mailer, array('mail', 'sendmail'), true)) {
+        $this->LE = self::CRLF;
+        if (in_array($this->Encoding, array('7bit', '8bit'), true)) {
+          $this->Encoding = 'quoted-printable';
+        }
       }
 
       $this->error_count = 0; // reset errors
@@ -1547,18 +1560,15 @@ class ePHPMailer {
         $body .= $this->AttachAll('attachment', $this->boundary[1]);
         break;
       case 'alt':
-        $body .= $this->GetBoundary($this->boundary[1], '', 'text/plain', '');
-        $body .= $this->EncodeString($this->AltBody, $this->Encoding);
-        $body .= $this->LE.$this->LE;
         $body .= $this->GetBoundary($this->boundary[1], '', 'text/html', '');
         $body .= $this->EncodeString($this->Body, $this->Encoding);
+        $body .= $this->LE.$this->LE;
+        $body .= $this->GetBoundary($this->boundary[1], '', 'text/plain', '');
+        $body .= $this->EncodeString($this->AltBody, $this->Encoding);
         $body .= $this->LE.$this->LE;
         $body .= $this->EndBoundary($this->boundary[1]);
         break;
       case 'alt_inline':
-        $body .= $this->GetBoundary($this->boundary[1], '', 'text/plain', '');
-        $body .= $this->EncodeString($this->AltBody, $this->Encoding);
-        $body .= $this->LE.$this->LE;
         $body .= $this->TextLine('--' . $this->boundary[1]);
         $body .= $this->HeaderLine('Content-Type', 'multipart/related;');
         $body .= $this->TextLine("\tboundary=\"" . $this->boundary[2] . '"');
@@ -1568,6 +1578,9 @@ class ePHPMailer {
         $body .= $this->LE.$this->LE;
         $body .= $this->AttachAll('inline', $this->boundary[2]);
         $body .= $this->LE;
+        $body .= $this->GetBoundary($this->boundary[1], '', 'text/plain', '');
+        $body .= $this->EncodeString($this->AltBody, $this->Encoding);
+        $body .= $this->LE.$this->LE;
         $body .= $this->EndBoundary($this->boundary[1]);
         break;
       case 'alt_attach':
@@ -1575,11 +1588,11 @@ class ePHPMailer {
         $body .= $this->HeaderLine('Content-Type', 'multipart/alternative;');
         $body .= $this->TextLine("\tboundary=\"" . $this->boundary[2] . '"');
         $body .= $this->LE;
-        $body .= $this->GetBoundary($this->boundary[2], '', 'text/plain', '');
-        $body .= $this->EncodeString($this->AltBody, $this->Encoding);
-        $body .= $this->LE.$this->LE;
         $body .= $this->GetBoundary($this->boundary[2], '', 'text/html', '');
         $body .= $this->EncodeString($this->Body, $this->Encoding);
+        $body .= $this->LE.$this->LE;
+        $body .= $this->GetBoundary($this->boundary[2], '', 'text/plain', '');
+        $body .= $this->EncodeString($this->AltBody, $this->Encoding);
         $body .= $this->LE.$this->LE;
         $body .= $this->EndBoundary($this->boundary[2]);
         $body .= $this->LE;
@@ -1590,9 +1603,6 @@ class ePHPMailer {
         $body .= $this->HeaderLine('Content-Type', 'multipart/alternative;');
         $body .= $this->TextLine("\tboundary=\"" . $this->boundary[2] . '"');
         $body .= $this->LE;
-        $body .= $this->GetBoundary($this->boundary[2], '', 'text/plain', '');
-        $body .= $this->EncodeString($this->AltBody, $this->Encoding);
-        $body .= $this->LE.$this->LE;
         $body .= $this->TextLine('--' . $this->boundary[2]);
         $body .= $this->HeaderLine('Content-Type', 'multipart/related;');
         $body .= $this->TextLine("\tboundary=\"" . $this->boundary[3] . '"');
@@ -1602,6 +1612,9 @@ class ePHPMailer {
         $body .= $this->LE.$this->LE;
         $body .= $this->AttachAll('inline', $this->boundary[3]);
         $body .= $this->LE;
+        $body .= $this->GetBoundary($this->boundary[2], '', 'text/plain', '');
+        $body .= $this->EncodeString($this->AltBody, $this->Encoding);
+        $body .= $this->LE.$this->LE;
         $body .= $this->EndBoundary($this->boundary[2]);
         $body .= $this->LE;
         $body .= $this->AttachAll('attachment', $this->boundary[1]);
@@ -1691,7 +1704,11 @@ class ePHPMailer {
     if($this->InlineImageExists()) $this->message_type[] = "inline";
     if($this->AttachmentExists()) $this->message_type[] = "attach";
     $this->message_type = implode("_", $this->message_type);
-    if($this->message_type == "") $this->message_type = "plain";
+    if($this->message_type == "") {
+      $this->message_type = "html";
+      $this->ContentType = 'text/html';
+      $this->CharSet = 'UTF-8';
+    }
   }
 
   /**

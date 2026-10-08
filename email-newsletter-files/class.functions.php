@@ -46,38 +46,20 @@ class Email_Newsletter_functions {
         }
     }
 
-	function get_default_builder_var($type='') {
-		switch($type) {
-			case 'bg_color':
-                $return = (defined('BUILDER_DEFAULT_BG_COLOR') ? BUILDER_DEFAULT_BG_COLOR : '#ffffff' );
-				break;
-			case 'bg_image':
-                $return = (defined('BUILDER_DEFAULT_BG_IMAGE') ? BUILDER_DEFAULT_BG_IMAGE : '' );
-				break;
-			case 'link_color':
-                $return = (defined('BUILDER_DEFAULT_LINK_COLOR') ? BUILDER_DEFAULT_LINK_COLOR : '#0073aa' );
-				break;
-			case 'email_title':
+    function get_default_builder_var($type='') {
+        switch($type) {
+            case 'email_title':
                 $return = (defined('BUILDER_DEFAULT_EMAIL_TITLE') ? BUILDER_DEFAULT_EMAIL_TITLE : 'Standard-E-Mail-Titel' );
-				break;
-			case 'header_image':
-                $return = (defined('BUILDER_DEFAULT_HEADER_IMAGE') ? BUILDER_DEFAULT_HEADER_IMAGE : '' );
-				break;
-			case 'body_color':
-                $return = (defined('BUILDER_DEFAULT_BODY_COLOR') ? BUILDER_DEFAULT_BODY_COLOR : '#333333' );
-				break;
-            case 'title_color':
-                $return = (defined('BUILDER_DEFAULT_TITLE_COLOR') ? BUILDER_DEFAULT_TITLE_COLOR : '#000000' );
                 break;
-            case 'alternative_color':
-                $return = (defined('BUILDER_DEFAULT_ALTERNATIVE_COLOR') ? BUILDER_DEFAULT_ALTERNATIVE_COLOR : '#666666' );
+            case 'branding_html':
+                $return = ( isset( $this->settings['branding_html'] ) ? (string) $this->settings['branding_html'] : '' );
                 break;
-			default:
+            default:
                 $return = '';
-				break;
-		}
-		return apply_filters('email_newsletter_get_default_builder_var',$return,$type);
-	}
+                break;
+        }
+        return apply_filters('email_newsletter_get_default_builder_var',$return,$type);
+    }
 
     /**
      * Generate Unsubscribe code
@@ -261,18 +243,21 @@ class Email_Newsletter_functions {
     function get_members_by_wp_user_id( $wp_user_id, $blog_id = '', $subscribed = 0 ) {
         global $wpdb;
 
-        if ( 1 < $blog_id )
-            $tb_prefix = $wpdb->base_prefix . $blog_id . '_';
-        else
-            $tb_prefix = $wpdb->base_prefix;
+        if ( ! empty( $blog_id ) && 1 < intval( $blog_id ) ) {
+            $tb_prefix = $wpdb->base_prefix . intval( $blog_id ) . '_';
+        } else {
+            $tb_prefix = ! empty( $this->tb_prefix ) ? $this->tb_prefix : $wpdb->base_prefix;
+        }
 
-        if($subscribed)
+        if ( $subscribed ) {
             $subscribed = " AND unsubscribe_code != ''";
-        else
+        } else {
             $subscribed = "";
+        }
 
-        $member = $wpdb->get_row( $wpdb->prepare( "SELECT member_id FROM {$this->tb_prefix}enewsletter_members WHERE wp_user_id = %d".$subscribed, $wp_user_id ), "ARRAY_A" );
-        return $member['member_id'];
+        $member = $wpdb->get_row( $wpdb->prepare( "SELECT member_id FROM {$tb_prefix}enewsletter_members WHERE wp_user_id = %d" . $subscribed, $wp_user_id ), "ARRAY_A" );
+
+        return ( is_array( $member ) && isset( $member['member_id'] ) ) ? $member['member_id'] : 0;
     }
 
     /**
@@ -1022,28 +1007,62 @@ class Email_Newsletter_functions {
         $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send SET newsletter_id = %d, start_time = %d, end_time = 0, email_body = %s", $newsletter_id, $start_time, $email_body ) );
         $send_id = $wpdb->insert_id;
 
-        if(!is_array($members_id) && is_numeric($members_id))
-            $members_id = array($members_id);
-        if ( is_array($members_id) && count( $members_id ) > 0 )
-            foreach ( $members_id as $member_id ) {
-                if ( !( "1" == $dont_send_duplicate && $this->check_duplicate_send($newsletter_id, $member_id) ) || ( "1" == $send_to_bounced && $this->check_bounced_send($newsletter_id, $member_id) ) ) {
-                    $result = $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send_members SET send_id = %d, member_id = %d, status = %s ", $send_id, $member_id, $status ) );
-                    if($result)
-                        $count ++;
-                }
-            }
-        if($wp_only_users_id && !is_array($wp_only_users_id) && is_numeric($wp_only_users_id))
-            $wp_only_users_id = array($wp_only_users_id);
-        if ( is_array($wp_only_users_id) && count( $wp_only_users_id ) > 0 )
-            foreach ( $wp_only_users_id as $wp_only_user_id ) {
-                if ( !( "1" == $dont_send_duplicate && $this->check_duplicate_send($newsletter_id, '', $wp_only_user_id) ) || ( "1" == $send_to_bounced && $this->check_bounced_send($newsletter_id, '', $wp_only_user_id) ) ) {
-                    $result = $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send_members SET send_id = %d, member_id = 0, wp_only_user_id = %d, status = %s ", $send_id, $wp_only_user_id, $status ) );
-                    if($result)
-                        $count ++;
-                }
-            }
+        if ( ! is_array( $members_id ) && is_numeric( $members_id ) ) {
+            $members_id = array( intval( $members_id ) );
+        } elseif ( is_array( $members_id ) ) {
+            $members_id = array_values( array_unique( array_map( 'intval', $members_id ) ) );
+        } else {
+            $members_id = array();
+        }
 
-        return array('count' => $count, 'send_id' => $send_id);
+        if ( is_array( $members_id ) && count( $members_id ) > 0 ) {
+            foreach ( $members_id as $member_id ) {
+                if ( $member_id <= 0 ) {
+                    continue;
+                }
+
+                if ( !( '1' === (string) $dont_send_duplicate && $this->check_duplicate_send( $newsletter_id, $member_id ) ) || ( '1' === (string) $send_to_bounced && $this->check_bounced_send( $newsletter_id, $member_id ) ) ) {
+                    $result = $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send_members SET send_id = %d, member_id = %d, status = %s ", $send_id, $member_id, $status ) );
+                    if ( $result ) {
+                        $count ++;
+                    }
+                }
+            }
+        }
+
+        if ( $wp_only_users_id && ! is_array( $wp_only_users_id ) && is_numeric( $wp_only_users_id ) ) {
+            $wp_only_users_id = array( intval( $wp_only_users_id ) );
+        } elseif ( is_array( $wp_only_users_id ) ) {
+            $wp_only_users_id = array_values( array_unique( array_map( 'intval', $wp_only_users_id ) ) );
+        } else {
+            $wp_only_users_id = array();
+        }
+
+        if ( is_array( $wp_only_users_id ) && count( $wp_only_users_id ) > 0 ) {
+            foreach ( $wp_only_users_id as $wp_only_user_id ) {
+                if ( $wp_only_user_id <= 0 ) {
+                    continue;
+                }
+
+                if ( !( '1' === (string) $dont_send_duplicate && $this->check_duplicate_send( $newsletter_id, '', $wp_only_user_id ) ) || ( '1' === (string) $send_to_bounced && $this->check_bounced_send( $newsletter_id, '', $wp_only_user_id ) ) ) {
+                    $result = $wpdb->query( $wpdb->prepare( "INSERT INTO {$this->tb_prefix}enewsletter_send_members SET send_id = %d, member_id = 0, wp_only_user_id = %d, status = %s ", $send_id, $wp_only_user_id, $status ) );
+                    if ( $result ) {
+                        $count ++;
+                    }
+                }
+            }
+        }
+
+        $this->write_log(
+            'queue.create newsletter_id=' . intval( $newsletter_id )
+            . ' send_id=' . intval( $send_id )
+            . ' members_inserted=' . intval( $count )
+            . ' members_input=' . count( $members_id )
+            . ' wp_only_input=' . count( $wp_only_users_id )
+            . ' status=' . (string) $status
+        );
+
+        return array( 'count' => $count, 'send_id' => $send_id );
     }
 
     function set_send_email_status($status, $send_id, $member_id = 0, $wp_only_user_id = 0, $newsletter_id = 0) {
@@ -1153,6 +1172,29 @@ class Email_Newsletter_functions {
         );
     }
 
+    function normalize_outbound_type( $value ) {
+        $value = sanitize_key( (string) $value );
+
+        $aliases = array(
+            'smtp' => 'smtp',
+            'mail' => 'mail',
+            'phpmail' => 'mail',
+            'php_mail' => 'mail',
+            'phpmailer' => 'mail',
+            'wpmail' => 'wpmail',
+            'wp_mail' => 'wpmail',
+            'cmsmail' => 'wpmail',
+            'cms_mail' => 'wpmail',
+            'classicpress_mail' => 'wpmail',
+        );
+
+        if ( isset( $aliases[ $value ] ) ) {
+            return $aliases[ $value ];
+        }
+
+        return 'smtp';
+    }
+
     function send_email( $email_from_name, $email_from, $email_to, $email_subject, $email_contents, $options=array() ) {
     	global $enewsletter_send_options;
 
@@ -1178,40 +1220,92 @@ class Email_Newsletter_functions {
             $options['resolved_return_path'] = $return_path;
         }
 
+        $outbound_type = $this->normalize_outbound_type( isset( $this->settings['outbound_type'] ) ? $this->settings['outbound_type'] : 'smtp' );
+        $effective_outbound_type = $outbound_type;
+        $prepared_email_contents = $this->add_legacy_email_attribute_fallbacks( (string) $email_contents );
+
+        // Keep PHP mail as a true transport by default. Fallback is opt-in only.
+        $allow_mail_html_fallback = apply_filters( 'email_newsletter_mail_html_fallback_to_wpmail', false, $email_contents, $options, $this );
+        if ( 'mail' === $outbound_type && $this->email_body_contains_html( $prepared_email_contents ) && $allow_mail_html_fallback ) {
+            $effective_outbound_type = 'wpmail';
+            $this->log_event(
+                'send_transport_fallback',
+                'warning',
+                array(
+                    'reason' => 'mail_html_compat',
+                    'from_transport' => $outbound_type,
+                    'to_transport' => $effective_outbound_type,
+                    'to' => $email_to,
+                    'subject' => $email_subject,
+                )
+            );
+        }
+
         $enewsletter_send_options = $options;
+        $this->send_options = $enewsletter_send_options;
 
-		if($this->settings['outbound_type'] == 'wpmail') {
-			add_filter('wp_mail_content_type', function() {
-				return "text/html";
-			});
-			add_filter( 'wp_mail_from', function() use ( $email_from ) {
-				return  $email_from;
-			});
-    		if( $email_from_name )
-				add_filter( 'wp_mail_from_name', function() use ( $email_from_name ) {
-					return $email_from_name;
-				});
-    		add_action( 'phpmailer_init', array($this, 'wp_mail_phpmailer_init'));
+        if ( 'wpmail' === $effective_outbound_type ) {
+            $content_type_cb = function() {
+                return 'text/html';
+            };
+            $from_cb = function() use ( $email_from ) {
+                return $email_from;
+            };
+            $from_name_cb = function() use ( $email_from_name ) {
+                return $email_from_name;
+            };
 
-    		$this->send_options = $enewsletter_send_options;
+            add_filter( 'wp_mail_content_type', $content_type_cb );
+            add_filter( 'wp_mail_from', $from_cb );
+            if ( ! empty( $email_from_name ) ) {
+                add_filter( 'wp_mail_from_name', $from_name_cb );
+            }
+            add_action( 'phpmailer_init', array( $this, 'wp_mail_phpmailer_init' ) );
 
+            $headers = array();
+            if ( isset( $options['resolved_reply_to'] ) ) {
+                $headers[] = 'Reply-To: <' . $options['resolved_reply_to'] . '>';
+            }
+            $headers = array_merge( $headers, $this->get_list_unsubscribe_headers( $options, $email_to ) );
 
-    		$headers = array();
-    		$headers[] = $email_from_name ? 'From: '.$email_from_name.' <'.$email_from.'>' : 'From: <'.$email_from.'>';
-        	if( isset($options['resolved_reply_to']) )
-        		$headers[] = 'Reply-To: <'.$options['resolved_reply_to'].'>';
-        	$headers = array_merge( $headers, $this->get_list_unsubscribe_headers( $options, $email_to ) );
-        	if( isset($options['resolved_return_path']) )
-        		$headers[] = 'Return-Path: <'.$options['resolved_return_path'].'>';
-    		if( isset($options['message_id']) ) {
-    			$headers[] = 'X-Mailer: '.$options['message_id'];
-    			$headers[] = 'Message-ID: '.$options['message_id'];
-			}
+            $this->log_event(
+                'send_pre_send',
+                'info',
+                array(
+                    'transport' => $effective_outbound_type,
+                    'to' => $email_to,
+                    'subject' => $email_subject,
+                    'content_length' => strlen( (string) $prepared_email_contents ),
+                    'body_has_style' => strpos( strtolower( (string) $prepared_email_contents ), 'style=' ) !== false ? 1 : 0,
+                    'body_has_table' => strpos( strtolower( (string) $prepared_email_contents ), '<table' ) !== false ? 1 : 0,
+                    'style_count' => substr_count( strtolower( (string) $prepared_email_contents ), 'style=' ),
+                    'legacy_bgcolor_count' => substr_count( strtolower( (string) $prepared_email_contents ), 'bgcolor=' ),
+                    'legacy_font_count' => substr_count( strtolower( (string) $prepared_email_contents ), '<font ' ),
+                )
+            );
 
-    		$sent_status = wp_mail( $email_to, $email_subject, $email_contents, $headers );
+            $sent_status = wp_mail( $email_to, $email_subject, $prepared_email_contents, $headers );
 
-	        if( !$sent_status ) {
-	            $this->write_log('WP Mail send email error');
+            $this->log_event(
+                'send_result',
+                $sent_status ? 'info' : 'error',
+                array(
+                    'transport' => $outbound_type,
+                    'status' => $sent_status ? 'sent' : 'failed',
+                    'to' => $email_to,
+                    'subject' => $email_subject,
+                )
+            );
+
+            remove_filter( 'wp_mail_content_type', $content_type_cb );
+            remove_filter( 'wp_mail_from', $from_cb );
+            if ( ! empty( $email_from_name ) ) {
+                remove_filter( 'wp_mail_from_name', $from_name_cb );
+            }
+            remove_action( 'phpmailer_init', array( $this, 'wp_mail_phpmailer_init' ) );
+
+            if( ! $sent_status ) {
+                $this->write_log('WP Mail send email error');
                 $this->log_event(
                     'send.wp_mail_error',
                     'error',
@@ -1222,64 +1316,67 @@ class Email_Newsletter_functions {
                         'transport' => 'wpmail',
                     )
                 );
-	            //return 'WP Mail send email error';
-	        }
-    	}
-    	else {
-	        if ( !class_exists( 'ePHPMailer' ) )
-	            require_once( $this->plugin_dir . "email-newsletter-files/phpmailer/class.phpmailer.php" );
+            }
+        }
+        else {
+            if ( !class_exists( 'ePHPMailer' ) ) {
+                require_once( $this->plugin_dir . "email-newsletter-files/phpmailer/class.phpmailer.php" );
+            }
 
-	        $mail = new ePHPMailer();
-	        $mail->CharSet = 'UTF-8';
+            $mail = new ePHPMailer();
+            $mail->CharSet = 'UTF-8';
 
-	        //Set Sending Method
-	        switch( $this->settings['outbound_type'] ) {
-	            case 'smtp':
+            //Set Sending Method
+            switch( $effective_outbound_type ) {
+                case 'smtp':
                     $smtp = $this->normalize_smtp_connection_settings(
                         isset( $this->settings['smtp_host'] ) ? $this->settings['smtp_host'] : '',
                         isset( $this->settings['smtp_port'] ) ? $this->settings['smtp_port'] : 0,
                         isset( $this->settings['smtp_secure_method'] ) ? $this->settings['smtp_secure_method'] : '0'
                     );
-	                $mail->IsSMTP();
+                    $mail->IsSMTP();
                     $mail->Host = $smtp['host'];
 
-                    if($smtp['security'] == 'tls' || $smtp['security'] == 'ssl')
+                    if( $smtp['security'] == 'tls' || $smtp['security'] == 'ssl' ) {
                         $mail->SMTPSecure = $smtp['security'];
-                    if(!empty($smtp['port']))
+                    }
+                    if( !empty( $smtp['port'] ) ) {
                         $mail->Port = $smtp['port'];
+                    }
                     $mail->Timeout = 20;
 
-	                $mail->SMTPAuth = ( strlen( $this->settings['smtp_user'] ) > 0 );
+                    $mail->SMTPAuth = ( strlen( $this->settings['smtp_user'] ) > 0 );
 
-	                if( $mail->SMTPAuth ){
-	                    $mail->Username = esc_attr($this->settings['smtp_user']);
-	                    $mail->Password = $this->_decrypt( $this->settings['smtp_pass'] );
-	                }
-	                break;
-	            case 'mail':
-	                $mail->IsMail();
-	                break;
+                    if( $mail->SMTPAuth ) {
+                        $mail->Username = esc_attr($this->settings['smtp_user']);
+                        $mail->Password = $this->_decrypt( $this->settings['smtp_pass'] );
+                    }
+                    break;
+                case 'mail':
+                    $mail->IsMail();
+                    break;
 
-	            case 'sendmail':
-	                $mail->IsSendmail();
-	                break;
-	        }
+                case 'sendmail':
+                    $mail->IsSendmail();
+                    break;
+            }
 
-	        $mail->From = $email_from;
-	        if( $email_from_name ) {
-	            $mail->FromName = $email_from_name;
-	        }
+            $mail->From = $email_from;
+            if( $email_from_name ) {
+                $mail->FromName = $email_from_name;
+            }
             $mail->Subject = $email_subject;
             $mail->isHTML( true );
-            $mail_body = (string) $email_contents;
-            if ( isset( $this->settings['outbound_type'] ) && 'mail' === $this->settings['outbound_type'] ) {
-                // Legacy mail() transport is sensitive to raw UTF-8 in 7bit-only MTAs.
-                $mail->Encoding = '7bit';
-                $mail_body = $this->encode_html_for_mail_transport( $mail_body );
+            $mail_body = (string) $prepared_email_contents;
+            if ( 'mail' === $effective_outbound_type ) {
+                // Base64 is more robust for HTML via PHP mail() and avoids
+                // style corruption from soft-wrapped quoted-printable lines.
+                $mail->Encoding = 'base64';
+                $mail->WordWrap = 0;
             }
             $mail->Body = $mail_body;
             $mail->AltBody = '';
-	        $mail->AddAddress( $email_to );
+            $mail->AddAddress( $email_to );
 
             if( isset($options['resolved_return_path']) )
                 $mail->Sender = $options['resolved_return_path'];
@@ -1290,10 +1387,10 @@ class Email_Newsletter_functions {
                 $mail->AddReplyTo( $options['resolved_reply_to'] );
             }
 
-	        if( isset($options['message_id']) ) {
-	            $mail->XMailer = $options['message_id'];
-	            $mail->MessageID = $options['message_id'];
-	        }
+            if( isset($options['message_id']) ) {
+                $mail->XMailer = $options['message_id'];
+                $mail->MessageID = $options['message_id'];
+            }
 
             $list_unsubscribe_headers = $this->get_list_unsubscribe_headers( $options, $email_to );
             if ( ! empty( $list_unsubscribe_headers ) ) {
@@ -1305,16 +1402,35 @@ class Email_Newsletter_functions {
                 }
             }
 
-			/**
-			 * Fires after ePHPMailer is initialized.
-			 *
-			 * @param ePHPMailer $mail The ePHPMailer instance (passed by reference).
-			*/
-			do_action_ref_array( 'ephpmailer_init', array( &$mail ) );
+            /**
+             * Fires after ePHPMailer is initialized.
+             *
+             * @param ePHPMailer $mail The ePHPMailer instance (passed by reference).
+            */
+            do_action_ref_array( 'ephpmailer_init', array( &$mail ) );
+
+            $this->log_event(
+                'send_pre_send',
+                'info',
+                array(
+                    'transport' => $effective_outbound_type,
+                    'mailer' => isset( $mail->Mailer ) ? $mail->Mailer : '',
+                    'content_type' => isset( $mail->ContentType ) ? $mail->ContentType : '',
+                    'encoding' => isset( $mail->Encoding ) ? $mail->Encoding : '',
+                    'to' => $email_to,
+                    'subject' => $email_subject,
+                    'content_length' => strlen( (string) $mail_body ),
+                    'body_has_style' => strpos( strtolower( (string) $mail_body ), 'style=' ) !== false ? 1 : 0,
+                    'body_has_table' => strpos( strtolower( (string) $mail_body ), '<table' ) !== false ? 1 : 0,
+                    'style_count' => substr_count( strtolower( (string) $mail_body ), 'style=' ),
+                    'legacy_bgcolor_count' => substr_count( strtolower( (string) $mail_body ), 'bgcolor=' ),
+                    'legacy_font_count' => substr_count( strtolower( (string) $mail_body ), '<font ' ),
+                )
+            );
 			
-	        $sent_status = $mail->Send();
-	        if( !$sent_status ) {
-	            $this->write_log( 'Send email error: '.$mail->ErrorInfo.'['.json_encode($mail->ErrorInfoRaw).']');
+            $sent_status = $mail->Send();
+            if( !$sent_status ) {
+                $this->write_log( 'Send email error: '.$mail->ErrorInfo.'['.json_encode($mail->ErrorInfoRaw).']');
                 $this->log_event(
                     'send.mail_error',
                     'error',
@@ -1322,14 +1438,24 @@ class Email_Newsletter_functions {
                         'to' => $email_to,
                         'from' => $email_from,
                         'subject' => $email_subject,
-                        'transport' => isset( $this->settings['outbound_type'] ) ? $this->settings['outbound_type'] : 'mail',
+                        'transport' => $effective_outbound_type,
                         'error' => $mail->ErrorInfo,
                     )
                 );
-	            return !empty( $mail->ErrorInfoRaw ) ? json_encode( $mail->ErrorInfoRaw ) : $mail->ErrorInfo;
-	        }
-	    }
+                return !empty( $mail->ErrorInfoRaw ) ? json_encode( $mail->ErrorInfoRaw ) : $mail->ErrorInfo;
+            }
 
+            $this->log_event(
+                'send_result',
+                'info',
+                array(
+                    'transport' => $effective_outbound_type,
+                    'status' => 'sent',
+                    'to' => $email_to,
+                    'subject' => $email_subject,
+                )
+            );
+        }
         $wait_time = isset($options['cron_wait']) ? $options['cron_wait'] : 1;
         sleep( $wait_time );
         return true;
@@ -1340,6 +1466,266 @@ class Email_Newsletter_functions {
         $contents = preg_replace( '/\{[A-Z][A-Z0-9_]*\}/', '', $contents );
         $contents = preg_replace( '/%7B[A-Z][A-Z0-9_]*%7D/i', '', $contents );
         return is_string( $contents ) ? $contents : '';
+    }
+
+    function email_body_contains_html( $contents ) {
+        $contents = (string) $contents;
+        if ( '' === trim( $contents ) ) {
+            return false;
+        }
+
+        return (bool) preg_match( '/<\/?[a-z][^>]*>/i', $contents );
+    }
+
+    function build_plain_text_fallback( $contents ) {
+        $contents = (string) $contents;
+        if ( '' === trim( $contents ) ) {
+            return '';
+        }
+
+        $text = preg_replace( '/<\s*br\s*\/?\s*>/i', "\n", $contents );
+        $text = preg_replace( '/<\s*\/\s*(p|div|li|tr|h[1-6]|table)\s*>/i', "\n", $text );
+        $text = wp_strip_all_tags( (string) $text );
+        $text = html_entity_decode( $text, ENT_QUOTES, 'UTF-8' );
+        $text = preg_replace( "/\r\n|\r/", "\n", $text );
+        $text = preg_replace( "/\n{3,}/", "\n\n", $text );
+
+        return trim( (string) $text );
+    }
+
+    function add_legacy_email_attribute_fallbacks( $html ) {
+        $html = (string) $html;
+        if ( '' === trim( $html ) ) {
+            return '';
+        }
+
+        $html = preg_replace_callback(
+            '/<(table|td)([^>]*?)style=("|\')(.*?)(\3)([^>]*)>/i',
+            function( $matches ) {
+                $tag = isset( $matches[1] ) ? $matches[1] : '';
+                $before = isset( $matches[2] ) ? $matches[2] : '';
+                $quote = isset( $matches[3] ) ? $matches[3] : '"';
+                $style = isset( $matches[4] ) ? $matches[4] : '';
+                $after = isset( $matches[6] ) ? $matches[6] : '';
+                $attrs = trim( $before . ' style=' . $quote . $style . $quote . $after );
+
+                if ( preg_match( '/\sbgcolor\s*=\s*/i', $attrs ) ) {
+                    return '<' . $tag . ' ' . $attrs . '>';
+                }
+
+                if ( preg_match( '/(?:^|;)\s*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8})\s*(?:;|$)/i', $style, $color_match ) ) {
+                    $bgcolor = strtoupper( trim( $color_match[1] ) );
+                    return '<' . $tag . ' bgcolor="' . esc_attr( $bgcolor ) . '" ' . $attrs . '>';
+                }
+
+                return '<' . $tag . ' ' . $attrs . '>';
+            },
+            $html
+        );
+
+        $html = preg_replace_callback(
+            '/<(table|td|div|p)([^>]*?)style=("|\')(.*?)(\3)([^>]*)>/i',
+            function( $matches ) {
+                $tag = isset( $matches[1] ) ? $matches[1] : '';
+                $before = isset( $matches[2] ) ? $matches[2] : '';
+                $quote = isset( $matches[3] ) ? $matches[3] : '"';
+                $style = isset( $matches[4] ) ? $matches[4] : '';
+                $after = isset( $matches[6] ) ? $matches[6] : '';
+                $attrs = trim( $before . ' style=' . $quote . $style . $quote . $after );
+
+                if ( preg_match( '/\salign\s*=\s*/i', $attrs ) ) {
+                    return '<' . $tag . ' ' . $attrs . '>';
+                }
+
+                if ( preg_match( '/(?:^|;)\s*text-align\s*:\s*(left|center|right)\s*(?:;|$)/i', $style, $align_match ) ) {
+                    $align = strtolower( trim( $align_match[1] ) );
+                    return '<' . $tag . ' align="' . esc_attr( $align ) . '" ' . $attrs . '>';
+                }
+
+                return '<' . $tag . ' ' . $attrs . '>';
+            },
+            $html
+        );
+
+        $html = preg_replace_callback(
+            '/<(table|img|td)([^>]*?)style=("|\')(.*?)(\3)([^>]*)>/i',
+            function( $matches ) {
+                $tag = isset( $matches[1] ) ? $matches[1] : '';
+                $before = isset( $matches[2] ) ? $matches[2] : '';
+                $quote = isset( $matches[3] ) ? $matches[3] : '"';
+                $style = isset( $matches[4] ) ? $matches[4] : '';
+                $after = isset( $matches[6] ) ? $matches[6] : '';
+                $attrs = trim( $before . ' style=' . $quote . $style . $quote . $after );
+
+                if ( preg_match( '/\swidth\s*=\s*/i', $attrs ) ) {
+                    return '<' . $tag . ' ' . $attrs . '>';
+                }
+
+                if ( preg_match( '/(?:^|;)\s*width\s*:\s*(\d{2,4})px\s*(?:;|$)/i', $style, $width_match ) ) {
+                    $width = intval( $width_match[1] );
+                    if ( $width > 0 ) {
+                        return '<' . $tag . ' width="' . $width . '" ' . $attrs . '>';
+                    }
+                }
+
+                return '<' . $tag . ' ' . $attrs . '>';
+            },
+            $html
+        );
+
+        // Legacy webmail fallback: duplicate important typography via <font>
+        // so basic formatting survives even when style attributes are stripped.
+        $html = preg_replace_callback(
+            '/<(p|div|span|td|th|li)([^>]*?)style=("|\')(.*?)(\3)([^>]*)>(.*?)<\/\1>/is',
+            function( $matches ) {
+                $tag = isset( $matches[1] ) ? $matches[1] : '';
+                $before = isset( $matches[2] ) ? $matches[2] : '';
+                $quote = isset( $matches[3] ) ? $matches[3] : '"';
+                $style = isset( $matches[4] ) ? $matches[4] : '';
+                $after = isset( $matches[6] ) ? $matches[6] : '';
+                $inner = isset( $matches[7] ) ? $matches[7] : '';
+                $attrs = trim( $before . ' style=' . $quote . $style . $quote . $after );
+
+                if ( preg_match( '/<font\b/i', $inner ) ) {
+                    return '<' . $tag . ' ' . $attrs . '>' . $inner . '</' . $tag . '>';
+                }
+
+                $font_attrs = array();
+                if ( preg_match( '/(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)\s*(?:;|$)/i', $style, $color_match ) ) {
+                    $font_attrs[] = 'color="' . esc_attr( trim( $color_match[1] ) ) . '"';
+                }
+
+                if ( preg_match( '/(?:^|;)\s*font-family\s*:\s*([^;]+)\s*(?:;|$)/i', $style, $family_match ) ) {
+                    $family = trim( $family_match[1] );
+                    $family = trim( explode( ',', $family )[0] );
+                    $family = trim( $family, " \t\n\r\0\x0B\"'" );
+                    if ( '' !== $family ) {
+                        $font_attrs[] = 'face="' . esc_attr( $family ) . '"';
+                    }
+                }
+
+                if ( empty( $font_attrs ) ) {
+                    return '<' . $tag . ' ' . $attrs . '>' . $inner . '</' . $tag . '>';
+                }
+
+                return '<' . $tag . ' ' . $attrs . '><font ' . implode( ' ', $font_attrs ) . '>' . $inner . '</font></' . $tag . '>';
+            },
+            $html
+        );
+
+        $html = $this->add_legacy_font_tag_fallbacks_dom( $html );
+
+        return $html;
+    }
+
+    function add_legacy_font_tag_fallbacks_dom( $html ) {
+        $html = (string) $html;
+        if ( '' === trim( $html ) || ! class_exists( 'DOMDocument' ) ) {
+            return $html;
+        }
+
+        $document = new DOMDocument( '1.0', 'UTF-8' );
+        libxml_use_internal_errors( true );
+        $loaded = $document->loadHTML( $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
+        libxml_clear_errors();
+
+        if ( ! $loaded ) {
+            return $html;
+        }
+
+        $xpath = new DOMXPath( $document );
+        $nodes = $xpath->query( '//*[@style]' );
+        if ( ! $nodes instanceof DOMNodeList || 0 === $nodes->length ) {
+            return $html;
+        }
+
+        $allowed_tags = array( 'p', 'div', 'span', 'td', 'th', 'li', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6' );
+
+        foreach ( $nodes as $node ) {
+            if ( ! $node instanceof DOMElement ) {
+                continue;
+            }
+
+            $tag_name = strtolower( $node->tagName );
+            if ( ! in_array( $tag_name, $allowed_tags, true ) ) {
+                continue;
+            }
+
+            $style = (string) $node->getAttribute( 'style' );
+            if ( '' === $style ) {
+                continue;
+            }
+
+            $font_color = '';
+            $font_face = '';
+
+            if ( preg_match( '/(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)\s*(?:;|$)/i', $style, $color_match ) ) {
+                $font_color = trim( $color_match[1] );
+            }
+
+            if ( preg_match( '/(?:^|;)\s*font-family\s*:\s*([^;]+)\s*(?:;|$)/i', $style, $family_match ) ) {
+                $font_face = trim( $family_match[1] );
+                $font_face = trim( explode( ',', $font_face )[0] );
+                $font_face = trim( $font_face, " \t\n\r\0\x0B\"'" );
+            }
+
+            if ( '' === $font_color && '' === $font_face ) {
+                continue;
+            }
+
+            $has_direct_font = false;
+            foreach ( $node->childNodes as $child_node ) {
+                if ( $child_node instanceof DOMElement && 'font' === strtolower( $child_node->tagName ) ) {
+                    $has_direct_font = true;
+                    break;
+                }
+            }
+
+            if ( $has_direct_font ) {
+                continue;
+            }
+
+            $font_node = $document->createElement( 'font' );
+            if ( '' !== $font_color ) {
+                $font_node->setAttribute( 'color', $font_color );
+            }
+            if ( '' !== $font_face ) {
+                $font_node->setAttribute( 'face', $font_face );
+            }
+
+            while ( $node->firstChild ) {
+                $font_node->appendChild( $node->firstChild );
+            }
+            $node->appendChild( $font_node );
+        }
+
+        return (string) $document->saveHTML();
+    }
+
+    function apply_email_body_filters_safely( $contents, $newsletter_id ) {
+        $contents = (string) $contents;
+        if ( '' === $contents ) {
+            return '';
+        }
+
+        $filtered = apply_filters( 'email_newsletter_make_email_body', $contents, $newsletter_id );
+        if ( ! is_string( $filtered ) || '' === $filtered ) {
+            return $contents;
+        }
+
+        $original_style_count = substr_count( strtolower( $contents ), 'style=' );
+        $filtered_style_count = substr_count( strtolower( $filtered ), 'style=' );
+
+        if ( $original_style_count > 0 && $filtered_style_count < max( 5, intval( floor( $original_style_count * 0.6 ) ) ) ) {
+            $this->write_log(
+                'make_email_body.filter_fallback newsletter_id=' . intval( $newsletter_id )
+                . ' original_styles=' . intval( $original_style_count )
+                . ' filtered_styles=' . intval( $filtered_style_count )
+            );
+            return $contents;
+        }
+
+        return $filtered;
     }
 
     function encode_html_for_mail_transport( $contents ) {
@@ -1424,191 +1810,72 @@ class Email_Newsletter_functions {
      * Make email body
      **/
     function make_email_body( $newsletter_id, $customizer = 0 ) {
-        $settings = $this->get_settings();
         $newsletter_data = $this->get_newsletter_data( $newsletter_id );
 
-        if(!$newsletter_data || empty($newsletter_data))
+        if ( ! $newsletter_data || empty( $newsletter_data ) ) {
             return false;
-
-        if ( isset( $this->builder_v2 ) && is_object( $this->builder_v2 ) && method_exists( $this->builder_v2, 'has_saved_state' ) && $this->builder_v2->has_saved_state( $newsletter_id ) ) {
-            $mode = $customizer ? 'preview' : 'send';
-            $contents = $this->builder_v2->render_newsletter_email( $newsletter_id, $mode );
-            return apply_filters( 'email_newsletter_make_email_body', $contents, $newsletter_id );
         }
 
-        //open template file
-        $theme = $this->get_selected_theme($newsletter_data['template']);
+        if ( isset( $this->builder_v2 ) && is_object( $this->builder_v2 ) && method_exists( $this->builder_v2, 'has_saved_state' ) ) {
+            $raw_builder_state = '';
+            if ( isset( $_POST['builder_state_json'] ) ) {
+                $raw_builder_state = wp_unslash( $_POST['builder_state_json'] );
+            } elseif ( isset( $_REQUEST['builder_state_json'] ) ) {
+                $raw_builder_state = wp_unslash( $_REQUEST['builder_state_json'] );
+            }
 
-        $template_path  = $theme['dir'];
-        $template_url  = $theme['url'];
-
-        $contents_parts = $this->get_contents_elements($template_path);
-        if($contents_parts['content'])
-            $contents = $contents_parts['header'].$contents_parts['content'].$contents_parts['footer'];
-        else
-            return false;
-
-        //Translate template default elements
-        $default_texts = array(
-            'From' => __( 'From', 'email-newsletter' ),
-            'Kein Interesse mehr?' => __( 'Kein Interesse mehr?', 'email-newsletter' ),
-            'Sofort abmelden.' => __( 'Sofort abmelden.', 'email-newsletter' )
-        );
-        foreach ($default_texts as $text => $translation) {
-            $contents = str_replace( $text, $translation, $contents );
-        }
-
-        $date_format = (isset($settings['date_format']) ? $settings['date_format'] : "F j, Y");
-
-        //Prepare newsletter body
-        $body_prepare =
-        array(
-            'standard' => array(
-                'header' => $contents_parts['default_style_header'].$contents_parts['style_header'],
-                'content_header' => '',
-                'footer' => '',
-                'content_footer' => '',
-                'content=email_body' => $newsletter_data['content'],
-                'title=email_title' => $this->get_newsletter_meta($newsletter_id,'email_title', $this->get_default_builder_var('email_title') ),
-                'subject=email_subject' => $newsletter_data['subject'],
-                'from_name' => (isset($newsletter_data['from_name']) ? $newsletter_data['from_name'] : $this->settings['from_name']),
-                'from_email' => (isset($newsletter_data['from_email']) ? $newsletter_data['from_email'] : $this->settings['from_email']),
-                'branding_html' => $this->get_newsletter_meta($newsletter_id,'branding_html', $this->get_default_builder_var('branding_html') ),
-                'contact_info' => (isset($newsletter_data['contact_info']) ? $newsletter_data['contact_info'] : $this->settings['contact_info']),
-                'date' => date_i18n( $date_format ),
-                'view_link_text' => $settings['view_browser']
-            )
-        );
-        if($customizer)
-            $body_prepare['standard']['header'] .= '<style type="text/css">'.$contents_parts['default_style'].$contents_parts['style'].'</style>';
-
-        $contents = $this->make_email_values($body_prepare, $contents, $newsletter_id);
-
-        //Open tracker code
-        if(strpos($contents,'</body>') !== false)
-            $contents = str_replace( "</body>", "{OPENED_TRACKER}</body>", $contents );
-        else
-            $contents = $contents.'{OPENED_TRACKER}';
-
-        $default_header = $this->get_default_builder_var('header_image');
-        // Check if default_header is already an absolute URL
-        if(!empty($default_header)) {
-            $default_header = preg_match('/^https?:\/\//i', $default_header) ? $default_header : $template_url.$default_header;
-        } else {
-            $default_header = '';
-        }
-        
-        $visuals_prepare =
-        array(
-            'images' => array(
-                'header_image' => $this->get_newsletter_meta($newsletter_id,'header_image', $default_header)
-            )
-        );
-        $contents = $this->make_email_values($visuals_prepare, $contents, $newsletter_id);
-
-        //do the inline styling
-        $contents = $this->do_inline_styles($contents, $contents_parts['default_style'].$contents_parts['style']);
-
-        //Add url to elements
-        $contents = str_replace( "{TEMPLATE_URL}", $template_url, $contents );
-        $contents = str_replace( "%7BTEMPLATE_URL%7D", $template_url, $contents );
-
-        //replace image links - only for relative paths, not absolute URLs
-        // Use negative lookbehind to avoid replacing absolute URLs
-        $contents = preg_replace('/(["\'])(?!https?:\/\/)images\//i', '$1'.$template_url.'images/', $contents);
-        $contents = preg_replace('/(["\'])(?!https?:\/\/)\/images\//i', '$1'.$template_url.'images/', $contents);
-
-        //set up visual stuff
-        $default_bg = $this->get_default_builder_var('bg_image');
-        // Check if default_bg is already an absolute URL
-        if(!empty($default_bg)) {
-            $default_bg = preg_match('/^https?:\/\//i', $default_bg) ? $default_bg : $template_url.$default_bg;
-        } else {
-            $default_bg = '';
-        }
-
-        $visuals_prepare =
-        array(
-            'standard' => array(
-                'bg_image' => $this->get_newsletter_meta($newsletter_id,'bg_image', $default_bg)
-            ),
-            'colors' => array(
-                'link_color' => $this->get_newsletter_meta($newsletter_id, 'link_color', $this->get_default_builder_var('link_color')),
-                'body_color' => $this->get_newsletter_meta($newsletter_id, 'body_color', $this->get_default_builder_var('body_color')),
-                'title_color' => $this->get_newsletter_meta($newsletter_id, 'title_color', $this->get_default_builder_var('title_color')),
-                'alternative_color' => $this->get_newsletter_meta($newsletter_id, 'alternative_color', $this->get_default_builder_var('alternative_color')),
-                'bg_color' => $this->get_newsletter_meta($newsletter_id, 'bg_color', $this->get_default_builder_var('bg_color'))
-            )
-        );
-        $contents = $this->make_email_values($visuals_prepare, $contents, $newsletter_id);
-
-        //dom walker to add classes to ensure compability
-        $dom = new DOMDocument('1.0', 'UTF-8');
-        $dom->loadHTML($contents);
-        $imgs = $dom->getElementsByTagName('img');
-        $ps = $dom->getElementsByTagName('p');
-        foreach ($ps as $p) {
-            $p_style = $p->getAttribute('style');
-            if(!empty($p_style))
-                break;
-        }
-        foreach ($imgs as $img) {
-            $classes_to_aligns = array('left', 'right');
-            foreach ($classes_to_aligns as $class_to_align)
-                if ($img->hasAttribute('class') && strstr($img->getAttribute('class'), 'align'.$class_to_align))
-                    $img->setAttribute('align', $class_to_align);
-
-            /*
-            if ($img->hasAttribute('width') )
-                $img->removeAttribute('width');
-            */
-            if ($img->hasAttribute('height'))
-                $img->removeAttribute('height');
-
-            if ($img->hasAttribute('class') && strstr($img->getAttribute('class'), 'aligncenter')) {
-                $img_style = $img->getAttribute('style');
-                $img_style = preg_replace('#display:(.*?);#', '', $img_style);
-                $img->setAttribute('style',$img_style);
-
-                $parent = $img->parentNode;
-                if($parent->nodeName == 'a')
-                    $parent = $parent->parentNode;
-
-                if($parent->nodeName != 'div')
-                    $parent->setAttribute('style','text-align:center;'.$parent->getAttribute('style'));
-                else {
-                    $element = $dom->createElement('p');
-                    $element->setAttribute('style','text-align:center;'.$p_style);
-
-                    $img->parentNode->replaceChild($element, $img);
-                    $element->appendChild($img);
+            if ( '' !== $raw_builder_state ) {
+                $decoded_builder_state = json_decode( $raw_builder_state, true );
+                if ( is_array( $decoded_builder_state ) ) {
+                    $live_state = $this->builder_v2->sanitize_state( $decoded_builder_state, intval( $newsletter_id ) );
+                    $mode = $customizer ? 'preview' : 'send';
+                    $contents = $this->builder_v2->render_full_email_document( $live_state, $mode, intval( $newsletter_id ) );
+                    if ( ! empty( $contents ) ) {
+                        $filtered_contents = $this->apply_email_body_filters_safely( $contents, $newsletter_id );
+                        $this->log_event(
+                            'make_email_body',
+                            'info',
+                            array(
+                                'source' => 'builder_v2_live_state',
+                                'newsletter_id' => intval( $newsletter_id ),
+                                'mode' => $mode,
+                                'length' => strlen( (string) $filtered_contents ),
+                                'styles' => substr_count( strtolower( (string) $filtered_contents ), 'style=' ),
+                                'tables' => substr_count( strtolower( (string) $filtered_contents ), '<table' ),
+                            )
+                        );
+                        return $filtered_contents;
+                    }
                 }
             }
 
-            $style = $img->getAttribute('style');
-            preg_match('#margin:(.*?);#', $style, $matches);
-            if($matches) {
-                $space_px = explode('px',$matches[1]);
-                $space_procent = explode('%',$matches[1]);
-                $space = ($space_procent > $space_px) ? $space_procent : $space_px;
-                $space_unit = ($space_procent > $space_px) ? '%' : '';
-                if($space) {
-                    $hspace = trim($space[0]);
-                    $vspace = (isset($space[1])) ? $hspace : trim($space[0]);
-
-                    $img->setAttribute('hspace', $hspace.$space_unit);
-                    $img->setAttribute('vspace', $vspace.$space_unit);
+            if ( $this->builder_v2->has_saved_state( $newsletter_id ) ) {
+                $mode = $customizer ? 'preview' : 'send';
+                $contents = $this->builder_v2->render_newsletter_email( $newsletter_id, $mode );
+                if ( ! empty( $contents ) ) {
+                    $filtered_contents = $this->apply_email_body_filters_safely( $contents, $newsletter_id );
+                    $this->log_event(
+                        'make_email_body',
+                        'info',
+                        array(
+                            'source' => 'builder_v2_saved_state',
+                            'newsletter_id' => intval( $newsletter_id ),
+                            'mode' => $mode,
+                            'length' => strlen( (string) $filtered_contents ),
+                            'styles' => substr_count( strtolower( (string) $filtered_contents ), 'style=' ),
+                            'tables' => substr_count( strtolower( (string) $filtered_contents ), '<table' ),
+                        )
+                    );
+                    return $filtered_contents;
                 }
-                $style = preg_replace('#margin:(.*?);#', '', $style);
-                if($style)
-                    $img->setAttribute('style', $style);
-                else
-                    $img->removeAttribute('style');
             }
-        }
-        $contents = $dom->saveHTML();
 
-        return apply_filters('email_newsletter_make_email_body', $contents, $newsletter_id);
+            $this->write_log( 'make_email_body builder_v2_missing_state newsletter_id=' . intval( $newsletter_id ) );
+            return '';
+        }
+
+        $this->write_log( 'make_email_body builder_v2_unavailable newsletter_id=' . intval( $newsletter_id ) );
+        return '';
     }
 
     /**
@@ -2248,11 +2515,7 @@ class Email_Newsletter_functions {
         $settings['subscribe_page_id'] = isset( $settings['subscribe_page_id'] ) ? max( 0, intval( $settings['subscribe_page_id'] ) ) : 0;
         $settings['unsubscribe_page_id'] = isset( $settings['unsubscribe_page_id'] ) ? max( 0, intval( $settings['unsubscribe_page_id'] ) ) : 0;
 
-        $allowed_outbound = array( 'smtp', 'mail', 'wpmail' );
-        $settings['outbound_type'] = isset( $settings['outbound_type'] ) ? sanitize_key( $settings['outbound_type'] ) : 'smtp';
-        if ( ! in_array( $settings['outbound_type'], $allowed_outbound, true ) ) {
-            $settings['outbound_type'] = 'smtp';
-        }
+        $settings['outbound_type'] = $this->normalize_outbound_type( isset( $settings['outbound_type'] ) ? $settings['outbound_type'] : 'smtp' );
 
         $settings['smtp_host'] = isset( $settings['smtp_host'] ) ? sanitize_text_field( $settings['smtp_host'] ) : '';
         $settings['smtp_user'] = isset( $settings['smtp_user'] ) ? sanitize_text_field( $settings['smtp_user'] ) : '';
@@ -3142,7 +3405,10 @@ class Email_Newsletter_functions {
      * Get debug log file path.
      **/
     function get_debug_log_file_path() {
-        return $this->plugin_dir . "email-newsletter-files/debug.log";
+        $uploads = wp_upload_dir();
+        $base_dir = ! empty( $uploads['basedir'] ) ? $uploads['basedir'] : WP_CONTENT_DIR . '/uploads';
+
+        return trailingslashit( $base_dir ) . 'e-newsletter/debug.log';
     }
 
     /**
@@ -3276,11 +3542,17 @@ class Email_Newsletter_functions {
      * Write log for CRON
      **/
     function write_log( $message ) {
-        if(!$this->debug)
+        if ( empty( $this->debug ) ) {
             return false;
+        }
 
         $file = $this->get_debug_log_file_path();
         $this->rotate_debug_log_if_needed();
+
+        $dir = dirname( $file );
+        if ( ! is_dir( $dir ) ) {
+            @mkdir( $dir, 0777, true );
+        }
 
         $handle = fopen( $file, 'ab' );
         if ( ! $handle ) {
@@ -3291,7 +3563,9 @@ class Email_Newsletter_functions {
         }
 
         $data = date( "[d.m.Y H:i:s]" ) . (string) $message . "\r\n";
-        fwrite($handle, $data);
-        fclose($handle);
+        fwrite( $handle, $data );
+        fclose( $handle );
+
+        return true;
     }
 }

@@ -71,6 +71,8 @@ class Email_Newsletter extends Email_Newsletter_functions {
         if(!isset($this->plugin_dir) || !isset($this->plugin_url))
             wp_die( __('Es gab ein Problem beim Bestimmen des Plugin-Pfads oder der URL', 'email-newsletter' ) );
 
+        load_plugin_textdomain( 'email-newsletter', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
+
         //templates directories
         $this->template_directory = $this->plugin_dir . 'email-newsletter-files/templates';
         $this->template_custom_directory = $this->get_custom_theme_dir();
@@ -1646,10 +1648,6 @@ class Email_Newsletter extends Email_Newsletter_functions {
      * init for all users
      **/
     function init() {
-
-        //load translation files
-        load_plugin_textdomain( 'email-newsletter', false, dirname( plugin_basename( __FILE__ ) ) . '/email-newsletter-files/languages/' );
-
         //public actions of the plugin
         if ( isset( $_REQUEST['newsletter_action'] ) && !defined('DOING_AJAX') ) {
             //handle custom redirects
@@ -2660,6 +2658,20 @@ class Email_Newsletter extends Email_Newsletter_functions {
         $dont_send_duplicate = (isset( $_REQUEST['dont_send_duplicate'] )) ? $_REQUEST['dont_send_duplicate'] : 0;
         $send_to_bounced = (isset( $_REQUEST['send_to_bounced'] )) ? $_REQUEST['send_to_bounced'] : 0;
 
+        $this->write_log(
+            'send_newsletter newsletter_id=' . intval( $newsletter_id )
+            . ' all_members=' . ( isset( $_REQUEST['all_members'] ) && '1' === $_REQUEST['all_members'] ? '1' : '0' )
+            . ' groups=' . ( isset( $_REQUEST['target']['groups'] ) && is_array( $_REQUEST['target']['groups'] ) ? count( $_REQUEST['target']['groups'] ) : '0' )
+            . ' roles=' . ( isset( $_REQUEST['target']['roles'] ) && is_array( $_REQUEST['target']['roles'] ) ? count( $_REQUEST['target']['roles'] ) : '0' )
+            . ' members_resolved=' . count( $members_id )
+            . ' wp_only_resolved=' . ( is_array( $wp_only_users_id ) ? count( $wp_only_users_id ) : ( is_numeric( $wp_only_users_id ) ? 1 : 0 ) )
+            . ' status=' . (string) $status
+            . ' dont_send_duplicate=' . (string) $dont_send_duplicate
+            . ' send_to_bounced=' . (string) $send_to_bounced
+        );
+
+        $this->persist_builder_v2_state_override( $newsletter_id );
+
         $result = $this->add_send_email_info( $newsletter_id, $members_id, $wp_only_users_id, $status, $dont_send_duplicate, $send_to_bounced );
         if ( !$result['count'] )
             wp_redirect( add_query_arg( array( 'page' => $_REQUEST['page'], 'newsletter_action' => 'send_newsletter', 'newsletter_id' => $newsletter_id, 'updated' => 'true', 'message' => urlencode( __( 'Alle Abonnenten haben es bereits erhalten oder es ist kein Benutzer abonniert!', 'email-newsletter' ) ), '_wpnonce' => $action_nonce ), 'admin.php' ) );
@@ -2830,8 +2842,14 @@ class Email_Newsletter extends Email_Newsletter_functions {
 
         @set_time_limit( 0 );
 
-        if ( 1 > $wpdb->get_var( "SELECT Count(send_id) FROM {$this->tb_prefix}enewsletter_send_members WHERE status = 'by_cron' OR status < UNIX_TIMESTAMP()") )
+        $pending_count = $wpdb->get_var(
+            "SELECT Count(send_id) FROM {$this->tb_prefix}enewsletter_send_members WHERE status = 'waiting_send' OR status = 'by_cron' OR ( status > 0 AND status < UNIX_TIMESTAMP() )"
+        );
+
+        if ( 1 > intval( $pending_count ) ) {
+            $this->write_log( 'cron.pending_count=0' );
             return false;
+        }
 
         $process_id = time();
         //writing some information in the plugin log file
@@ -2916,11 +2934,12 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 //writing some information in the plugin log file
                 $this->write_log( $process_id . " 06 - NOT LIMIT YET" );
 
-                //Remember not to use numbers as status other then unixtimestamp (status > 0)
-                $send_members = $wpdb->get_results( "SELECT * FROM {$this->tb_prefix}enewsletter_send_members WHERE status = 'by_cron' OR (status > 0 and status < UNIX_TIMESTAMP()) " . $send_limit , "ARRAY_A");
+                $send_members = $wpdb->get_results(
+                    "SELECT * FROM {$this->tb_prefix}enewsletter_send_members WHERE ( status = 'waiting_send' OR status = 'by_cron' OR ( status > 0 AND status < UNIX_TIMESTAMP() ) ) ORDER BY send_id DESC, member_id DESC " . $send_limit,
+                    "ARRAY_A"
+                );
 
-                //writing some information in the plugin log file
-                $this->write_log( $process_id . " 07 - send_members count:" . count($send_members) );
+                $this->write_log( $process_id . ' 07 - send_members count:' . count( $send_members ) );
 
                 if ( ! $send_members ) {
                     delete_option( 'enewsletter_cron_send_run' );
@@ -3142,6 +3161,38 @@ class Email_Newsletter extends Email_Newsletter_functions {
     }
 
     /**
+     * Persist a Builder V2 state override from the current request before using it for preview or send.
+     **/
+    function persist_builder_v2_state_override( $newsletter_id ) {
+        if ( ! intval( $newsletter_id ) ) {
+            return false;
+        }
+
+        if ( ! isset( $this->builder_v2 ) || ! $this->builder_v2 ) {
+            return false;
+        }
+
+        $raw_builder_state = '';
+        if ( isset( $_POST['builder_state_json'] ) ) {
+            $raw_builder_state = wp_unslash( $_POST['builder_state_json'] );
+        } elseif ( isset( $_REQUEST['builder_state_json'] ) ) {
+            $raw_builder_state = wp_unslash( $_REQUEST['builder_state_json'] );
+        }
+
+        if ( '' === $raw_builder_state ) {
+            return false;
+        }
+
+        $decoded_builder_state = json_decode( $raw_builder_state, true );
+        if ( ! is_array( $decoded_builder_state ) ) {
+            return false;
+        }
+
+        $this->builder_v2->save_state( intval( $newsletter_id ), $decoded_builder_state, array( 'capture_version' => false ) );
+        return true;
+    }
+
+    /**
      * Send Preview (Test) newsletter email
      **/
     function send_preview_ajax() {
@@ -3170,6 +3221,7 @@ class Email_Newsletter extends Email_Newsletter_functions {
                 die( __( 'Ungueltiger Builder-Status.', 'email-newsletter' ) );
             }
             $live_state = $this->builder_v2->sanitize_state( $decoded_builder_state, intval( $newsletter_id ) );
+            $this->builder_v2->save_state( intval( $newsletter_id ), $live_state, array( 'capture_version' => false ) );
             $content = $this->builder_v2->render_state_to_preview( $live_state );
         } else {
             $content = $this->make_email_body($newsletter_id);
@@ -3450,14 +3502,14 @@ class Email_Newsletter extends Email_Newsletter_functions {
             add_submenu_page( $slug, __( 'Berichte', 'email-newsletter' ), __( 'Berichte', 'email-newsletter' ), 'view_newsletter_dashboard', 'newsletters-dashboard', array( &$this, 'newsletters_dashboard_page' ) );
             add_submenu_page( $slug, __( 'Newsletters', 'email-newsletter' ), __( 'Newsletters', 'email-newsletter' ), 'save_newsletter', 'newsletters', array( &$this, 'newsletters_page' ) );
             add_submenu_page( $slug, __( 'Neuer Newsletter', 'email-newsletter' ), __( 'Neuer Newsletter', 'email-newsletter' ), 'create_newsletter', 'newsletters-new', array( &$this, 'newsletters_new_page' ) );
-            // Hidden page: keep direct links (Edit/Create flow) without cluttering the sidebar menu.
-            add_submenu_page( null, __( 'Newsletter Builder', 'email-newsletter' ), __( 'Newsletter Builder', 'email-newsletter' ), 'save_newsletter', 'newsletters-builder-v2', array( &$this, 'newsletters_builder_v2_page' ) );
-            add_submenu_page( null, __( 'Newsletter-Versionen', 'email-newsletter' ), __( 'Newsletter-Versionen', 'email-newsletter' ), 'save_newsletter', 'newsletters-versions', array( &$this, 'newsletters_versions_page' ) );
+            // Hidden pages: use empty parent slug instead of null to avoid PHP 8.1+ deprecations in WP core.
+            add_submenu_page( '', __( 'Newsletter Builder', 'email-newsletter' ), __( 'Newsletter Builder', 'email-newsletter' ), 'save_newsletter', 'newsletters-builder-v2', array( &$this, 'newsletters_builder_v2_page' ) );
+            add_submenu_page( '', __( 'Newsletter-Versionen', 'email-newsletter' ), __( 'Newsletter-Versionen', 'email-newsletter' ), 'save_newsletter', 'newsletters-versions', array( &$this, 'newsletters_versions_page' ) );
             add_submenu_page( $slug, __( 'Gruppen', 'email-newsletter' ), __( 'Gruppen', 'email-newsletter' ), 'edit_newsletter_group', 'newsletters-groups', array( &$this, 'member_groups_page' ) );
             add_submenu_page( $slug, __( 'Abonnenten', 'email-newsletter' ), __( 'Abonnenten', 'email-newsletter' ), 'view_newsletter_members', 'newsletters-members',  array( &$this, 'members_page' ) );
             add_submenu_page( $slug, __( 'Kampagnen & Automationen', 'email-newsletter' ), __( 'Kampagnen & Automationen', 'email-newsletter' ), 'save_newsletter', 'newsletters-campaigns',  array( &$this, 'campaigns_page' ) );
-            add_submenu_page( null, __( 'Kampagne bearbeiten', 'email-newsletter' ), __( 'Kampagne bearbeiten', 'email-newsletter' ), 'save_newsletter', 'newsletters-campaign-edit',  array( &$this, 'campaign_edit_page' ) );
-            add_submenu_page( null, __( 'Kampagnen-Metriken', 'email-newsletter' ), __( 'Kampagnen-Metriken', 'email-newsletter' ), 'save_newsletter', 'newsletters-campaign-stats',  array( &$this, 'campaign_stats_page' ) );
+            add_submenu_page( '', __( 'Kampagne bearbeiten', 'email-newsletter' ), __( 'Kampagne bearbeiten', 'email-newsletter' ), 'save_newsletter', 'newsletters-campaign-edit',  array( &$this, 'campaign_edit_page' ) );
+            add_submenu_page( '', __( 'Kampagnen-Metriken', 'email-newsletter' ), __( 'Kampagnen-Metriken', 'email-newsletter' ), 'save_newsletter', 'newsletters-campaign-stats',  array( &$this, 'campaign_stats_page' ) );
             add_submenu_page( $slug, __( 'Logs', 'email-newsletter' ), __( 'Logs', 'email-newsletter' ), 'save_newsletter_settings', 'newsletters-logs', array( &$this, 'logs_page' ) );
             add_submenu_page( $slug, __( 'Einstellungen', 'email-newsletter' ), __( 'Einstellungen', 'email-newsletter' ), 'save_newsletter_settings', 'newsletters-settings', array( &$this, 'settings_page' ) );
 

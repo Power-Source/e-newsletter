@@ -1196,9 +1196,12 @@ class Email_Newsletter_Builder_V2 {
 
 		$is_full_width = '1' === (string) $global['full_width'];
 		$inner_width = $is_full_width ? '100%' : intval( $global['content_width'] );
+		$font_family = esc_attr( $this->get_array_value( $global, 'font_family', 'Arial, sans-serif' ) );
+		$text_color = esc_attr( $this->get_array_value( $global, 'text_color', '#374151' ) );
+		$paragraph_font_size = intval( $this->get_array_value( $global, 'paragraph_font_size', 16 ) );
 		$inner_style = $is_full_width
-			? 'width:100%;max-width:none;background:' . esc_attr( $global['content_background'] ) . ';margin:0 auto;'
-			: 'width:100%;max-width:' . intval( $global['content_width'] ) . 'px;background:' . esc_attr( $global['content_background'] ) . ';margin:0 auto;';
+			? 'width:100%;max-width:none;background:' . esc_attr( $global['content_background'] ) . ';margin:0 auto;font-family:' . $font_family . ';color:' . $text_color . ';font-size:' . $paragraph_font_size . 'px;line-height:1.6;'
+			: 'width:100%;max-width:' . intval( $global['content_width'] ) . 'px;background:' . esc_attr( $global['content_background'] ) . ';margin:0 auto;font-family:' . $font_family . ';color:' . $text_color . ';font-size:' . $paragraph_font_size . 'px;line-height:1.6;';
 		$modules = isset( $state['modules'] ) && is_array( $state['modules'] ) ? $state['modules'] : array();
 		usort(
 			$modules,
@@ -1231,7 +1234,7 @@ class Email_Newsletter_Builder_V2 {
 			$rows[] = $this->wrap_row( '&nbsp;', $global, 20 );
 		}
 
-		return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:' . esc_attr( $global['background_color'] ) . ';"><tr><td align="center" style="padding:' . ( $is_full_width ? '24px 0' : '24px 12px' ) . ';"><table role="presentation" width="' . esc_attr( $inner_width ) . '" cellpadding="0" cellspacing="0" border="0" style="' . $inner_style . '">' . implode( '', $rows ) . '</table></td></tr></table>';
+		return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:' . esc_attr( $global['background_color'] ) . ';font-family:' . $font_family . ';color:' . $text_color . ';font-size:' . $paragraph_font_size . 'px;line-height:1.6;"><tr><td align="center" style="padding:' . ( $is_full_width ? '24px 0' : '24px 12px' ) . ';font-family:' . $font_family . ';color:' . $text_color . ';"><table role="presentation" width="' . esc_attr( $inner_width ) . '" cellpadding="0" cellspacing="0" border="0" style="' . $inner_style . '">' . implode( '', $rows ) . '</table></td></tr></table>';
 	}
 
 	function render_structured_sections( $sections, $global, $mode = 'storage', $context = array() ) {
@@ -1240,9 +1243,12 @@ class Email_Newsletter_Builder_V2 {
 		}
 
 		$is_full_width = '1' === (string) $this->get_array_value( $global, 'full_width', '0' );
+		$font_family = esc_attr( $this->get_array_value( $global, 'font_family', 'Arial, sans-serif' ) );
+		$text_color = esc_attr( $this->get_array_value( $global, 'text_color', '#374151' ) );
+		$paragraph_font_size = intval( $this->get_array_value( $global, 'paragraph_font_size', 16 ) );
 		$shell_style = $is_full_width
-			? 'width:100%;max-width:none;background:' . esc_attr( $global['content_background'] ) . ';margin:0 auto;'
-			: 'width:100%;max-width:' . intval( $global['content_width'] ) . 'px;background:' . esc_attr( $global['content_background'] ) . ';margin:0 auto;';
+			? 'width:100%;max-width:none;background:' . esc_attr( $global['content_background'] ) . ';margin:0 auto;font-family:' . $font_family . ';color:' . $text_color . ';font-size:' . $paragraph_font_size . 'px;line-height:1.6;'
+			: 'width:100%;max-width:' . intval( $global['content_width'] ) . 'px;background:' . esc_attr( $global['content_background'] ) . ';margin:0 auto;font-family:' . $font_family . ';color:' . $text_color . ';font-size:' . $paragraph_font_size . 'px;line-height:1.6;';
 
 		$rows = array();
 		$default_gap = max( 0, min( 40, intval( $this->get_array_value( $global, 'section_gap', 20 ) ) ) );
@@ -1289,7 +1295,7 @@ class Email_Newsletter_Builder_V2 {
 						);
 						$content = $this->render_module_content( $module, $global, $mode, $context );
 						if ( '' !== $content ) {
-							$block_html[] = '<div style="margin:0 0 14px 0;">' . $content . '</div>';
+							$block_html[] = '<div style="margin:0 0 14px 0;padding:0;background:transparent;">' . $content . '</div>';
 						}
 					}
 
@@ -1299,10 +1305,10 @@ class Email_Newsletter_Builder_V2 {
 
 					$padding_left = 0 === $col_index ? 0 : $column_gap;
 					$padding_right = ( count( $columns ) - 1 ) === $col_index ? 0 : $column_gap;
-					$column_cells[] = '<td class="enews-grid-col" width="' . esc_attr( $width_percent ) . '%" valign="top" style="width:' . esc_attr( $width_percent ) . '%;padding-left:' . intval( $padding_left ) . 'px;padding-right:' . intval( $padding_right ) . 'px;vertical-align:top;">' . implode( '', $block_html ) . '</td>';
+					$column_cells[] = '<td class="enews-grid-col" width="' . esc_attr( $width_percent ) . '%" valign="top" style="width:' . esc_attr( $width_percent ) . '%;padding-left:' . intval( $padding_left ) . 'px;padding-right:' . intval( $padding_right ) . 'px;vertical-align:top;background:' . esc_attr( $global['content_background'] ) . ';">' . implode( '', $block_html ) . '</td>';
 				}
 
-				$rows[] = '<tr><td style="padding:' . intval( $default_gap ) . 'px 24px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;"><tr>' . implode( '', $column_cells ) . '</tr></table></td></tr>';
+				$rows[] = '<tr><td style="padding:' . intval( $default_gap ) . 'px 0 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;"><tr>' . implode( '', $column_cells ) . '</tr></table></td></tr>';
 			}
 		}
 
@@ -1310,7 +1316,12 @@ class Email_Newsletter_Builder_V2 {
 			$rows[] = $this->wrap_row( '&nbsp;', $global, 20 );
 		}
 
-		return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:' . esc_attr( $global['background_color'] ) . ';"><tr><td align="center" style="padding:' . ( $is_full_width ? '24px 0' : '24px 12px' ) . ';"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="' . $shell_style . '">' . implode( '', $rows ) . '</table></td></tr></table>';
+		$canvas_bg = esc_attr( $global['content_background'] );
+		$canvas_border = '#dbe7f3';
+		$canvas_radius = '18px';
+		$canvas_shadow = '0 10px 20px rgba(15, 35, 60, 0.04)';
+		$canvas_padding = '18px';
+		return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:' . esc_attr( $global['background_color'] ) . ';font-family:' . $font_family . ';color:' . $text_color . ';font-size:' . $paragraph_font_size . 'px;line-height:1.6;border-collapse:separate;"><tr><td align="center" style="padding:' . ( $is_full_width ? '24px 0' : '24px 12px' ) . ';font-family:' . $font_family . ';color:' . $text_color . ';"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="' . $shell_style . ';border-collapse:separate;background:' . $canvas_bg . ';border:' . $canvas_border . ' 1px solid;border-radius:' . $canvas_radius . ';box-shadow:' . $canvas_shadow . ';"><tr><td style="padding:' . $canvas_padding . ';">' . implode( '', $rows ) . '</td></tr></table></td></tr></table>';
 	}
 
 	function render_full_email_document( $state, $mode = 'send', $newsletter_id = 0, $context = array() ) {
@@ -1324,6 +1335,7 @@ class Email_Newsletter_Builder_V2 {
 			$font_link = '<link rel="stylesheet" type="text/css" href="' . $font_css_url . '" />';
 		}
 		$typography_css = $this->build_typography_css( $global );
+		$responsive_css = '@media only screen and (max-width:640px){.enews-grid-col{display:block!important;width:100%!important;padding-left:0!important;padding-right:0!important;}}';
 		$title = ! empty( $global['email_title'] )
 			? $global['email_title']
 			: ( ! empty( $global['subject'] ) ? $global['subject'] : __( 'Newsletter', 'email-newsletter' ) );
@@ -1335,9 +1347,12 @@ class Email_Newsletter_Builder_V2 {
 		$view_browser_row = $this->render_optional_shell_block( $view_browser, $global, 'padding:18px 24px 4px 24px;text-align:center;font-size:12px;line-height:1.5;color:#64748b;' );
 		$content = $this->render_state( $state, $mode, $context );
 
-		return '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><meta name="viewport" content="width=device-width" /><title>' . esc_html( $title ) . '</title>' . $font_link . '<style type="text/css">' . $typography_css . '@media only screen and (max-width:640px){.enews-grid-col{display:block!important;width:100%!important;padding-left:0!important;padding-right:0!important;}}</style></head><body style="margin:0;padding:0;background:' . esc_attr( $global['background_color'] ) . ';">'
-			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:' . esc_attr( $global['background_color'] ) . ';margin:0;padding:0;">'
-			. '<tr><td align="center" style="padding:' . ( $is_full_width ? '0' : '0 12px' ) . ';">'
+		$body_font_family = esc_attr( $this->get_array_value( $global, 'font_family', 'Arial, sans-serif' ) );
+		$body_text_color = esc_attr( $this->get_array_value( $global, 'text_color', '#374151' ) );
+		$body_font_size = intval( $this->get_array_value( $global, 'paragraph_font_size', 16 ) );
+		$html = '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><meta name="viewport" content="width=device-width" /><title>' . esc_html( $title ) . '</title>' . $font_link . '<style type="text/css">' . $typography_css . $responsive_css . '</style></head><body style="margin:0;padding:0;background:' . esc_attr( $global['background_color'] ) . ';font-family:' . $body_font_family . ';color:' . $body_text_color . ';font-size:' . $body_font_size . 'px;line-height:1.6;">'
+			. '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:' . esc_attr( $global['background_color'] ) . ';margin:0;padding:0;font-family:' . $body_font_family . ';color:' . $body_text_color . ';font-size:' . $body_font_size . 'px;line-height:1.6;">'
+			. '<tr><td align="center" style="padding:' . ( $is_full_width ? '0' : '0 12px' ) . ';font-family:' . $body_font_family . ';color:' . $body_text_color . ';">'
 			. '<table role="presentation" width="' . esc_attr( $shell_width ) . '" cellpadding="0" cellspacing="0" border="0" style="' . $shell_style . '">'
 			. $view_browser_row
 			. $branding
@@ -1348,6 +1363,32 @@ class Email_Newsletter_Builder_V2 {
 			. '</table>'
 			. $tracker
 			. '</body></html>';
+
+		return $this->inline_builder_styles( $html, $typography_css . $responsive_css );
+	}
+
+	function inline_builder_styles( $html, $css ) {
+		if ( empty( $html ) ) {
+			return '';
+		}
+
+		if ( empty( $css ) ) {
+			return $html;
+		}
+
+		$css = (string) $css;
+		$html = preg_replace( '/<style[^>]*>.*?<\/style>/is', '', $html );
+
+		if ( ! class_exists( 'CssToInlineStyles' ) ) {
+			require_once dirname( __FILE__ ) . '/builder/lib/css-inline.php';
+		}
+
+		if ( ! class_exists( 'CssToInlineStyles' ) ) {
+			return $html;
+		}
+
+		$css_inline = new CssToInlineStyles( $html, $css );
+		return $css_inline->convert();
 	}
 
 	function render_optional_shell_block( $html, $global, $style ) {
@@ -1355,7 +1396,7 @@ class Email_Newsletter_Builder_V2 {
 			return '';
 		}
 
-		return '<tr><td style="' . esc_attr( $style ) . 'font-family:' . esc_attr( $global['font_family'] ) . ';background:' . esc_attr( $global['content_background'] ) . ';">' . $html . '</td></tr>';
+		return '<tr><td style="' . esc_attr( $style ) . 'font-family:' . esc_attr( $global['font_family'] ) . ';background:' . esc_attr( $global['content_background'] ) . ';color:' . esc_attr( $this->get_array_value( $global, 'text_color', '#374151' ) ) . ';">' . $html . '</td></tr>';
 	}
 
 	function get_module_span( $module ) {
@@ -1543,6 +1584,12 @@ class Email_Newsletter_Builder_V2 {
 		$is_preview = 'preview' === $mode;
 		$resolve_shortcodes = in_array( $mode, array( 'preview', 'send' ), true );
 		$modules_map = $this->get_available_modules();
+		$font_family = esc_attr( $this->get_array_value( $global, 'font_family', 'Arial, sans-serif' ) );
+		$heading_color = esc_attr( $this->get_array_value( $global, 'heading_color', '#111827' ) );
+		$heading_font_size = intval( $this->get_array_value( $global, 'heading_font_size', 30 ) );
+		$paragraph_color = esc_attr( $this->get_array_value( $global, 'paragraph_color', '#374151' ) );
+		$paragraph_font_size = intval( $this->get_array_value( $global, 'paragraph_font_size', 16 ) );
+		$text_color = esc_attr( $this->get_array_value( $global, 'text_color', '#374151' ) );
 
 		if ( isset( $modules_map[ $type ]['render_callback'] ) && is_callable( $modules_map[ $type ]['render_callback'] ) ) {
 			$custom_html = call_user_func( $modules_map[ $type ]['render_callback'], $module, $global, $mode, $context, $this );
@@ -1558,12 +1605,19 @@ class Email_Newsletter_Builder_V2 {
 				return $this->render_header_row( $settings, $global );
 			case 'heading':
 				$tag = $settings['level'];
-				return '<' . $tag . ' style="margin:0;color:' . esc_attr( $settings['color'] ) . ';font-size:' . intval( $settings['font_size'] ) . 'px;line-height:1.2;font-family:' . esc_attr( $global['font_family'] ) . ';font-weight:700;text-align:' . esc_attr( $settings['align'] ) . ';">' . esc_html( $settings['text'] ) . '</' . $tag . '>';
+				$heading_color_value = isset( $settings['color'] ) && '' !== trim( (string) $settings['color'] ) ? $settings['color'] : $heading_color;
+				$heading_font_size_value = isset( $settings['font_size'] ) && '' !== trim( (string) $settings['font_size'] ) ? intval( $settings['font_size'] ) : $heading_font_size;
+				$heading_style = 'margin:0 0 12px 0;color:' . esc_attr( $heading_color_value ) . ';font-size:' . intval( $heading_font_size_value ) . 'px;line-height:1.2;font-family:' . $font_family . ';font-weight:700;text-align:' . esc_attr( $settings['align'] ) . ';';
+				return '<' . $tag . ' style="' . $heading_style . '">' . esc_html( $settings['text'] ) . '</' . $tag . '>';
 			case 'text':
 				$text = wpautop( $settings['text'] );
-				return '<div style="color:' . esc_attr( $settings['color'] ) . ';font-size:' . intval( $settings['font_size'] ) . 'px;line-height:1.6;font-family:' . esc_attr( $global['font_family'] ) . ';text-align:' . esc_attr( $settings['align'] ) . ';">' . $text . '</div>';
+				$text_color_value = isset( $settings['color'] ) && '' !== trim( (string) $settings['color'] ) ? $settings['color'] : $paragraph_color;
+				$text_font_size_value = isset( $settings['font_size'] ) && '' !== trim( (string) $settings['font_size'] ) ? intval( $settings['font_size'] ) : $paragraph_font_size;
+				$text_style = 'color:' . esc_attr( $text_color_value ) . ';font-size:' . intval( $text_font_size_value ) . 'px;line-height:1.7;font-family:' . $font_family . ';text-align:' . esc_attr( $settings['align'] ) . ';margin:0 0 16px 0;';
+				$styled_text = $this->apply_inline_text_styles( $text, $text_color_value, $text_font_size_value, $font_family, $settings['align'] );
+				return '<div style="' . $text_style . '">' . $styled_text . '</div>';
 			case 'button':
-				return $this->render_button_markup( $settings['label'], $settings['url'], $settings['background'], $settings['color'], $settings['radius'], $settings['align'], $global['font_family'] );
+				return $this->render_button_markup( $settings['label'], $settings['url'], $settings['background'], $settings['color'], $settings['radius'], $settings['align'], $font_family );
 			case 'image':
 				return $this->render_image_row( $settings, $global );
 			case 'hero':
@@ -1590,7 +1644,9 @@ class Email_Newsletter_Builder_V2 {
 				if ( '' === trim( $settings['html'] ) ) {
 					return '';
 				}
-				return $resolve_shortcodes ? do_shortcode( $settings['html'] ) : $settings['html'];
+				$html = $resolve_shortcodes ? do_shortcode( $settings['html'] ) : $settings['html'];
+				$styled_html = $this->apply_inline_text_styles( $html, $paragraph_color, $paragraph_font_size, $font_family, 'left' );
+				return '<div style="color:' . esc_attr( $paragraph_color ) . ';font-family:' . $font_family . ';font-size:' . intval( $paragraph_font_size ) . 'px;line-height:1.6;">' . $styled_html . '</div>';
 			case 'products':
 				$settings['ids'] = $this->resolve_module_item_ids( 'products', $settings, $context );
 				if ( empty( $settings['ids'] ) ) {
@@ -1673,25 +1729,27 @@ class Email_Newsletter_Builder_V2 {
 	function render_hero_row( $settings, $global ) {
 		$image = '';
 		if ( ! empty( $settings['image_url'] ) ) {
-			$image = '<tr><td style="padding:0;"><img src="' . esc_url( $settings['image_url'] ) . '" alt="' . esc_attr( $settings['image_alt'] ) . '" style="display:block;width:100%;height:auto;border:0;"></td></tr>';
+			$image = '<tr><td style="padding:0 0 18px 0;"><img src="' . esc_url( $settings['image_url'] ) . '" alt="' . esc_attr( $settings['image_alt'] ) . '" style="display:block;width:100%;height:auto;border:0;border-radius:12px;"></td></tr>';
 		}
 
 		$eyebrow = '';
 		if ( ! empty( $settings['eyebrow'] ) ) {
-			$eyebrow = '<div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:0.85;margin-bottom:10px;">' . esc_html( $settings['eyebrow'] ) . '</div>';
+			$eyebrow = '<div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:0.9;margin:0 0 10px 0;font-weight:700;">' . esc_html( $settings['eyebrow'] ) . '</div>';
 		}
 
 		$text = '';
 		if ( ! empty( $settings['text'] ) ) {
-			$text = '<div style="margin:0 0 18px 0;font-size:16px;line-height:1.6;">' . wpautop( $settings['text'] ) . '</div>';
+			$text = '<div style="margin:0 0 18px 0;font-size:16px;line-height:1.7;">' . wpautop( $settings['text'] ) . '</div>';
 		}
 
 		$button = '';
 		if ( ! empty( $settings['button_label'] ) ) {
-			$button = $this->render_button_markup( $settings['button_label'], $settings['button_url'], $settings['button_background'], $settings['button_color'], 6, $settings['align'], $global['font_family'] );
+			$button = $this->render_button_markup( $settings['button_label'], $settings['button_url'], $settings['button_background'], $settings['button_color'], 8, $settings['align'], $global['font_family'] );
 		}
 
-		$html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . esc_attr( $settings['background'] ) . ';"><tbody>' . $image . '<tr><td style="padding:30px 24px;color:' . esc_attr( $settings['text_color'] ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';text-align:' . esc_attr( $settings['align'] ) . ';">' . $eyebrow . '<div style="font-size:34px;line-height:1.15;font-weight:700;margin:0 0 12px 0;">' . esc_html( $settings['title'] ) . '</div>' . $text . $button . '</td></tr></tbody></table>';
+		$hero_text_color = isset( $settings['text_color'] ) && '' !== trim( (string) $settings['text_color'] ) ? $settings['text_color'] : $this->get_array_value( $global, 'text_color', '#374151' );
+		$hero_background = isset( $settings['background'] ) && '' !== trim( (string) $settings['background'] ) ? $settings['background'] : $this->get_array_value( $global, 'content_background', '#ffffff' );
+		$html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . esc_attr( $hero_background ) . ';border:1px solid #dbe7f3;border-radius:18px;overflow:hidden;"><tbody>' . $image . '<tr><td style="padding:28px 24px 24px 24px;color:' . esc_attr( $hero_text_color ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';text-align:' . esc_attr( $settings['align'] ) . ';font-size:16px;line-height:1.7;">' . $eyebrow . '<div style="font-size:34px;line-height:1.15;font-weight:700;margin:0 0 12px 0;">' . esc_html( $settings['title'] ) . '</div>' . $text . $button . '</td></tr></tbody></table>';
 
 		return $html;
 	}
@@ -1699,10 +1757,12 @@ class Email_Newsletter_Builder_V2 {
 	function render_cta_row( $settings, $global ) {
 		$button = '';
 		if ( ! empty( $settings['button_label'] ) ) {
-			$button = $this->render_button_markup( $settings['button_label'], $settings['button_url'], $settings['button_background'], $settings['button_color'], 6, $settings['align'], $global['font_family'] );
+			$button = $this->render_button_markup( $settings['button_label'], $settings['button_url'], $settings['button_background'], $settings['button_color'], 8, $settings['align'], $global['font_family'] );
 		}
 
-		$html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . esc_attr( $settings['background'] ) . ';"><tr><td style="padding:28px 24px;color:' . esc_attr( $settings['text_color'] ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';text-align:' . esc_attr( $settings['align'] ) . ';"><div style="font-size:28px;line-height:1.2;font-weight:700;margin:0 0 10px 0;">' . esc_html( $settings['title'] ) . '</div><div style="font-size:16px;line-height:1.6;margin:0 0 18px 0;">' . wpautop( $settings['text'] ) . '</div>' . $button . '</td></tr></table>';
+		$cta_text_color = isset( $settings['text_color'] ) && '' !== trim( (string) $settings['text_color'] ) ? $settings['text_color'] : $this->get_array_value( $global, 'text_color', '#374151' );
+		$cta_background = isset( $settings['background'] ) && '' !== trim( (string) $settings['background'] ) ? $settings['background'] : '#eff6ff';
+		$html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . esc_attr( $cta_background ) . ';border:1px solid #dbe7f3;border-radius:18px;overflow:hidden;"><tr><td style="padding:28px 24px;color:' . esc_attr( $cta_text_color ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';text-align:' . esc_attr( $settings['align'] ) . ';font-size:16px;line-height:1.7;"><div style="font-size:28px;line-height:1.2;font-weight:700;margin:0 0 10px 0;">' . esc_html( $settings['title'] ) . '</div><div style="font-size:16px;line-height:1.7;margin:0 0 18px 0;">' . wpautop( $settings['text'] ) . '</div>' . $button . '</td></tr></table>';
 
 		return $html;
 	}
@@ -1782,7 +1842,32 @@ class Email_Newsletter_Builder_V2 {
 			$link_line = '<div style="margin-top:10px;">' . implode( ' &nbsp;|&nbsp; ', $links ) . '</div>';
 		}
 
-		$html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . esc_attr( $settings['background'] ) . ';"><tr><td style="padding:22px 24px;color:' . esc_attr( $settings['text_color'] ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';font-size:13px;line-height:1.6;text-align:' . esc_attr( $settings['align'] ) . ';"><strong>' . esc_html( $settings['company'] ) . '</strong>' . $address . '<div>' . esc_html( $settings['legal_text'] ) . '</div>' . $link_line . '</td></tr></table>';
+		$footer_background = isset( $settings['background'] ) && '' !== trim( (string) $settings['background'] ) ? $settings['background'] : '#f8fafc';
+		$footer_text_color = isset( $settings['text_color'] ) && '' !== trim( (string) $settings['text_color'] ) ? $settings['text_color'] : '#64748b';
+		$html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:' . esc_attr( $footer_background ) . ';border:1px solid #dbe7f3;border-radius:18px;overflow:hidden;"><tr><td style="padding:22px 24px;color:' . esc_attr( $footer_text_color ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';font-size:13px;line-height:1.6;text-align:' . esc_attr( $settings['align'] ) . ';"><strong>' . esc_html( $settings['company'] ) . '</strong>' . $address . '<div>' . esc_html( $settings['legal_text'] ) . '</div>' . $link_line . '</td></tr></table>';
+
+		return $html;
+	}
+
+	function apply_inline_text_styles( $html, $color, $font_size, $font_family, $align, $line_height = '1.7' ) {
+		$html = (string) $html;
+		if ( '' === trim( $html ) ) {
+			return '';
+		}
+
+		$color = esc_attr( $color );
+		$font_size = intval( $font_size );
+		$font_family = esc_attr( $font_family );
+		$align = esc_attr( $align );
+		$line_height = esc_attr( $line_height );
+		$paragraph_style = 'margin:0 0 12px 0;color:' . $color . ';font-family:' . $font_family . ';font-size:' . $font_size . 'px;line-height:' . $line_height . ';text-align:' . $align . ';';
+		$link_style = 'color:' . $color . ';text-decoration:underline;';
+
+		$html = preg_replace( '/<p\b([^>]*)>/i', '<p$1 style="' . $paragraph_style . '">', $html );
+		$html = preg_replace( '/<a\b([^>]*)>/i', '<a$1 style="' . $link_style . '">', $html );
+		$html = preg_replace( '/<ul\b([^>]*)>/i', '<ul$1 style="margin:0 0 12px 0;padding-left:20px;">', $html );
+		$html = preg_replace( '/<ol\b([^>]*)>/i', '<ol$1 style="margin:0 0 12px 0;padding-left:20px;">', $html );
+		$html = preg_replace( '/<li\b([^>]*)>/i', '<li$1 style="margin:0 0 6px 0;">', $html );
 
 		return $html;
 	}
@@ -1792,7 +1877,7 @@ class Email_Newsletter_Builder_V2 {
 			return '';
 		}
 
-		return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="' . esc_attr( $align ) . '"><tr><td bgcolor="' . esc_attr( $background ) . '" style="border-radius:' . intval( $radius ) . 'px;background:' . esc_attr( $background ) . ';"><a href="' . esc_url( $url ) . '" style="display:inline-block;padding:12px 22px;color:' . esc_attr( $color ) . ';text-decoration:none;font-family:' . esc_attr( $font_family ) . ';font-size:16px;font-weight:700;">' . esc_html( $label ) . '</a></td></tr></table>';
+		return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="' . esc_attr( $align ) . '"><tr><td bgcolor="' . esc_attr( $background ) . '" style="border-radius:' . intval( $radius ) . 'px;background:' . esc_attr( $background ) . ';"><a href="' . esc_url( $url ) . '" style="display:inline-block;padding:12px 22px;color:' . esc_attr( $color ) . ';text-decoration:none;font-family:' . esc_attr( $font_family ) . ';font-size:16px;font-weight:700;line-height:1.2;">' . esc_html( $label ) . '</a></td></tr></table>';
 	}
 
 	function build_products_shortcode( $settings ) {
@@ -2006,7 +2091,8 @@ class Email_Newsletter_Builder_V2 {
 
 	function wrap_row( $html, $global, $padding = null ) {
 		$padding = is_null( $padding ) ? intval( $global['section_gap'] ) : intval( $padding );
-		return '<tr><td style="padding:' . $padding . 'px 24px;color:' . esc_attr( $global['text_color'] ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';">' . $html . '</td></tr>';
+		$background_color = isset( $global['content_background'] ) ? esc_attr( $global['content_background'] ) : 'transparent';
+		return '<tr><td style="padding:' . $padding . 'px 24px;color:' . esc_attr( $global['text_color'] ) . ';font-family:' . esc_attr( $global['font_family'] ) . ';background:' . $background_color . ';">' . $html . '</td></tr>';
 	}
 
 	function sanitize_text_decoration( $value ) {

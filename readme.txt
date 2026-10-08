@@ -1,9 +1,9 @@
-=== PS Newsletter ===
+=== PS eNewsletter ===
 Contributors: PSOURCE
 Tags: newsletter
 Requires at least: 4.9
 Tested up to: WordPress 6.4 
-ClassicPress: 2.7.0
+ClassicPress: 2.7.3
 Stable tag: 1.1.2
 Requires PHP: 8.0
 License: GPLv2 or later
